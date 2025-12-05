@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path=".gitignore" />
+  </Folder>
+  <Project Path="BlazorPRF.Shared/BlazorPRF.Shared.csproj" />
+  <Project Path="PseudoPRF/PseudoPRF.csproj" />
+  <Project Path="PseudoPRF.Console/PseudoPRF.Console.csproj" />
+  <Project Path="BlazorPRF/BlazorPRF.csproj" />
+  <Project Path="BlazorPRF.UI/BlazorPRF.UI.csproj" />
+  <Project Path="BlazorPRF.Sample/BlazorPRF.Sample.csproj" />
+  <Project Path="BlazorPRF.Tests/BlazorPRF.Tests.csproj" />
+</Solution>

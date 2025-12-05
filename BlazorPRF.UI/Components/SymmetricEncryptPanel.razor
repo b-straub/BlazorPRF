@@ -1,0 +1,226 @@
+@inherits PrfModelComponent
+@inject ISymmetricEncryption SymmetricEncryption
+@inject ISnackbar Snackbar
+@inject IClipboard Clipboard
+
+<MudCard>
+    <MudCardHeader>
+        <CardHeaderAvatar>
+            <MudIcon Icon="@Icons.Material.Filled.Lock" Color="Color.Primary" />
+        </CardHeaderAvatar>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Symmetric Encryption</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Encrypt/decrypt for yourself</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+
+    <MudCardContent>
+        @if (!Model.HasKeys)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-4">
+                Please derive keys first using the authentication panel.
+            </MudAlert>
+        }
+
+        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="mb-4">
+            <MudTabPanel Text="Encrypt">
+                <MudTextField @bind-Value="_plaintext"
+                              Label="Message to Encrypt"
+                              Variant="Variant.Outlined"
+                              Lines="4"
+                              Class="mt-4 mb-4"
+                              Disabled="@(_isProcessing || !Model.HasKeys)" />
+
+                <MudButton Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           StartIcon="@Icons.Material.Filled.Lock"
+                           OnClick="EncryptAsync"
+                           Disabled="@(!CanEncrypt)">
+                    @if (_isProcessing)
+                    {
+                        <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                        <span>Encrypting...</span>
+                    }
+                    else
+                    {
+                        <span>Encrypt</span>
+                    }
+                </MudButton>
+
+                @if (_encryptedResult is not null)
+                {
+                    <MudPaper Class="pa-4 mt-4" Elevation="0" Outlined="true">
+                        <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween">
+                            <div Style="flex: 1; overflow: hidden;">
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Encrypted Result (JSON)</MudText>
+                                <MudText Typo="Typo.body2" Style="font-family: monospace; word-break: break-all; white-space: pre-wrap;">
+                                    @_encryptedJson
+                                </MudText>
+                            </div>
+                            <MudTooltip Text="Copy to clipboard">
+                                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                               Color="Color.Primary"
+                                               OnClick="CopyEncryptedAsync" />
+                            </MudTooltip>
+                        </MudStack>
+                    </MudPaper>
+                }
+            </MudTabPanel>
+
+            <MudTabPanel Text="Decrypt">
+                <MudTextField @bind-Value="_encryptedInput"
+                              Label="Encrypted JSON"
+                              Variant="Variant.Outlined"
+                              Lines="4"
+                              Class="mt-4 mb-4"
+                              Disabled="@(_isProcessing || !Model.HasKeys)" />
+
+                <MudButton Color="Color.Secondary"
+                           Variant="Variant.Filled"
+                           StartIcon="@Icons.Material.Filled.LockOpen"
+                           OnClick="DecryptAsync"
+                           Disabled="@(!CanDecrypt)">
+                    @if (_isProcessing)
+                    {
+                        <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                        <span>Decrypting...</span>
+                    }
+                    else
+                    {
+                        <span>Decrypt</span>
+                    }
+                </MudButton>
+
+                @if (_decryptedResult is not null)
+                {
+                    <MudPaper Class="pa-4 mt-4" Elevation="0" Outlined="true">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Decrypted Message</MudText>
+                        <MudText Typo="Typo.body1">@_decryptedResult</MudText>
+                    </MudPaper>
+                }
+            </MudTabPanel>
+        </MudTabs>
+
+        @if (_errorMessage is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4" Variant="Variant.Outlined">
+                @_errorMessage
+            </MudAlert>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private string _plaintext = string.Empty;
+    private string _encryptedInput = string.Empty;
+    private bool _isProcessing;
+    private string? _errorMessage;
+    private SymmetricEncryptedMessage? _encryptedResult;
+    private string? _encryptedJson;
+    private string? _decryptedResult;
+
+    private bool CanEncrypt => Model.HasKeys && !_isProcessing && !string.IsNullOrWhiteSpace(_plaintext);
+    private bool CanDecrypt => Model.HasKeys && !_isProcessing && !string.IsNullOrWhiteSpace(_encryptedInput);
+
+    private async Task EncryptAsync()
+    {
+        if (!CanEncrypt)
+        {
+            return;
+        }
+
+        _isProcessing = true;
+        _errorMessage = null;
+        _encryptedResult = null;
+        _encryptedJson = null;
+
+        try
+        {
+            var result = await SymmetricEncryption.EncryptAsync(_plaintext, Model.Salt);
+
+            if (result is { Success: true, Value: not null })
+            {
+                _encryptedResult = result.Value;
+                _encryptedJson = System.Text.Json.JsonSerializer.Serialize(result.Value, new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+            }
+            else
+            {
+                _errorMessage = result.Error ?? "Encryption failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task DecryptAsync()
+    {
+        if (!CanDecrypt)
+        {
+            return;
+        }
+
+        _isProcessing = true;
+        _errorMessage = null;
+        _decryptedResult = null;
+
+        try
+        {
+            var encrypted = System.Text.Json.JsonSerializer.Deserialize<SymmetricEncryptedMessage>(_encryptedInput);
+            if (encrypted is null)
+            {
+                _errorMessage = "Invalid encrypted JSON format";
+                return;
+            }
+
+            var result = await SymmetricEncryption.DecryptAsync(encrypted, Model.Salt);
+
+            if (result is { Success: true, Value: not null })
+            {
+                _decryptedResult = result.Value;
+            }
+            else
+            {
+                _errorMessage = result.Error ?? "Decryption failed";
+            }
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            _errorMessage = "Invalid JSON format";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task CopyEncryptedAsync()
+    {
+        if (string.IsNullOrEmpty(_encryptedJson))
+        {
+            return;
+        }
+
+        try
+        {
+            await Clipboard.SetTextAsync(_encryptedJson);
+            Snackbar.Add("Encrypted message copied!", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Failed to copy", Severity.Error);
+        }
+    }
+}

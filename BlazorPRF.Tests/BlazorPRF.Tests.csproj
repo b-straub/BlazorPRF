@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+    <PropertyGroup>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="bunit" Version="2.1.1"/>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1"/>
+        <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="Xunit.DependencyInjection" Version="11.1.0"/>
+        <PackageReference Include="xunit.v3" Version="3.2.1"/>
+        <PackageReference Include="xunit.v3.assert" Version="3.2.1"/>
+        <PackageReference Include="MudBlazor" Version="8.15.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\BlazorPRF\BlazorPRF.csproj"/>
+        <ProjectReference Include="..\BlazorPRF.UI\BlazorPRF.UI.csproj"/>
+        <ProjectReference Include="..\PseudoPRF\PseudoPRF.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="Xunit"/>
+    </ItemGroup>
+
+</Project>

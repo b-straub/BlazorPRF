@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <PackageId>BlazorPRF</PackageId>
+    <Version>$(BlazorPRFVersion)</Version>
+    <Authors>bernisoft</Authors>
+    <Description>PRF-based deterministic encryption library for Blazor WebAssembly using WebAuthn PRF extension</Description>
+    <PackageTags>blazor;webauthn;prf;encryption;x25519;chacha20</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/b-straub/BlazorPRF</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/b-straub/BlazorPRF</RepositoryUrl>
+    <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <EmbedAllSources>true</EmbedAllSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)../.nuget</PackageOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorPRF.Shared\BlazorPRF.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.0"/>
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0"/>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0"/>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0"/>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0"/>
+  </ItemGroup>
+
+  <!-- TypeScript Build Integration -->
+  <Target Name="NpmInstall" BeforeTargets="BuildTypeScriptDebug;BuildTypeScriptRelease">
+    <Exec WorkingDirectory="TypeScript"
+          Command="npm install"
+          Condition="Exists('TypeScript/package.json') And !Exists('TypeScript/node_modules')" />
+  </Target>
+
+  <Target Name="BuildTypeScriptDebug"
+          BeforeTargets="BeforeCompile;ResolveStaticWebAssetsInputs"
+          Condition="'$(Configuration)' == 'Debug'">
+    <Exec WorkingDirectory="TypeScript"
+          Command="npm run build"
+          Condition="Exists('TypeScript/package.json')" />
+  </Target>
+
+  <Target Name="BuildTypeScriptRelease"
+          BeforeTargets="BeforeCompile;ResolveStaticWebAssetsInputs"
+          Condition="'$(Configuration)' == 'Release'">
+    <Exec WorkingDirectory="TypeScript"
+          Command="npm run build:release"
+          Condition="Exists('TypeScript/package.json')" />
+  </Target>
+
+</Project>

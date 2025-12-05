@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+    <PropertyGroup>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <PackageId>BlazorPRF.UI</PackageId>
+        <Version>$(RxBlazorV2Version)</Version>
+        <Authors>bernisoft</Authors>
+        <Description>MudBlazor UI components for PRF-based deterministic encryption</Description>
+        <PackageTags>blazor;mudblazor;webauthn;prf;encryption;ui</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/b-straub/BlazorPRF</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/b-straub/BlazorPRF</RepositoryUrl>
+        <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
+        <IncludeSymbols>true</IncludeSymbols>
+        <EmbedAllSources>true</EmbedAllSources>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <PackageOutputPath>$(MSBuildThisFileDirectory)../.nuget</PackageOutputPath>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <SupportedPlatform Include="browser" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.0" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.0" />
+        <PackageReference Include="RxBlazorV2.MudBlazor" Version="1.0.3" />
+        <PackageReference Include="TextCopy" Version="6.2.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\BlazorPRF\BlazorPRF.csproj" />
+    </ItemGroup>
+
+</Project>

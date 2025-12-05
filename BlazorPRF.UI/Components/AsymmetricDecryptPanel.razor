@@ -1,0 +1,137 @@
+@using BlazorPRF.Shared.Formatting
+@using BlazorPRF.Shared.Json
+@inherits PrfModelComponent
+@inject IAsymmetricEncryption AsymmetricEncryption
+
+<MudCard>
+    <MudCardHeader>
+        <CardHeaderAvatar>
+            <MudIcon Icon="@Icons.Material.Filled.Inbox" Color="Color.Primary" />
+        </CardHeaderAvatar>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Decrypt Message</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Decrypt messages sent to you</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+
+    <MudCardContent>
+        @if (!Model.HasKeys)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-4">
+                Please derive keys first using the authentication panel.
+            </MudAlert>
+        }
+
+        <MudTextField @bind-Value="_encryptedInput"
+                      Label="Encrypted Message"
+                      Variant="Variant.Outlined"
+                      Lines="8"
+                      Class="mb-4"
+                      Style="font-family: monospace;"
+                      HelperText="Paste the PFA message"
+                      Disabled="@(_isProcessing || !Model.HasKeys)" />
+
+        @if (_errorMessage is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-4" Variant="Variant.Outlined">
+                @_errorMessage
+            </MudAlert>
+        }
+
+        @if (_decryptedResult is not null)
+        {
+            <MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Decrypted Message</MudText>
+                <MudText Typo="Typo.body1">@_decryptedResult</MudText>
+            </MudPaper>
+        }
+    </MudCardContent>
+
+    <MudCardActions>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.LockOpen"
+                   OnClick="DecryptAsync"
+                   Disabled="@(!CanDecrypt)">
+            @if (_isProcessing)
+            {
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                <span>Decrypting...</span>
+            }
+            else
+            {
+                <span>Decrypt</span>
+            }
+        </MudButton>
+    </MudCardActions>
+</MudCard>
+
+@code {
+    private string _encryptedInput = string.Empty;
+    private bool _isProcessing;
+    private string? _errorMessage;
+    private string? _decryptedResult;
+
+    private bool CanDecrypt => Model.HasKeys && !_isProcessing && !string.IsNullOrWhiteSpace(_encryptedInput);
+
+    private async Task DecryptAsync()
+    {
+        if (!CanDecrypt)
+        {
+            return;
+        }
+
+        _isProcessing = true;
+        _errorMessage = null;
+        _decryptedResult = null;
+
+        try
+        {
+            // Check if input is armored or raw JSON
+            string? json;
+            if (PrfArmor.IsArmoredMessage(_encryptedInput))
+            {
+                json = PrfArmor.UnArmorMessage(_encryptedInput);
+                if (json is null)
+                {
+                    _errorMessage = "Invalid PFA message format";
+                    return;
+                }
+            }
+            else
+            {
+                json = _encryptedInput.Trim();
+            }
+
+            var encrypted = System.Text.Json.JsonSerializer.Deserialize(json, SharedJsonContext.Default.EncryptedMessage);
+            if (encrypted is null)
+            {
+                _errorMessage = "Invalid message format";
+                return;
+            }
+
+            var result = await AsymmetricEncryption.DecryptAsync(encrypted, Model.Salt);
+
+            if (result is { Success: true, Value: not null })
+            {
+                _decryptedResult = result.Value;
+            }
+            else
+            {
+                _errorMessage = result.Error ?? "Decryption failed";
+            }
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            _errorMessage = "Invalid message format. Paste a PFA message or JSON with { ephemeralPublicKey, ciphertext, nonce }";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+}

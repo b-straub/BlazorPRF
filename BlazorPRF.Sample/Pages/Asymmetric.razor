@@ -1,0 +1,20 @@
+@page "/asymmetric"
+@attribute [Authorize]
+@inherits PrfModelComponent
+
+<PageTitle>Asymmetric Encryption - BlazorPRF</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Asymmetric Encryption (ECIES)</MudText>
+<MudText Typo="Typo.body1" Class="mb-6">
+    Share your public key with others. They can encrypt messages to you that only you can decrypt.
+</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="6">
+        <AsymmetricEncryptPanel InitialPublicKey="@Model.PublicKey" />
+    </MudItem>
+
+    <MudItem xs="12">
+        <AsymmetricDecryptPanel />
+    </MudItem>
+</MudGrid>

@@ -1,0 +1,12 @@
+@page "/symmetric"
+@attribute [Authorize]
+
+<PageTitle>Symmetric Encryption - BlazorPRF</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Symmetric Encryption</MudText>
+<MudText Typo="Typo.body1" Class="mb-6">
+    Encrypt and decrypt data using your PRF-derived symmetric key.
+    Only you can decrypt this data using your passkey.
+</MudText>
+
+<SymmetricEncryptPanel />

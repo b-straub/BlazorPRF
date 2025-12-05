@@ -1,0 +1,29 @@
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+
+# Node
+node_modules/
+package-lock.json
+
+# Build outputs
+wwwroot/*.js
+wwwroot/*.js.map
+dist/
+
+# IDE
+.idea/
+*.suo
+*.user
+.vs/
+
+# NuGet
+*.nupkg
+.nuget/
+
+# OS
+.DS_Store
+Thumbs.db
+Docs

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PseudoPRF\PseudoPRF.csproj" />
+    <ProjectReference Include="..\BlazorPRF.Shared\BlazorPRF.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

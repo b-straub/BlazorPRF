@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>PseudoPRF</PackageId>
+    <Version>$(BlazorPRFVersion)</Version>
+    <Authors>bernisoft</Authors>
+    <Description>X25519/ChaCha20-Poly1305 encryption library compatible with BlazorPRF - for environments without WebAuthn PRF</Description>
+    <PackageTags>encryption;x25519;chacha20;cryptography;ecies</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/b-straub/BlazorPRF</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/b-straub/BlazorPRF</RepositoryUrl>
+    <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <EmbedAllSources>true</EmbedAllSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)../.nuget</PackageOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorPRF.Shared\BlazorPRF.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NSec.Cryptography" Version="25.2.0-preview.3" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+
+</Project>

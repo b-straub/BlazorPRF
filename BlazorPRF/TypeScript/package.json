@@ -1,0 +1,19 @@
+{
+  "name": "blazor-prf-typescript",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --format=esm --sourcemap=inline --outfile=../wwwroot/blazor-prf.js",
+    "build:release": "esbuild src/index.ts --bundle --format=esm --minify --outfile=../wwwroot/blazor-prf.js"
+  },
+  "dependencies": {
+    "@simplewebauthn/browser": "^11.0.0",
+    "@noble/curves": "^1.7.0",
+    "@noble/ciphers": "^1.0.0",
+    "@noble/hashes": "^1.6.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.2"
+  }
+}

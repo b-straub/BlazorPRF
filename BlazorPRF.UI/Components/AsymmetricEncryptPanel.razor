@@ -1,0 +1,227 @@
+@using BlazorPRF.Shared.Formatting
+@inject IAsymmetricEncryption AsymmetricEncryption
+@inject ISnackbar Snackbar
+@inject IClipboard Clipboard
+
+<MudCard>
+    <MudCardHeader>
+        <CardHeaderAvatar>
+            <MudIcon Icon="@Icons.Material.Filled.Send" Color="Color.Primary" />
+        </CardHeaderAvatar>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Encrypt for Recipient</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Anyone can encrypt to a public key</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+
+    <MudCardContent>
+        <MudTextField @bind-Value="RecipientPublicKey"
+                      Label="Recipient's Public Key"
+                      Variant="Variant.Outlined"
+                      HelperText="Paste the recipient's PFA public key"
+                      Lines="5"
+                      Class="mb-4"
+                      Style="font-family: monospace;"
+                      Disabled="@_isProcessing" />
+
+        @if (_recipientMetadata is not null)
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-4" Variant="Variant.Outlined" Dense="true">
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                    <MudText Typo="Typo.body2">
+                        @if (!string.IsNullOrWhiteSpace(_recipientMetadata.Name))
+                        {
+                            <strong>@_recipientMetadata.Name</strong>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(_recipientMetadata.Email))
+                        {
+                            <text> &lt;@_recipientMetadata.Email&gt;</text>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(_recipientMetadata.Comment))
+                        {
+                            <text> (@_recipientMetadata.Comment)</text>
+                        }
+                        @if (_recipientMetadata.Created.HasValue)
+                        {
+                            <text> — Created @_recipientMetadata.Created.Value.ToString("yyyy-MM-dd")</text>
+                        }
+                    </MudText>
+                </MudStack>
+            </MudAlert>
+        }
+
+        <MudTextField @bind-Value="_plaintext"
+                      Label="Message to Encrypt"
+                      Variant="Variant.Outlined"
+                      Lines="4"
+                      Class="mb-4"
+                      Disabled="@_isProcessing" />
+
+        @if (_errorMessage is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-4" Variant="Variant.Outlined">
+                @_errorMessage
+            </MudAlert>
+        }
+
+        @if (_armoredMessage is not null)
+        {
+            <MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true">
+                <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween">
+                    <div Style="flex: 1; overflow: hidden;">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Encrypted Message</MudText>
+                        <MudText Typo="Typo.body2" Style="font-family: monospace; white-space: pre-wrap;">
+                            @_armoredMessage
+                        </MudText>
+                    </div>
+                    <MudTooltip Text="Copy to clipboard">
+                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                       Color="Color.Primary"
+                                       OnClick="CopyEncryptedAsync" />
+                    </MudTooltip>
+                </MudStack>
+            </MudPaper>
+        }
+    </MudCardContent>
+
+    <MudCardActions>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Lock"
+                   OnClick="EncryptAsync"
+                   Disabled="@(!CanEncrypt)">
+            @if (_isProcessing)
+            {
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                <span>Encrypting...</span>
+            }
+            else
+            {
+                <span>Encrypt</span>
+            }
+        </MudButton>
+    </MudCardActions>
+</MudCard>
+
+@code {
+    /// <summary>
+    /// Optional initial public key to pre-populate the field (Base64 or armored).
+    /// </summary>
+    [Parameter]
+    public string? InitialPublicKey { get; set; }
+
+    private string _recipientPublicKeyInput = string.Empty;
+    private string _plaintext = string.Empty;
+    private bool _isProcessing;
+    private string? _errorMessage;
+    private string? _armoredMessage;
+    private PublicKeyMetadata? _recipientMetadata;
+
+    private string RecipientPublicKey
+    {
+        get => _recipientPublicKeyInput;
+        set
+        {
+            _recipientPublicKeyInput = value;
+            ExtractMetadata(value);
+        }
+    }
+
+    private void ExtractMetadata(string input)
+    {
+        _recipientMetadata = null;
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return;
+        }
+
+        if (PrfArmor.IsArmoredPublicKey(input))
+        {
+            var (_, metadata) = PrfArmor.UnArmorPublicKeyWithMetadata(input);
+            _recipientMetadata = metadata;
+        }
+    }
+
+    private bool CanEncrypt =>
+        !_isProcessing &&
+        !string.IsNullOrWhiteSpace(_recipientPublicKeyInput) &&
+        !string.IsNullOrWhiteSpace(_plaintext);
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        if (!string.IsNullOrWhiteSpace(InitialPublicKey) && string.IsNullOrWhiteSpace(_recipientPublicKeyInput))
+        {
+            // If it's raw Base64, armor it for display
+            RecipientPublicKey = PrfArmor.IsArmoredPublicKey(InitialPublicKey)
+                ? InitialPublicKey
+                : PrfArmor.ArmorPublicKey(InitialPublicKey);
+        }
+    }
+
+    private async Task EncryptAsync()
+    {
+        if (!CanEncrypt)
+        {
+            return;
+        }
+
+        _isProcessing = true;
+        _errorMessage = null;
+        _armoredMessage = null;
+
+        try
+        {
+            // Extract Base64 key if armored, otherwise use as-is
+            var base64Key = PrfArmor.IsArmoredPublicKey(_recipientPublicKeyInput)
+                ? PrfArmor.UnArmorPublicKey(_recipientPublicKeyInput)
+                : _recipientPublicKeyInput.Trim();
+
+            if (string.IsNullOrEmpty(base64Key))
+            {
+                _errorMessage = "Invalid public key format";
+                return;
+            }
+
+            var result = await AsymmetricEncryption.EncryptAsync(_plaintext, base64Key);
+
+            if (result is { Success: true, Value: not null })
+            {
+                var json = System.Text.Json.JsonSerializer.Serialize(result.Value);
+                _armoredMessage = PrfArmor.ArmorMessage(json);
+            }
+            else
+            {
+                _errorMessage = result.Error ?? "Encryption failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task CopyEncryptedAsync()
+    {
+        if (string.IsNullOrEmpty(_armoredMessage))
+        {
+            return;
+        }
+
+        try
+        {
+            await Clipboard.SetTextAsync(_armoredMessage);
+            Snackbar.Add("Encrypted message copied!", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Failed to copy", Severity.Error);
+        }
+    }
+}

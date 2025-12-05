@@ -1,0 +1,14 @@
+@page "/encrypt"
+
+<PageTitle>Encrypt Message - BlazorPRF</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Encrypt a Message</MudText>
+<MudText Typo="Typo.body1" Class="mb-6">
+    Encrypt a message to someone's public key. No authentication required - anyone can encrypt to a public key.
+</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="8" lg="6">
+        <AsymmetricEncryptPanel />
+    </MudItem>
+</MudGrid>

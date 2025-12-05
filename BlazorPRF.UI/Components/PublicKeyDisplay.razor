@@ -1,0 +1,137 @@
+@using BlazorPRF.Shared.Formatting
+@inject ISnackbar Snackbar
+@inject IClipboard Clipboard
+
+<MudPaper Class="pa-4 mt-4" Elevation="0" Outlined="true">
+    <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween">
+        <div Style="flex: 1; overflow: hidden;">
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">Public Key (share this with others)</MudText>
+            <MudText Typo="Typo.body2" Style="font-family: monospace; white-space: pre-wrap; word-break: break-all;">@ArmoredKey</MudText>
+        </div>
+        <MudStack Row="true" Spacing="0">
+            <MudTooltip Text="Edit metadata">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                               Color="Color.Default"
+                               OnClick="OpenMetadataDialog" />
+            </MudTooltip>
+            <MudTooltip Text="Copy to clipboard">
+                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                               Color="Color.Primary"
+                               OnClick="CopyToClipboardAsync" />
+            </MudTooltip>
+        </MudStack>
+    </MudStack>
+</MudPaper>
+
+<MudDialog @bind-Visible="_dialogVisible" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-2" Style="vertical-align: middle;" />
+            Key Metadata
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-4 mud-text-secondary">
+            Add optional information to help identify this key.
+        </MudText>
+        <MudTextField @bind-Value="_editName"
+                      Label="Name"
+                      Variant="Variant.Outlined"
+                      Class="mb-3" />
+        <MudTextField @bind-Value="_editEmail"
+                      Label="Email"
+                      Variant="Variant.Outlined"
+                      Class="mb-3" />
+        <MudTextField @bind-Value="_editComment"
+                      Label="Comment"
+                      Variant="Variant.Outlined"
+                      Class="mb-3" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CancelDialog">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveMetadata">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter]
+    public string? PublicKey { get; set; }
+
+    [Parameter]
+    public PublicKeyMetadata? Metadata { get; set; }
+
+    [Parameter]
+    public EventCallback<PublicKeyMetadata?> MetadataChanged { get; set; }
+
+    private bool _dialogVisible;
+    private string? _editName;
+    private string? _editEmail;
+    private string? _editComment;
+
+    private readonly DialogOptions _dialogOptions = new()
+    {
+        CloseOnEscapeKey = true,
+        CloseButton = true,
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true
+    };
+
+    private string ArmoredKey => string.IsNullOrEmpty(PublicKey)
+        ? string.Empty
+        : PrfArmor.ArmorPublicKey(PublicKey, Metadata);
+
+    private async Task CopyToClipboardAsync()
+    {
+        if (string.IsNullOrEmpty(PublicKey))
+        {
+            return;
+        }
+
+        try
+        {
+            await Clipboard.SetTextAsync(ArmoredKey);
+            Snackbar.Add("Public key copied to clipboard!", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Failed to copy to clipboard", Severity.Error);
+        }
+    }
+
+    private void OpenMetadataDialog()
+    {
+        _editName = Metadata?.Name;
+        _editEmail = Metadata?.Email;
+        _editComment = Metadata?.Comment;
+        _dialogVisible = true;
+    }
+
+    private void CancelDialog()
+    {
+        _dialogVisible = false;
+    }
+
+    private async Task SaveMetadata()
+    {
+        var hasData = !string.IsNullOrWhiteSpace(_editName) ||
+                      !string.IsNullOrWhiteSpace(_editEmail) ||
+                      !string.IsNullOrWhiteSpace(_editComment);
+
+        var newMetadata = hasData
+            ? new PublicKeyMetadata
+            {
+                Name = string.IsNullOrWhiteSpace(_editName) ? null : _editName.Trim(),
+                Email = string.IsNullOrWhiteSpace(_editEmail) ? null : _editEmail.Trim(),
+                Comment = string.IsNullOrWhiteSpace(_editComment) ? null : _editComment.Trim(),
+                Created = Metadata?.Created ?? DateOnly.FromDateTime(DateTime.Today)
+            }
+            : null;
+
+        _dialogVisible = false;
+
+        if (MetadataChanged.HasDelegate)
+        {
+            await MetadataChanged.InvokeAsync(newMetadata);
+        }
+    }
+}

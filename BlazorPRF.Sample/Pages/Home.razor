@@ -1,0 +1,190 @@
+@page "/"
+@using BlazorPRF.Shared.Formatting
+@inherits PrfModelComponent
+
+<PageTitle>BlazorPRF Demo</PageTitle>
+
+<AuthorizeView>
+    <NotAuthorized>
+        <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex flex-column align-center justify-center" Style="min-height: 70vh;">
+            <MudIcon Icon="@Icons.Material.Filled.Security" Color="Color.Primary" Style="font-size: 6rem;" Class="mb-4" />
+
+            <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true">
+                PRF-Based Encryption
+            </MudText>
+
+            <MudText Typo="Typo.body1" Align="Align.Center" Class="mb-6 mud-text-secondary">
+                Secure encryption using your passkey. Your biometric generates cryptographic keys
+                that work across all your synced devices.
+            </MudText>
+
+            @if (Model.IsPrfSupported == false)
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-4">
+                    PRF extension is not supported on this device or browser.
+                </MudAlert>
+            }
+            else if (Model.ErrorMessage is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-4" Variant="Variant.Outlined">
+                    @Model.ErrorMessage
+                </MudAlert>
+            }
+
+            @if (Model.IsPrfSupported != false)
+            {
+                <MudStack Row="true" Spacing="2" Class="mb-4">
+                    @if (!string.IsNullOrWhiteSpace(Model.CredentialId))
+                    {
+                        <MudButtonAsyncRx Command="@Model.DeriveKeys"
+                                          Variant="Variant.Filled"
+                                          Color="Color.Primary"
+                                          Size="Size.Large"
+                                          StartIcon="@Icons.Material.Filled.Fingerprint">
+                            Authenticate
+                        </MudButtonAsyncRx>
+                    }
+                    else
+                    {
+                        <MudButtonAsyncRx Command="@Model.DeriveKeysDiscoverable"
+                                          Variant="Variant.Filled"
+                                          Color="Color.Primary"
+                                          Size="Size.Large"
+                                          StartIcon="@Icons.Material.Filled.Fingerprint">
+                            Authenticate
+                        </MudButtonAsyncRx>
+                    }
+                </MudStack>
+
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                    @if (!string.IsNullOrWhiteSpace(Model.CredentialId))
+                    {
+                        <text>Using saved credential</text>
+                    }
+                    else
+                    {
+                        <text>Select from available passkeys</text>
+                    }
+                </MudText>
+            }
+
+            <MudDivider Class="my-6" Style="width: 100%;" />
+
+            <MudStack Row="true" Spacing="4" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.h6" Align="Align.Center" GutterBottom="true">
+                        New here?
+                    </MudText>
+                    <MudButton Href="setup"
+                               Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.PersonAdd">
+                        Register a new Passkey
+                    </MudButton>
+                </div>
+
+                <MudDivider Vertical="true" FlexItem="true" />
+
+                <div>
+                    <MudText Typo="Typo.h6" Align="Align.Center" GutterBottom="true">
+                        Have a public key?
+                    </MudText>
+                    <MudButton Href="encrypt"
+                               Variant="Variant.Outlined"
+                               Color="Color.Secondary"
+                               StartIcon="@Icons.Material.Filled.Lock">
+                        Encrypt a Message
+                    </MudButton>
+                </div>
+            </MudStack>
+        </MudContainer>
+    </NotAuthorized>
+
+    <Authorized>
+        <MudText Typo="Typo.h3" GutterBottom="true">Welcome back!</MudText>
+
+        <MudText Typo="Typo.body1" Class="mb-6">
+            Your keys are derived and ready. Choose an encryption method below.
+        </MudText>
+
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudCard Class="cursor-pointer" @onclick="@(() => NavigationManager.NavigateTo("symmetric"))">
+                    <MudCardHeader>
+                        <CardHeaderAvatar>
+                            <MudIcon Icon="@Icons.Material.Filled.Lock" Color="Color.Primary" />
+                        </CardHeaderAvatar>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Symmetric Encryption</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Encrypt for yourself</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2">
+                            Encrypt and decrypt data using your PRF-derived symmetric key.
+                            Only you can decrypt this data using your passkey.
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="symmetric" Variant="Variant.Text" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Open
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudCard Class="cursor-pointer" @onclick="@(() => NavigationManager.NavigateTo("asymmetric"))">
+                    <MudCardHeader>
+                        <CardHeaderAvatar>
+                            <MudIcon Icon="@Icons.Material.Filled.Send" Color="Color.Secondary" />
+                        </CardHeaderAvatar>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Asymmetric Encryption</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Share with others</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2">
+                            Share your public key with others. They can encrypt messages
+                            that only you can decrypt.
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="asymmetric" Variant="Variant.Text" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Open
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12">
+                <PublicKeyDisplay PublicKey="@Model.PublicKey"
+                                  Metadata="@Model.KeyMetadata"
+                                  MetadataChanged="@OnMetadataChanged" />
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudStack Row="true" Justify="Justify.FlexEnd">
+                    <MudButtonRx Command="@Model.ClearKeys"
+                                 Variant="Variant.Outlined"
+                                 Color="Color.Error"
+                                 Size="Size.Small"
+                                 StartIcon="@Icons.Material.Filled.Logout">
+                        Sign Out
+                    </MudButtonRx>
+                </MudStack>
+            </MudItem>
+        </MudGrid>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    [Inject]
+    private NavigationManager NavigationManager { get; set; } = default!;
+
+    private async Task OnMetadataChanged(PublicKeyMetadata? metadata)
+    {
+        await Model.UpdateKeyMetadataAsync(metadata);
+    }
+}
