@@ -1,20 +1,11 @@
-// Main entry point - exports all functions for C# JSImport
-// This module is STATELESS - no key caching in JavaScript
+// Main entry point - exports WebAuthn/PRF functions only
+// Crypto operations are handled in C#/WASM for security
 
 import {
-    PrfErrorCode,
-    type PrfCredential,
     type PrfOptions,
-    type PrfResult,
-    type EncryptedMessage,
-    type SymmetricEncryptedMessage
 } from './types.js';
 import { checkPrfSupport, registerCredentialWithPrf } from './webauthn.js';
 import { evaluatePrf, evaluatePrfDiscoverable } from './prf.js';
-import { deriveKeypairFromPrf } from './keypair.js';
-import { symmetricEncrypt, symmetricDecrypt } from './symmetric.js';
-import { asymmetricEncrypt, asymmetricDecrypt } from './asymmetric.js';
-import { toBase64, fromBase64, zeroFill } from './utils.js';
 
 // ============================================================================
 // WebAuthn / PRF Functions
@@ -41,10 +32,10 @@ export async function register(
 }
 
 /**
- * Derive keys from PRF with a specific credential.
- * Returns JSON with publicKeyBase64 (private key is cached in C#).
+ * Evaluate PRF with a specific credential.
+ * Returns JSON with raw PRF output (Base64) - key derivation happens in C#.
  */
-export async function deriveKeys(
+export async function evaluatePrfOutput(
     credentialIdBase64: string,
     salt: string,
     optionsJson: string
@@ -62,33 +53,18 @@ export async function deriveKeys(
         });
     }
 
-    // Derive keypair from PRF output
-    const prfOutput = fromBase64(prfResult.value);
-    const keypair = deriveKeypairFromPrf(prfOutput);
-
-    // Convert keys to Base64
-    const privateKeyBase64 = toBase64(keypair.privateKey);
-    const publicKeyBase64 = toBase64(keypair.publicKey);
-
-    // Zero sensitive data in JS memory
-    zeroFill(prfOutput);
-    zeroFill(keypair.privateKey);
-
-    // Return both keys to C# - C# will cache in WASM memory
+    // Return raw PRF output - C# will derive keys
     return JSON.stringify({
         success: true,
-        value: {
-            privateKeyBase64,
-            publicKeyBase64
-        }
+        value: prfResult.value  // Base64-encoded 32-byte PRF output
     });
 }
 
 /**
- * Derive keys using discoverable credential (user selects).
- * Returns JSON with credentialId and keys.
+ * Evaluate PRF using discoverable credential (user selects).
+ * Returns JSON with credentialId and raw PRF output (Base64).
  */
-export async function deriveKeysDiscoverable(
+export async function evaluatePrfDiscoverableOutput(
     salt: string,
     optionsJson: string
 ): Promise<string> {
@@ -105,123 +81,14 @@ export async function deriveKeysDiscoverable(
         });
     }
 
-    // Derive keypair from PRF output
-    const prfOutput = fromBase64(prfResult.value.prfOutput);
-    const keypair = deriveKeypairFromPrf(prfOutput);
-
-    // Convert keys to Base64
-    const privateKeyBase64 = toBase64(keypair.privateKey);
-    const publicKeyBase64 = toBase64(keypair.publicKey);
-
-    // Zero sensitive data in JS memory
-    zeroFill(prfOutput);
-    zeroFill(keypair.privateKey);
-
-    // Return credential ID and both keys to C#
+    // Return credential ID and raw PRF output - C# will derive keys
     return JSON.stringify({
         success: true,
         value: {
             credentialId: prfResult.value.credentialId,
-            privateKeyBase64,
-            publicKeyBase64
+            prfOutput: prfResult.value.prfOutput  // Base64-encoded 32-byte PRF output
         }
     });
-}
-
-// ============================================================================
-// Symmetric Encryption Functions
-// ============================================================================
-
-/**
- * Encrypt a message with symmetric key.
- * Key is passed from C# WASM memory and zeroed after use.
- */
-export function encryptSymmetric(
-    message: string,
-    keyBase64: string
-): string {
-    const encrypted = symmetricEncrypt(message, keyBase64);
-    return JSON.stringify(encrypted);
-}
-
-/**
- * Decrypt a message with symmetric key.
- * Key is passed from C# WASM memory and zeroed after use.
- */
-export function decryptSymmetric(
-    encryptedJson: string,
-    keyBase64: string
-): string {
-    const encrypted: SymmetricEncryptedMessage = JSON.parse(encryptedJson);
-    try {
-        const plaintext = symmetricDecrypt(encrypted, keyBase64);
-        return JSON.stringify({
-            success: true,
-            value: plaintext
-        });
-    } catch (error) {
-        const rawMessage = error instanceof Error ? error.message : '';
-        const errorCode = rawMessage.toLowerCase().includes('tag')
-            ? PrfErrorCode.AuthenticationTagMismatch
-            : PrfErrorCode.DecryptionFailed;
-        return JSON.stringify({
-            success: false,
-            errorCode
-        });
-    }
-}
-
-// ============================================================================
-// Asymmetric (ECIES) Encryption Functions
-// ============================================================================
-
-/**
- * Encrypt a message with recipient's public key.
- * No private key needed - anyone can encrypt to a public key.
- */
-export function encryptAsymmetric(
-    plaintext: string,
-    recipientPublicKeyBase64: string
-): string {
-    try {
-        const encrypted = asymmetricEncrypt(plaintext, recipientPublicKeyBase64);
-        return JSON.stringify({
-            success: true,
-            value: encrypted
-        });
-    } catch {
-        return JSON.stringify({
-            success: false,
-            errorCode: PrfErrorCode.EncryptionFailed
-        });
-    }
-}
-
-/**
- * Decrypt a message with our private key.
- * Private key is passed from C# WASM memory and zeroed after use.
- */
-export function decryptAsymmetric(
-    encryptedJson: string,
-    privateKeyBase64: string
-): string {
-    const encrypted: EncryptedMessage = JSON.parse(encryptedJson);
-    try {
-        const plaintext = asymmetricDecrypt(encrypted, privateKeyBase64);
-        return JSON.stringify({
-            success: true,
-            value: plaintext
-        });
-    } catch (error) {
-        const rawMessage = error instanceof Error ? error.message : '';
-        const errorCode = rawMessage.toLowerCase().includes('tag')
-            ? PrfErrorCode.AuthenticationTagMismatch
-            : PrfErrorCode.DecryptionFailed;
-        return JSON.stringify({
-            success: false,
-            errorCode
-        });
-    }
 }
 
 // ============================================================================
@@ -231,12 +98,8 @@ export function decryptAsymmetric(
 const blazorPrf = {
     isPrfSupported,
     register,
-    deriveKeys,
-    deriveKeysDiscoverable,
-    encryptSymmetric,
-    decryptSymmetric,
-    encryptAsymmetric,
-    decryptAsymmetric
+    evaluatePrfOutput,
+    evaluatePrfDiscoverableOutput
 };
 
 // Make available globally for JSImport

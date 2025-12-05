@@ -2,35 +2,28 @@ using System.Collections.Concurrent;
 using BlazorPRF.Configuration;
 using BlazorPRF.Models;
 using Microsoft.Extensions.Options;
+using R3;
 
 namespace BlazorPRF.Services;
 
 /// <summary>
 /// Secure key cache storing keys in unmanaged memory outside .NET GC control.
 /// Keys are stored with configurable TTL and cryptographically zero-filled on disposal/expiration.
+/// Keys trigger their own expiration via one-shot timers for immediate cleanup.
 /// </summary>
 public sealed class SecureKeyCache : ISecureKeyCache
 {
     private readonly ConcurrentDictionary<string, SecureKeyEntry> _cache = new();
     private readonly KeyCacheOptions _options;
-    private readonly Timer? _cleanupTimer;
+    private readonly Subject<string> _keyExpiredSubject = new();
     private bool _disposed;
+
+    /// <inheritdoc />
+    public Observable<string> KeyExpired => _keyExpiredSubject;
 
     public SecureKeyCache(IOptions<KeyCacheOptions> options)
     {
         _options = options.Value;
-
-        // Start cleanup timer if TTL is configured
-        if (_options is { Strategy: KeyCacheStrategy.Timed, TtlMinutes: > 0 })
-        {
-            var cleanupInterval = TimeSpan.FromMinutes(Math.Max(1, _options.TtlMinutes / 2));
-            _cleanupTimer = new Timer(
-                _ => CleanupExpired(),
-                null,
-                cleanupInterval,
-                cleanupInterval
-            );
-        }
     }
 
     /// <inheritdoc />
@@ -54,7 +47,7 @@ public sealed class SecureKeyCache : ISecureKeyCache
             KeyCacheStrategy.Timed => TimeSpan.FromMinutes(_options.TtlMinutes),
             _ => TimeSpan.FromMinutes(15) // Default
         };
-
+        
         // For 'None' strategy, we still store briefly to allow immediate retrieval
         // but the key will be cleaned up on next cleanup cycle
         if (_options.Strategy == KeyCacheStrategy.None)
@@ -63,6 +56,12 @@ public sealed class SecureKeyCache : ISecureKeyCache
         }
 
         var entry = new SecureKeyEntry(key, ttl);
+
+        // Subscribe to key's one-shot expiration observable
+        // Capture keyId for the callback
+        var capturedKeyId = keyId;
+        entry.Expired.Subscribe(_ => RemoveExpired(capturedKeyId));
+
         _cache[keyId] = entry;
     }
 
@@ -83,7 +82,7 @@ public sealed class SecureKeyCache : ISecureKeyCache
 
         if (entry.IsExpired)
         {
-            Remove(keyId);
+            RemoveExpired(keyId);
             return null;
         }
 
@@ -95,6 +94,78 @@ public sealed class SecureKeyCache : ISecureKeyCache
         {
             Remove(keyId);
             return null;
+        }
+    }
+
+    /// <inheritdoc />
+    public bool UseKey(string keyId, ReadOnlySpanAction<byte> action)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(action);
+
+        if (string.IsNullOrEmpty(keyId))
+        {
+            return false;
+        }
+
+        if (!_cache.TryGetValue(keyId, out var entry))
+        {
+            return false;
+        }
+
+        if (entry.IsExpired)
+        {
+            RemoveExpired(keyId);
+            return false;
+        }
+
+        try
+        {
+            entry.UseKey(action);
+            return true;
+        }
+        catch
+        {
+            Remove(keyId);
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public bool UseKey<TResult>(string keyId, ReadOnlySpanFunc<byte, TResult> func, out TResult? result)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(func);
+
+        result = default;
+
+        if (string.IsNullOrEmpty(keyId))
+        {
+            return false;
+        }
+
+        if (!_cache.TryGetValue(keyId, out var entry))
+        {
+            return false;
+        }
+
+        if (entry.IsExpired)
+        {
+            RemoveExpired(keyId);
+            return false;
+        }
+
+        try
+        {
+            TResult? capturedResult = default;
+            entry.UseKey(span => capturedResult = func(span));
+            result = capturedResult;
+            return true;
+        }
+        catch
+        {
+            Remove(keyId);
+            return false;
         }
     }
 
@@ -115,7 +186,7 @@ public sealed class SecureKeyCache : ISecureKeyCache
 
         if (entry.IsExpired)
         {
-            Remove(keyId);
+            RemoveExpired(keyId);
             return false;
         }
 
@@ -160,8 +231,20 @@ public sealed class SecureKeyCache : ISecureKeyCache
         {
             if (_cache.TryGetValue(keyId, out var entry) && entry.IsExpired)
             {
-                Remove(keyId);
+                RemoveExpired(keyId);
             }
+        }
+    }
+
+    /// <summary>
+    /// Remove a key that has expired and emit via KeyExpired observable.
+    /// </summary>
+    private void RemoveExpired(string keyId)
+    {
+        if (_cache.TryRemove(keyId, out var entry))
+        {
+            entry.Dispose();
+            _keyExpiredSubject.OnNext(keyId);
         }
     }
 
@@ -175,7 +258,7 @@ public sealed class SecureKeyCache : ISecureKeyCache
 
         _disposed = true;
 
-        _cleanupTimer?.Dispose();
+        _keyExpiredSubject.Dispose();
 
         // Zero all keys
         Clear();

@@ -1,8 +1,16 @@
 // PRF evaluation for deterministic key derivation
 
-import { sha256 } from '@noble/hashes/sha256';
 import { PrfErrorCode, type PrfOptions, type PrfResult } from './types.js';
 import { base64ToArrayBuffer, toBase64, zeroFill } from './utils.js';
+
+/**
+ * Hash a string using SHA-256 via Web Crypto API.
+ * Returns a 32-byte Uint8Array.
+ */
+async function sha256(data: Uint8Array): Promise<Uint8Array> {
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    return new Uint8Array(hashBuffer);
+}
 
 /**
  * Evaluate the PRF extension with a given salt to derive a deterministic 32-byte output.
@@ -27,7 +35,7 @@ export async function evaluatePrf(
         // Hash the salt to ensure consistent 32-byte length
         const encoder = new TextEncoder();
         const saltBytes = encoder.encode(salt);
-        const saltHash = sha256(saltBytes);
+        const saltHash = await sha256(saltBytes);
 
         const credentialId = base64ToArrayBuffer(credentialIdBase64);
 
@@ -145,7 +153,7 @@ export async function evaluatePrfDiscoverable(
         // Hash the salt to ensure consistent 32-byte length
         const encoder = new TextEncoder();
         const saltBytes = encoder.encode(salt);
-        const saltHash = sha256(saltBytes);
+        const saltHash = await sha256(saltBytes);
 
         // Build authentication options without allowCredentials (discoverable)
         const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {

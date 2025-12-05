@@ -1,6 +1,4 @@
 @page "/asymmetric"
-@attribute [Authorize]
-@inherits PrfModelComponent
 
 <PageTitle>Asymmetric Encryption - BlazorPRF</PageTitle>
 
@@ -11,7 +9,7 @@
 
 <MudGrid>
     <MudItem xs="12" md="6">
-        <AsymmetricEncryptPanel InitialPublicKey="@Model.PublicKey" />
+        <AsymmetricEncryptPanel />
     </MudItem>
 
     <MudItem xs="12">

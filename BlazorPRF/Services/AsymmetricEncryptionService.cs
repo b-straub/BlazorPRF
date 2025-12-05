@@ -1,23 +1,22 @@
-using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
-using System.Text.Json;
-using BlazorPRF.Json;
+using BlazorPRF.Crypto;
 using BlazorPRF.Models;
 
 namespace BlazorPRF.Services;
 
 /// <summary>
 /// Service for asymmetric (ECIES) encryption using PRF-derived keys.
+/// All crypto operations happen in C#/WASM for security.
+/// Keys are accessed directly from unmanaged memory without creating managed copies.
 /// </summary>
 [SupportedOSPlatform("browser")]
-public sealed partial class AsymmetricEncryptionService : IAsymmetricEncryption
+public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
 {
-    private readonly PrfService _prfService;
+    private readonly ISecureKeyCache _keyCache;
 
-    public AsymmetricEncryptionService(IPrfService prfService)
+    public AsymmetricEncryptionService(ISecureKeyCache keyCache)
     {
-        // We need the concrete type to access internal GetPrivateKey
-        _prfService = (PrfService)prfService;
+        _keyCache = keyCache;
     }
 
     /// <inheritdoc />
@@ -26,21 +25,8 @@ public sealed partial class AsymmetricEncryptionService : IAsymmetricEncryption
         ArgumentException.ThrowIfNullOrEmpty(message);
         ArgumentException.ThrowIfNullOrEmpty(recipientPublicKey);
 
-        try
-        {
-            // Call JavaScript encryption (no private key needed)
-            var resultJson = JsInterop.EncryptAsymmetric(message, recipientPublicKey);
-
-            // Parse result - error codes come from JS
-            var result = JsonSerializer.Deserialize(resultJson, PrfJsonContext.Default.PrfResultEncryptedMessage);
-            return ValueTask.FromResult(result ?? PrfResult<EncryptedMessage>.Fail(PrfErrorCode.EncryptionFailed));
-        }
-        catch
-        {
-            return ValueTask.FromResult(
-                PrfResult<EncryptedMessage>.Fail(PrfErrorCode.EncryptionFailed)
-            );
-        }
+        // Encryption only needs the public key (not sensitive, no cache lookup needed)
+        return ValueTask.FromResult(WasmCryptoOperations.EncryptAsymmetric(message, recipientPublicKey));
     }
 
     /// <inheritdoc />
@@ -49,46 +35,16 @@ public sealed partial class AsymmetricEncryptionService : IAsymmetricEncryption
         ArgumentNullException.ThrowIfNull(encrypted);
         ArgumentException.ThrowIfNullOrEmpty(salt);
 
-        // Get the cached private key
-        var privateKey = _prfService.GetPrivateKey(salt);
-        if (privateKey is null)
+        var cacheKey = GetCacheKey(salt);
+
+        // Use the key directly from unmanaged memory without creating a managed copy
+        if (!_keyCache.UseKey(cacheKey, key => WasmCryptoOperations.DecryptAsymmetric(encrypted, key), out var result))
         {
-            return ValueTask.FromResult(
-                PrfResult<string>.Fail(PrfErrorCode.KeyDerivationFailed)
-            );
+            return ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.KeyDerivationFailed));
         }
 
-        try
-        {
-            var keyBase64 = Convert.ToBase64String(privateKey);
-            var encryptedJson = JsonSerializer.Serialize(encrypted, PrfJsonContext.Default.EncryptedMessage);
-
-            // Call JavaScript decryption
-            var resultJson = JsInterop.DecryptAsymmetric(encryptedJson, keyBase64);
-
-            // Clear the key from managed memory
-            Array.Clear(privateKey, 0, privateKey.Length);
-
-            // Parse result - error codes come from JS
-            var result = JsonSerializer.Deserialize(resultJson, PrfJsonContext.Default.PrfResultString);
-            return ValueTask.FromResult(result ?? PrfResult<string>.Fail(PrfErrorCode.DecryptionFailed));
-        }
-        catch
-        {
-            // Ensure key is cleared even on error
-            Array.Clear(privateKey, 0, privateKey.Length);
-            return ValueTask.FromResult(
-                PrfResult<string>.Fail(PrfErrorCode.DecryptionFailed)
-            );
-        }
+        return ValueTask.FromResult(result ?? PrfResult<string>.Fail(PrfErrorCode.DecryptionFailed));
     }
 
-    private static partial class JsInterop
-    {
-        [JSImport("encryptAsymmetric", "blazorPrf")]
-        public static partial string EncryptAsymmetric(string message, string recipientPublicKeyBase64);
-
-        [JSImport("decryptAsymmetric", "blazorPrf")]
-        public static partial string DecryptAsymmetric(string encryptedJson, string privateKeyBase64);
-    }
+    private static string GetCacheKey(string salt) => $"prf-key:{salt}";
 }

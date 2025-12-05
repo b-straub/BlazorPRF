@@ -1,3 +1,4 @@
+@using BlazorPRF.Shared.Formatting
 @inherits PrfModelComponent
 @inject ISymmetricEncryption SymmetricEncryption
 @inject ISnackbar Snackbar
@@ -15,7 +16,7 @@
     </MudCardHeader>
 
     <MudCardContent>
-        @if (!Model.HasKeys)
+        @if (!Model.HasKeys && !Model.RequiresOnDemandAuth)
         {
             <MudAlert Severity="Severity.Warning" Class="mb-4">
                 Please derive keys first using the authentication panel.
@@ -29,7 +30,7 @@
                               Variant="Variant.Outlined"
                               Lines="4"
                               Class="mt-4 mb-4"
-                              Disabled="@(_isProcessing || !Model.HasKeys)" />
+                              Disabled="@(_isProcessing || (!Model.HasKeys && !Model.RequiresOnDemandAuth))" />
 
                 <MudButton Color="Color.Primary"
                            Variant="Variant.Filled"
@@ -47,14 +48,14 @@
                     }
                 </MudButton>
 
-                @if (_encryptedResult is not null)
+                @if (_armoredMessage is not null)
                 {
                     <MudPaper Class="pa-4 mt-4" Elevation="0" Outlined="true">
                         <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween">
                             <div Style="flex: 1; overflow: hidden;">
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Encrypted Result (JSON)</MudText>
-                                <MudText Typo="Typo.body2" Style="font-family: monospace; word-break: break-all; white-space: pre-wrap;">
-                                    @_encryptedJson
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Encrypted Message</MudText>
+                                <MudText Typo="Typo.body2" Style="font-family: monospace; white-space: pre-wrap;">
+                                    @_armoredMessage
                                 </MudText>
                             </div>
                             <MudTooltip Text="Copy to clipboard">
@@ -69,11 +70,13 @@
 
             <MudTabPanel Text="Decrypt">
                 <MudTextField @bind-Value="_encryptedInput"
-                              Label="Encrypted JSON"
+                              Label="Encrypted Message (Armored)"
                               Variant="Variant.Outlined"
                               Lines="4"
                               Class="mt-4 mb-4"
-                              Disabled="@(_isProcessing || !Model.HasKeys)" />
+                              Style="font-family: monospace;"
+                              HelperText="Paste a PFA armored message"
+                              Disabled="@(_isProcessing || (!Model.HasKeys && !Model.RequiresOnDemandAuth))" />
 
                 <MudButton Color="Color.Secondary"
                            Variant="Variant.Filled"
@@ -115,12 +118,12 @@
     private string _encryptedInput = string.Empty;
     private bool _isProcessing;
     private string? _errorMessage;
-    private SymmetricEncryptedMessage? _encryptedResult;
-    private string? _encryptedJson;
+    private string? _armoredMessage;
     private string? _decryptedResult;
 
-    private bool CanEncrypt => Model.HasKeys && !_isProcessing && !string.IsNullOrWhiteSpace(_plaintext);
-    private bool CanDecrypt => Model.HasKeys && !_isProcessing && !string.IsNullOrWhiteSpace(_encryptedInput);
+    // For Strategy.None or when keys are available
+    private bool CanEncrypt => (Model.HasKeys || Model.RequiresOnDemandAuth) && !_isProcessing && !string.IsNullOrWhiteSpace(_plaintext);
+    private bool CanDecrypt => (Model.HasKeys || Model.RequiresOnDemandAuth) && !_isProcessing && !string.IsNullOrWhiteSpace(_encryptedInput);
 
     private async Task EncryptAsync()
     {
@@ -131,20 +134,29 @@
 
         _isProcessing = true;
         _errorMessage = null;
-        _encryptedResult = null;
-        _encryptedJson = null;
+        _armoredMessage = null;
 
         try
         {
+            // Ensure keys are available (triggers WebAuthn if needed)
+            if (!await Model.EnsureKeysAsync())
+            {
+                _errorMessage = "Authentication cancelled or failed";
+                return;
+            }
+
             var result = await SymmetricEncryption.EncryptAsync(_plaintext, Model.Salt);
 
             if (result is { Success: true, Value: not null })
             {
-                _encryptedResult = result.Value;
-                _encryptedJson = System.Text.Json.JsonSerializer.Serialize(result.Value, new System.Text.Json.JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
+                var json = System.Text.Json.JsonSerializer.Serialize(result.Value);
+                _armoredMessage = PrfArmor.ArmorMessage(json);
+            }
+            else if (result.ErrorCode == BlazorPRF.Shared.Models.PrfErrorCode.KeyDerivationFailed)
+            {
+                // Keys expired between EnsureKeysAsync and operation - notify model
+                Model.OnKeyDerivationFailed();
+                _errorMessage = "Keys expired. Please try again.";
             }
             else
             {
@@ -174,10 +186,33 @@
 
         try
         {
-            var encrypted = System.Text.Json.JsonSerializer.Deserialize<SymmetricEncryptedMessage>(_encryptedInput);
+            // Support both armored and raw JSON input
+            string? json;
+            if (PrfArmor.IsArmoredMessage(_encryptedInput))
+            {
+                json = PrfArmor.UnArmorMessage(_encryptedInput);
+                if (json is null)
+                {
+                    _errorMessage = "Invalid armored message format";
+                    return;
+                }
+            }
+            else
+            {
+                json = _encryptedInput;
+            }
+
+            var encrypted = System.Text.Json.JsonSerializer.Deserialize<SymmetricEncryptedMessage>(json);
             if (encrypted is null)
             {
-                _errorMessage = "Invalid encrypted JSON format";
+                _errorMessage = "Invalid encrypted message format";
+                return;
+            }
+
+            // Ensure keys are available (triggers WebAuthn if needed)
+            if (!await Model.EnsureKeysAsync())
+            {
+                _errorMessage = "Authentication cancelled or failed";
                 return;
             }
 
@@ -187,6 +222,12 @@
             {
                 _decryptedResult = result.Value;
             }
+            else if (result.ErrorCode == BlazorPRF.Shared.Models.PrfErrorCode.KeyDerivationFailed)
+            {
+                // Keys expired between EnsureKeysAsync and operation - notify model
+                Model.OnKeyDerivationFailed();
+                _errorMessage = "Keys expired. Please try again.";
+            }
             else
             {
                 _errorMessage = result.Error ?? "Decryption failed";
@@ -194,7 +235,7 @@
         }
         catch (System.Text.Json.JsonException)
         {
-            _errorMessage = "Invalid JSON format";
+            _errorMessage = "Invalid message format";
         }
         catch (Exception ex)
         {
@@ -208,14 +249,14 @@
 
     private async Task CopyEncryptedAsync()
     {
-        if (string.IsNullOrEmpty(_encryptedJson))
+        if (string.IsNullOrEmpty(_armoredMessage))
         {
             return;
         }
 
         try
         {
-            await Clipboard.SetTextAsync(_encryptedJson);
+            await Clipboard.SetTextAsync(_armoredMessage);
             Snackbar.Add("Encrypted message copied!", Severity.Success);
         }
         catch

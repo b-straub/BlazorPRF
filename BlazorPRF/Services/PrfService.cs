@@ -2,9 +2,11 @@ using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Text.Json;
 using BlazorPRF.Configuration;
+using BlazorPRF.Crypto;
 using BlazorPRF.Json;
 using BlazorPRF.Models;
 using Microsoft.Extensions.Options;
+using R3;
 
 namespace BlazorPRF.Services;
 
@@ -15,6 +17,7 @@ namespace BlazorPRF.Services;
 public sealed partial class PrfService : IPrfService, IAsyncDisposable
 {
     private readonly PrfOptions _options;
+    private readonly KeyCacheOptions _cacheOptions;
     private readonly ISecureKeyCache _keyCache;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
@@ -22,11 +25,19 @@ public sealed partial class PrfService : IPrfService, IAsyncDisposable
     // Cache for public keys (not sensitive, can store directly)
     private readonly Dictionary<string, string> _publicKeyCache = new();
 
+    /// <inheritdoc />
+    public KeyCacheStrategy CacheStrategy => _cacheOptions.Strategy;
+
+    /// <inheritdoc />
+    public Observable<string> KeyExpired => _keyCache.KeyExpired;
+
     public PrfService(
         IOptions<PrfOptions> options,
+        IOptions<KeyCacheOptions> cacheOptions,
         ISecureKeyCache keyCache)
     {
         _options = options.Value;
+        _cacheOptions = cacheOptions.Value;
         _keyCache = keyCache;
     }
 
@@ -113,8 +124,9 @@ public sealed partial class PrfService : IPrfService, IAsyncDisposable
 
         await EnsureInitializedAsync();
 
-        var resultJson = await JsInterop.DeriveKeys(credentialId, salt, GetJsOptions());
-        var result = JsonSerializer.Deserialize(resultJson, PrfJsonContext.Default.PrfResultDerivedKeysResult);
+        // Get raw PRF output from JS (WebAuthn)
+        var resultJson = await JsInterop.EvaluatePrfOutput(credentialId, salt, GetJsOptions());
+        var result = JsonSerializer.Deserialize(resultJson, PrfJsonContext.Default.PrfResultString);
 
         if (result is null)
         {
@@ -131,17 +143,20 @@ public sealed partial class PrfService : IPrfService, IAsyncDisposable
             return PrfResult<string>.Fail(result.ErrorCode ?? PrfErrorCode.KeyDerivationFailed);
         }
 
+        // Derive keypair from PRF output in C# (never exposed to JS)
+        var keypair = KeyDerivation.DeriveKeypairFromPrf(result.Value);
+
         // Cache the private key securely
-        var privateKeyBytes = Convert.FromBase64String(result.Value.PrivateKeyBase64);
+        var privateKeyBytes = Convert.FromBase64String(keypair.PrivateKeyBase64);
         _keyCache.Store(cacheKey, privateKeyBytes);
 
         // Clear the byte array after storing
         Array.Clear(privateKeyBytes, 0, privateKeyBytes.Length);
 
         // Cache the public key (not sensitive)
-        _publicKeyCache[salt] = result.Value.PublicKeyBase64;
+        _publicKeyCache[salt] = keypair.PublicKeyBase64;
 
-        return PrfResult<string>.Ok(result.Value.PublicKeyBase64);
+        return PrfResult<string>.Ok(keypair.PublicKeyBase64);
     }
 
     /// <inheritdoc />
@@ -151,8 +166,9 @@ public sealed partial class PrfService : IPrfService, IAsyncDisposable
 
         await EnsureInitializedAsync();
 
-        var resultJson = await JsInterop.DeriveKeysDiscoverable(salt, GetJsOptions());
-        var result = JsonSerializer.Deserialize(resultJson, PrfJsonContext.Default.PrfResultDiscoverableDerivedKeysResult);
+        // Get raw PRF output from JS (WebAuthn) with discoverable credential
+        var resultJson = await JsInterop.EvaluatePrfDiscoverableOutput(salt, GetJsOptions());
+        var result = JsonSerializer.Deserialize(resultJson, PrfJsonContext.Default.PrfResultDiscoverablePrfOutput);
 
         if (result is null)
         {
@@ -169,18 +185,21 @@ public sealed partial class PrfService : IPrfService, IAsyncDisposable
             return PrfResult<(string, string)>.Fail(result.ErrorCode ?? PrfErrorCode.KeyDerivationFailed);
         }
 
+        // Derive keypair from PRF output in C# (never exposed to JS)
+        var keypair = KeyDerivation.DeriveKeypairFromPrf(result.Value.PrfOutput);
+
         // Cache the private key securely
         var cacheKey = GetCacheKey(salt);
-        var privateKeyBytes = Convert.FromBase64String(result.Value.PrivateKeyBase64);
+        var privateKeyBytes = Convert.FromBase64String(keypair.PrivateKeyBase64);
         _keyCache.Store(cacheKey, privateKeyBytes);
 
         // Clear the byte array after storing
         Array.Clear(privateKeyBytes, 0, privateKeyBytes.Length);
 
         // Cache the public key (not sensitive)
-        _publicKeyCache[salt] = result.Value.PublicKeyBase64;
+        _publicKeyCache[salt] = keypair.PublicKeyBase64;
 
-        return PrfResult<(string, string)>.Ok((result.Value.CredentialId, result.Value.PublicKeyBase64));
+        return PrfResult<(string, string)>.Ok((result.Value.CredentialId, keypair.PublicKeyBase64));
     }
 
     /// <inheritdoc />
@@ -218,15 +237,6 @@ public sealed partial class PrfService : IPrfService, IAsyncDisposable
         _publicKeyCache.Clear();
     }
 
-    /// <summary>
-    /// Get the private key for a salt (internal use by encryption services).
-    /// </summary>
-    internal byte[]? GetPrivateKey(string salt)
-    {
-        var cacheKey = GetCacheKey(salt);
-        return _keyCache.TryGet(cacheKey);
-    }
-
     private static string GetCacheKey(string salt) => $"prf-key:{salt}";
 
     public ValueTask DisposeAsync()
@@ -238,6 +248,7 @@ public sealed partial class PrfService : IPrfService, IAsyncDisposable
 
     /// <summary>
     /// JavaScript interop methods.
+    /// WebAuthn/PRF only - crypto operations happen in C#.
     /// </summary>
     private static partial class JsInterop
     {
@@ -247,22 +258,10 @@ public sealed partial class PrfService : IPrfService, IAsyncDisposable
         [JSImport("register", "blazorPrf")]
         public static partial Task<string> Register(string? displayName, string optionsJson);
 
-        [JSImport("deriveKeys", "blazorPrf")]
-        public static partial Task<string> DeriveKeys(string credentialIdBase64, string salt, string optionsJson);
+        [JSImport("evaluatePrfOutput", "blazorPrf")]
+        public static partial Task<string> EvaluatePrfOutput(string credentialIdBase64, string salt, string optionsJson);
 
-        [JSImport("deriveKeysDiscoverable", "blazorPrf")]
-        public static partial Task<string> DeriveKeysDiscoverable(string salt, string optionsJson);
-
-        [JSImport("encryptSymmetric", "blazorPrf")]
-        public static partial string EncryptSymmetric(string message, string keyBase64);
-
-        [JSImport("decryptSymmetric", "blazorPrf")]
-        public static partial string DecryptSymmetric(string encryptedJson, string keyBase64);
-
-        [JSImport("encryptAsymmetric", "blazorPrf")]
-        public static partial string EncryptAsymmetric(string message, string recipientPublicKeyBase64);
-
-        [JSImport("decryptAsymmetric", "blazorPrf")]
-        public static partial string DecryptAsymmetric(string encryptedJson, string privateKeyBase64);
+        [JSImport("evaluatePrfDiscoverableOutput", "blazorPrf")]
+        public static partial Task<string> EvaluatePrfDiscoverableOutput(string salt, string optionsJson);
     }
 }

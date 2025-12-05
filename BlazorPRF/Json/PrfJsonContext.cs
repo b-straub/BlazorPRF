@@ -16,6 +16,7 @@ namespace BlazorPRF.Json;
 [JsonSerializable(typeof(PrfResult<PrfCredential>))]
 [JsonSerializable(typeof(PrfResult<DerivedKeysResult>))]
 [JsonSerializable(typeof(PrfResult<DiscoverableDerivedKeysResult>))]
+[JsonSerializable(typeof(PrfResult<DiscoverablePrfOutput>))]
 [JsonSerializable(typeof(PrfResult<EncryptedMessage>))]
 [JsonSerializable(typeof(PrfResult<string>))]
 [JsonSerializable(typeof(JsPrfOptions))]

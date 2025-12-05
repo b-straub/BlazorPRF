@@ -7,10 +7,7 @@
     "build:release": "esbuild src/index.ts --bundle --format=esm --minify --outfile=../wwwroot/blazor-prf.js"
   },
   "dependencies": {
-    "@simplewebauthn/browser": "^11.0.0",
-    "@noble/curves": "^1.7.0",
-    "@noble/ciphers": "^1.0.0",
-    "@noble/hashes": "^1.6.1"
+    "@simplewebauthn/browser": "^11.0.0"
   },
   "devDependencies": {
     "esbuild": "^0.24.0",

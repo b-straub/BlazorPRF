@@ -28,11 +28,6 @@ export interface SymmetricEncryptedMessage {
     nonce: string;      // Base64
 }
 
-export interface DerivedKeys {
-    privateKey: Uint8Array; // 32 bytes - sensitive, zero after use
-    publicKey: Uint8Array;  // 32 bytes
-}
-
 export interface PrfResult<T> {
     success: boolean;
     value?: T;

@@ -4,6 +4,7 @@
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
+<SessionExpiredPopover />
 
 <MudLayout>
     <MudAppBar Elevation="1">
@@ -14,6 +15,12 @@
                                Edge="Edge.Start"
                                OnClick="@(() => _drawerOpen = !_drawerOpen)" />
             </Authorized>
+            <NotAuthorized>
+                <MudIconButton Icon="@Icons.Material.Filled.Home"
+                               Color="Color.Inherit"
+                               Edge="Edge.Start"
+                               Href="/" />
+            </NotAuthorized>
         </AuthorizeView>
         <MudText Typo="Typo.h5" Class="ml-3">BlazorPRF Demo</MudText>
         <MudSpacer />

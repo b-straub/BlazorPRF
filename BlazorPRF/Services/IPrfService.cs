@@ -1,4 +1,6 @@
+using BlazorPRF.Configuration;
 using BlazorPRF.Models;
+using R3;
 
 namespace BlazorPRF.Services;
 
@@ -7,6 +9,16 @@ namespace BlazorPRF.Services;
 /// </summary>
 public interface IPrfService
 {
+    /// <summary>
+    /// The configured key caching strategy.
+    /// </summary>
+    KeyCacheStrategy CacheStrategy { get; }
+
+    /// <summary>
+    /// Observable that emits the cache key when keys expire due to TTL.
+    /// Format: "prf-key:{salt}"
+    /// </summary>
+    Observable<string> KeyExpired { get; }
     /// <summary>
     /// Check if PRF extension is supported on this platform.
     /// </summary>

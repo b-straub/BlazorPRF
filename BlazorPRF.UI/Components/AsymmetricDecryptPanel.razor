@@ -15,7 +15,7 @@
     </MudCardHeader>
 
     <MudCardContent>
-        @if (!Model.HasKeys)
+        @if (!Model.HasKeys && !Model.RequiresOnDemandAuth)
         {
             <MudAlert Severity="Severity.Warning" Class="mb-4">
                 Please derive keys first using the authentication panel.
@@ -29,7 +29,7 @@
                       Class="mb-4"
                       Style="font-family: monospace;"
                       HelperText="Paste the PFA message"
-                      Disabled="@(_isProcessing || !Model.HasKeys)" />
+                      Disabled="@(_isProcessing || (!Model.HasKeys && !Model.RequiresOnDemandAuth))" />
 
         @if (_errorMessage is not null)
         {
@@ -72,7 +72,8 @@
     private string? _errorMessage;
     private string? _decryptedResult;
 
-    private bool CanDecrypt => Model.HasKeys && !_isProcessing && !string.IsNullOrWhiteSpace(_encryptedInput);
+    // For Strategy.None or when keys are available
+    private bool CanDecrypt => (Model.HasKeys || Model.RequiresOnDemandAuth) && !_isProcessing && !string.IsNullOrWhiteSpace(_encryptedInput);
 
     private async Task DecryptAsync()
     {
@@ -110,11 +111,24 @@
                 return;
             }
 
+            // Ensure keys are available (triggers WebAuthn if needed)
+            if (!await Model.EnsureKeysAsync())
+            {
+                _errorMessage = "Authentication cancelled or failed";
+                return;
+            }
+
             var result = await AsymmetricEncryption.DecryptAsync(encrypted, Model.Salt);
 
             if (result is { Success: true, Value: not null })
             {
                 _decryptedResult = result.Value;
+            }
+            else if (result.ErrorCode == BlazorPRF.Shared.Models.PrfErrorCode.KeyDerivationFailed)
+            {
+                // Keys expired between EnsureKeysAsync and operation - notify model
+                Model.OnKeyDerivationFailed();
+                _errorMessage = "Keys expired. Please try again.";
             }
             else
             {

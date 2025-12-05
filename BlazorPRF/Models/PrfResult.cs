@@ -21,3 +21,14 @@ public sealed record DiscoverableDerivedKeysResult(
     string PrivateKeyBase64,
     string PublicKeyBase64
 );
+
+/// <summary>
+/// Raw PRF output with credential ID from discoverable credential.
+/// Used for JS interop - key derivation happens in C#.
+/// </summary>
+/// <param name="CredentialId">The credential ID that was used (Base64).</param>
+/// <param name="PrfOutput">The raw PRF output (Base64) - 32 bytes.</param>
+public sealed record DiscoverablePrfOutput(
+    string CredentialId,
+    string PrfOutput
+);

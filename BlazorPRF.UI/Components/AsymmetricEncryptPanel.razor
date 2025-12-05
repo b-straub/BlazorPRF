@@ -1,4 +1,5 @@
 @using BlazorPRF.Shared.Formatting
+@inherits PrfModelComponent
 @inject IAsymmetricEncryption AsymmetricEncryption
 @inject ISnackbar Snackbar
 @inject IClipboard Clipboard
@@ -15,10 +16,23 @@
     </MudCardHeader>
 
     <MudCardContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Recipient's Public Key</MudText>
+            <MudSpacer />
+            @if (CanUseOwnKey)
+            {
+                <MudButton Size="Size.Small"
+                           Variant="Variant.Text"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.PersonAdd"
+                           OnClick="UseOwnPublicKey">
+                    Use My Key
+                </MudButton>
+            }
+        </MudStack>
         <MudTextField @bind-Value="RecipientPublicKey"
-                      Label="Recipient's Public Key"
                       Variant="Variant.Outlined"
-                      HelperText="Paste the recipient's PFA public key"
+                      Placeholder="Paste the recipient's PFA public key"
                       Lines="5"
                       Class="mb-4"
                       Style="font-family: monospace;"
@@ -105,12 +119,6 @@
 </MudCard>
 
 @code {
-    /// <summary>
-    /// Optional initial public key to pre-populate the field (Base64 or armored).
-    /// </summary>
-    [Parameter]
-    public string? InitialPublicKey { get; set; }
-
     private string _recipientPublicKeyInput = string.Empty;
     private string _plaintext = string.Empty;
     private bool _isProcessing;
@@ -148,17 +156,20 @@
         !string.IsNullOrWhiteSpace(_recipientPublicKeyInput) &&
         !string.IsNullOrWhiteSpace(_plaintext);
 
-    protected override void OnParametersSet()
-    {
-        base.OnParametersSet();
+    private bool CanUseOwnKey =>
+        (Model.HasKeys || Model.RequiresOnDemandAuth) &&
+        Model.PublicKey is not null &&
+        string.IsNullOrWhiteSpace(_recipientPublicKeyInput);
 
-        if (!string.IsNullOrWhiteSpace(InitialPublicKey) && string.IsNullOrWhiteSpace(_recipientPublicKeyInput))
+    private void UseOwnPublicKey()
+    {
+        if (Model.PublicKey is null)
         {
-            // If it's raw Base64, armor it for display
-            RecipientPublicKey = PrfArmor.IsArmoredPublicKey(InitialPublicKey)
-                ? InitialPublicKey
-                : PrfArmor.ArmorPublicKey(InitialPublicKey);
+            return;
         }
+
+        // Armor the public key with metadata if available
+        RecipientPublicKey = PrfArmor.ArmorPublicKey(Model.PublicKey, Model.KeyMetadata);
     }
 
     private async Task EncryptAsync()

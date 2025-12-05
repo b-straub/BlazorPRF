@@ -1,9 +1,11 @@
+using BlazorPRF.Configuration;
 using BlazorPRF.Shared.Formatting;
 using BlazorPRF.Services;
 using BlazorPRF.UI.Services;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;
 using System.Diagnostics.CodeAnalysis;
+using R3;
 
 namespace BlazorPRF.UI.Models;
 
@@ -37,7 +39,10 @@ public partial class PrfModel : ObservableModel
 
     /// <summary>
     /// Whether keys have been derived for the current salt.
+    /// For Strategy.None, this is always false (re-auth required for each operation).
+    /// For Strategy.Timed, this reflects the actual cache state.
     /// </summary>
+    [ObservableBatch("SessionState")]
     public partial bool HasKeys { get; set; }
 
     /// <summary>
@@ -45,6 +50,17 @@ public partial class PrfModel : ObservableModel
     /// null = not yet checked, true = supported, false = not supported (fatal).
     /// </summary>
     public partial bool? IsPrfSupported { get; set; }
+
+    /// <summary>
+    /// The configured key caching strategy.
+    /// </summary>
+    public KeyCacheStrategy CacheStrategy => PrfService.CacheStrategy;
+
+    /// <summary>
+    /// Whether keys need to be derived before each crypto operation.
+    /// True when Strategy is None.
+    /// </summary>
+    public bool RequiresOnDemandAuth => CacheStrategy == KeyCacheStrategy.None;
 
     /// <summary>
     /// Whether any async command is currently executing.
@@ -60,6 +76,14 @@ public partial class PrfModel : ObservableModel
     /// Success message from last operation, if any.
     /// </summary>
     public partial string? SuccessMessage { get; set; }
+
+    /// <summary>
+    /// Whether the session has expired and user needs to re-authenticate.
+    /// Triggers OnSessionExpiredChanged hook in components.
+    /// </summary>
+    [ObservableComponentTrigger]
+    [ObservableBatch("SessionState")]
+    public partial bool SessionExpired { get; set; }
 
     // Commands
     [ObservableCommand(nameof(RegisterAsync), nameof(CanRegister))]
@@ -81,6 +105,10 @@ public partial class PrfModel : ObservableModel
     {
         IsPrfSupported = await PrfService.IsPrfSupportedAsync();
 
+        // Subscribe to key expiration events for reactive UI updates
+        // Using Subscriptions ensures automatic disposal with the model
+        Subscriptions.Add(PrfService.KeyExpired.Subscribe(OnKeyExpired));
+
         // Load credential hint to pre-populate the credential ID field
         // User still needs to click "Derive Keys" to authenticate (WebAuthn requires user gesture)
         if (IsPrfSupported == true)
@@ -92,6 +120,33 @@ public partial class PrfModel : ObservableModel
                 KeyMetadata = hint.Metadata;
             }
         }
+    }
+
+    /// <summary>
+    /// Called when a key expires in the cache.
+    /// Updates reactive state so UI can respond.
+    /// </summary>
+    private void OnKeyExpired(string cacheKey)
+    {
+        // Check if the expired key matches our current salt
+        var expectedCacheKey = $"prf-key:{Salt}";
+        if (cacheKey == expectedCacheKey)
+        {
+            // Batch update to ensure AuthenticationStateProvider sees both changes atomically
+            using (SuspendNotifications("SessionState"))
+            {
+                SessionExpired = true;
+                HasKeys = false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Dismiss the session expired dialog (user chose to go home).
+    /// </summary>
+    public void DismissSessionExpired()
+    {
+        SessionExpired = false;
     }
 
     private bool CanRegister()
@@ -149,8 +204,11 @@ public partial class PrfModel : ObservableModel
             if (result is { Success: true, Value: not null })
             {
                 PublicKey = result.Value;
-                HasKeys = true;
-                SuccessMessage = "Keys derived successfully!";
+                // For Strategy.None, keys expire immediately - don't set HasKeys
+                HasKeys = CacheStrategy != KeyCacheStrategy.None;
+                SuccessMessage = CacheStrategy == KeyCacheStrategy.None
+                    ? "Authentication successful! Keys will be derived on-demand."
+                    : "Keys derived successfully!";
                 await SaveCredentialHintAsync(CredentialId);
             }
             else if (result.Cancelled)
@@ -196,8 +254,11 @@ public partial class PrfModel : ObservableModel
             {
                 CredentialId = result.Value.CredentialId;
                 PublicKey = result.Value.PublicKey;
-                HasKeys = true;
-                SuccessMessage = "Keys derived successfully!";
+                // For Strategy.None, keys expire immediately - don't set HasKeys
+                HasKeys = CacheStrategy != KeyCacheStrategy.None;
+                SuccessMessage = CacheStrategy == KeyCacheStrategy.None
+                    ? "Authentication successful! Keys will be derived on-demand."
+                    : "Keys derived successfully!";
                 await SaveCredentialHintAsync(result.Value.CredentialId);
             }
             else if (!result.Cancelled)
@@ -236,6 +297,94 @@ public partial class PrfModel : ObservableModel
         {
             await SaveCredentialHintAsync(CredentialId);
         }
+    }
+
+    /// <summary>
+    /// Ensures keys are available for crypto operations.
+    /// For Strategy.None: Always triggers WebAuthn authentication.
+    /// For Strategy.Timed/Session: Checks cache and re-derives if expired.
+    /// </summary>
+    /// <returns>True if keys are available, false if user cancelled or error occurred</returns>
+    public async Task<bool> EnsureKeysAsync()
+    {
+        // For Strategy.None, always re-derive
+        if (CacheStrategy == KeyCacheStrategy.None)
+        {
+            return await DeriveKeysInternalAsync();
+        }
+
+        // For other strategies, check if keys are still cached
+        if (PrfService.HasCachedKeys(Salt))
+        {
+            return true;
+        }
+
+        // Keys expired or not present - need to re-derive
+        HasKeys = false; // Update reactive state
+        return await DeriveKeysInternalAsync();
+    }
+
+    /// <summary>
+    /// Internal helper to derive keys using the appropriate method.
+    /// </summary>
+    private async Task<bool> DeriveKeysInternalAsync()
+    {
+        if (CredentialId is not null)
+        {
+            var result = await PrfService.DeriveKeysAsync(CredentialId, Salt);
+            if (result is { Success: true, Value: not null })
+            {
+                PublicKey = result.Value;
+                // Don't update HasKeys for Strategy.None
+                if (CacheStrategy != KeyCacheStrategy.None)
+                {
+                    HasKeys = true;
+                }
+                return true;
+            }
+
+            // If credential failed, try discoverable
+            if (!result.Cancelled)
+            {
+                return await DeriveKeysDiscoverableInternalAsync();
+            }
+
+            return false;
+        }
+
+        return await DeriveKeysDiscoverableInternalAsync();
+    }
+
+    /// <summary>
+    /// Internal helper for discoverable credential flow.
+    /// </summary>
+    private async Task<bool> DeriveKeysDiscoverableInternalAsync()
+    {
+        var result = await PrfService.DeriveKeysDiscoverableAsync(Salt);
+        if (result.Success)
+        {
+            CredentialId = result.Value.CredentialId;
+            PublicKey = result.Value.PublicKey;
+            // Don't update HasKeys for Strategy.None
+            if (CacheStrategy != KeyCacheStrategy.None)
+            {
+                HasKeys = true;
+            }
+            await SaveCredentialHintAsync(result.Value.CredentialId);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Handles a key derivation failure from encryption services.
+    /// Clears the HasKeys state so UI can prompt for re-authentication.
+    /// </summary>
+    public void OnKeyDerivationFailed()
+    {
+        HasKeys = false;
+        ErrorMessage = "Keys expired. Please authenticate again.";
     }
 
     private void ClearKeysImpl()

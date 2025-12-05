@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using R3;
 
 namespace BlazorPRF.Models;
 
@@ -13,6 +14,13 @@ public sealed class SecureKeyEntry : IDisposable
     private IntPtr _keyPtr;
     private int _keyLength;
     private bool _disposed;
+    private readonly IDisposable? _expirationSubscription;
+    private readonly Subject<SecureKeyEntry> _expiredSubject = new();
+
+    /// <summary>
+    /// One-shot observable that emits when the key expires.
+    /// </summary>
+    public Observable<SecureKeyEntry> Expired => _expiredSubject.Take(1);
 
     /// <summary>
     /// The time when this key was created.
@@ -51,6 +59,14 @@ public sealed class SecureKeyEntry : IDisposable
 
         CreatedAt = DateTimeOffset.UtcNow;
         ExpiresAt = CreatedAt + ttl;
+
+        // Set up one-shot expiration using Observable.Timer
+        if (ttl.HasValue && ttl.Value > TimeSpan.Zero)
+        {
+            _expirationSubscription = Observable
+                .Timer(ttl.Value)
+                .Subscribe(_ => _expiredSubject.OnNext(this));
+        }
     }
 
     /// <summary>
@@ -118,6 +134,10 @@ public sealed class SecureKeyEntry : IDisposable
         {
             return;
         }
+
+        // Stop the expiration timer
+        _expirationSubscription?.Dispose();
+        _expiredSubject.Dispose();
 
         if (_keyPtr != IntPtr.Zero)
         {

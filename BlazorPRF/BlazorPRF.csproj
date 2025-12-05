@@ -23,37 +23,29 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BlazorPRF.Shared\BlazorPRF.Shared.csproj" />
+    <ProjectReference Include="..\BlazorPRF.Crypto\BlazorPRF.Crypto.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.0"/>
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0"/>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0"/>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0"/>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0"/>
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
+    <PackageReference Include="R3" Version="1.3.0" />
   </ItemGroup>
 
   <!-- TypeScript Build Integration -->
   <Target Name="NpmInstall" BeforeTargets="BuildTypeScriptDebug;BuildTypeScriptRelease">
-    <Exec WorkingDirectory="TypeScript"
-          Command="npm install"
-          Condition="Exists('TypeScript/package.json') And !Exists('TypeScript/node_modules')" />
+    <Exec WorkingDirectory="TypeScript" Command="npm install" Condition="Exists('TypeScript/package.json') And !Exists('TypeScript/node_modules')" />
   </Target>
 
-  <Target Name="BuildTypeScriptDebug"
-          BeforeTargets="BeforeCompile;ResolveStaticWebAssetsInputs"
-          Condition="'$(Configuration)' == 'Debug'">
-    <Exec WorkingDirectory="TypeScript"
-          Command="npm run build"
-          Condition="Exists('TypeScript/package.json')" />
+  <Target Name="BuildTypeScriptDebug" BeforeTargets="BeforeCompile;ResolveStaticWebAssetsInputs" Condition="'$(Configuration)' == 'Debug'">
+    <Exec WorkingDirectory="TypeScript" Command="npm run build" Condition="Exists('TypeScript/package.json')" />
   </Target>
 
-  <Target Name="BuildTypeScriptRelease"
-          BeforeTargets="BeforeCompile;ResolveStaticWebAssetsInputs"
-          Condition="'$(Configuration)' == 'Release'">
-    <Exec WorkingDirectory="TypeScript"
-          Command="npm run build:release"
-          Condition="Exists('TypeScript/package.json')" />
+  <Target Name="BuildTypeScriptRelease" BeforeTargets="BeforeCompile;ResolveStaticWebAssetsInputs" Condition="'$(Configuration)' == 'Release'">
+    <Exec WorkingDirectory="TypeScript" Command="npm run build:release" Condition="Exists('TypeScript/package.json')" />
   </Target>
 
 </Project>

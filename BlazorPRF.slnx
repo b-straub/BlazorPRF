@@ -4,6 +4,7 @@
     <File Path=".gitignore" />
   </Folder>
   <Project Path="BlazorPRF.Shared/BlazorPRF.Shared.csproj" />
+  <Project Path="BlazorPRF.Crypto/BlazorPRF.Crypto.csproj" />
   <Project Path="PseudoPRF/PseudoPRF.csproj" />
   <Project Path="PseudoPRF.Console/PseudoPRF.Console.csproj" />
   <Project Path="BlazorPRF/BlazorPRF.csproj" />

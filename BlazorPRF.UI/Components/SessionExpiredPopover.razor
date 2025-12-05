@@ -1,0 +1,98 @@
+@inherits PrfModelComponent
+@inject NavigationManager NavigationManager
+
+<MudPopover Open="Model.SessionExpired"
+            Fixed="true"
+            AnchorOrigin="Origin.CenterCenter"
+            TransformOrigin="Origin.CenterCenter"
+            Paper="false">
+    <MudAlert Severity="Severity.Warning"
+              Variant="Variant.Filled"
+              NoIcon="true"
+              Class="pa-4"
+              Style="max-width: 400px;">
+        <MudStack Spacing="3">
+            <MudStack Row="true" AlignItems="AlignItems.Center">
+                <MudIcon Icon="@Icons.Material.Filled.Timer" Size="Size.Large" />
+                <MudText Typo="Typo.h6">Session Expired</MudText>
+            </MudStack>
+
+            <MudText Typo="Typo.body1">
+                Your session has expired for security reasons. Would you like to re-authenticate to continue working?
+            </MudText>
+
+            <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
+                <MudButton OnClick="GoHome"
+                           Variant="Variant.Text"
+                           Color="Color.Dark"
+                           Disabled="_isAuthenticating"
+                           Size="Size.Small">
+                    Go Home
+                </MudButton>
+                <MudButton OnClick="ReAuthenticateAsync"
+                           Variant="Variant.Filled"
+                           Color="Color.Dark"
+                           StartIcon="@Icons.Material.Filled.Fingerprint"
+                           Disabled="_isAuthenticating"
+                           Size="Size.Small">
+                    @if (_isAuthenticating)
+                    {
+                        <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                        <span>Authenticating...</span>
+                    }
+                    else
+                    {
+                        <span>Re-authenticate</span>
+                    }
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudAlert>
+</MudPopover>
+
+@code {
+    private bool _isAuthenticating;
+
+    private async Task ReAuthenticateAsync()
+    {
+        _isAuthenticating = true;
+
+        try
+        {
+            // DeriveKeys already handles fallback to discoverable credentials
+            if (!string.IsNullOrWhiteSpace(Model.CredentialId))
+            {
+                await Model.DeriveKeys.ExecuteAsync();
+            }
+            else
+            {
+                await Model.DeriveKeysDiscoverable.ExecuteAsync();
+            }
+
+            // Check if authentication succeeded
+            if (Model.HasKeys || Model.RequiresOnDemandAuth)
+            {
+                Model.SessionExpired = false;
+            }
+            else
+            {
+                // User cancelled both attempts - go home
+                GoHome();
+            }
+        }
+        catch
+        {
+            GoHome();
+        }
+        finally
+        {
+            _isAuthenticating = false;
+        }
+    }
+
+    private void GoHome()
+    {
+        Model.SessionExpired = false;
+        NavigationManager.NavigateTo("/");
+    }
+}
