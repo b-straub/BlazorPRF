@@ -33,67 +33,39 @@
 
             @if (Model.IsPrfSupported != false)
             {
-                @if (Model.RequiresOnDemandAuth)
-                {
-                    <MudAlert Severity="Severity.Info" Class="mb-4" Variant="Variant.Outlined">
-                        <MudText Typo="Typo.body2">
-                            <strong>On-demand authentication enabled.</strong> You'll be prompted for biometric authentication each time you encrypt or decrypt.
-                        </MudText>
-                    </MudAlert>
+                <MudStack Row="true" Spacing="2" Class="mb-4">
+                    @if (!string.IsNullOrWhiteSpace(Model.CredentialId))
+                    {
+                        <MudButtonAsyncRx Command="@Model.DeriveKeys"
+                                          Variant="Variant.Filled"
+                                          Color="Color.Primary"
+                                          Size="Size.Large"
+                                          StartIcon="@Icons.Material.Filled.Fingerprint">
+                            Authenticate
+                        </MudButtonAsyncRx>
+                    }
+                    else
+                    {
+                        <MudButtonAsyncRx Command="@Model.DeriveKeysDiscoverable"
+                                          Variant="Variant.Filled"
+                                          Color="Color.Primary"
+                                          Size="Size.Large"
+                                          StartIcon="@Icons.Material.Filled.Fingerprint">
+                            Authenticate
+                        </MudButtonAsyncRx>
+                    }
+                </MudStack>
 
-                    <MudStack Row="true" Spacing="2">
-                        <MudButton Href="symmetric"
-                                   Variant="Variant.Filled"
-                                   Color="Color.Primary"
-                                   Size="Size.Large"
-                                   StartIcon="@Icons.Material.Filled.Lock">
-                            Symmetric Encryption
-                        </MudButton>
-                        <MudButton Href="asymmetric"
-                                   Variant="Variant.Filled"
-                                   Color="Color.Secondary"
-                                   Size="Size.Large"
-                                   StartIcon="@Icons.Material.Filled.Send">
-                            Asymmetric Encryption
-                        </MudButton>
-                    </MudStack>
-                }
-                else
-                {
-                    <MudStack Row="true" Spacing="2" Class="mb-4">
-                        @if (!string.IsNullOrWhiteSpace(Model.CredentialId))
-                        {
-                            <MudButtonAsyncRx Command="@Model.DeriveKeys"
-                                              Variant="Variant.Filled"
-                                              Color="Color.Primary"
-                                              Size="Size.Large"
-                                              StartIcon="@Icons.Material.Filled.Fingerprint">
-                                Authenticate
-                            </MudButtonAsyncRx>
-                        }
-                        else
-                        {
-                            <MudButtonAsyncRx Command="@Model.DeriveKeysDiscoverable"
-                                              Variant="Variant.Filled"
-                                              Color="Color.Primary"
-                                              Size="Size.Large"
-                                              StartIcon="@Icons.Material.Filled.Fingerprint">
-                                Authenticate
-                            </MudButtonAsyncRx>
-                        }
-                    </MudStack>
-
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                        @if (!string.IsNullOrWhiteSpace(Model.CredentialId))
-                        {
-                            <text>Using saved credential</text>
-                        }
-                        else
-                        {
-                            <text>Select from available passkeys</text>
-                        }
-                    </MudText>
-                }
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                    @if (!string.IsNullOrWhiteSpace(Model.CredentialId))
+                    {
+                        <text>Using saved credential</text>
+                    }
+                    else
+                    {
+                        <text>Select from available passkeys</text>
+                    }
+                </MudText>
             }
 
             <MudDivider Class="my-6" Style="width: 100%;" />
@@ -131,9 +103,21 @@
     <Authorized>
         <MudText Typo="Typo.h3" GutterBottom="true">Welcome back!</MudText>
 
-        <MudText Typo="Typo.body1" Class="mb-6">
-            Your keys are derived and ready. Choose an encryption method below.
-        </MudText>
+        @if (Model.RequiresOnDemandAuth)
+        {
+            <MudText Typo="Typo.body1" Class="mb-4">
+                Ready to encrypt. Choose a method below.
+            </MudText>
+            <MudAlert Severity="Severity.Info" Class="mb-6" Variant="Variant.Outlined" Dense="true">
+                <strong>On-demand authentication</strong> — You'll be prompted each time you encrypt or decrypt.
+            </MudAlert>
+        }
+        else
+        {
+            <MudText Typo="Typo.body1" Class="mb-6">
+                Your keys are derived and ready. Choose an encryption method below.
+            </MudText>
+        }
 
         <MudGrid>
             <MudItem xs="12" md="6">

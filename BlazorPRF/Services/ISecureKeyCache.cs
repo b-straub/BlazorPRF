@@ -1,4 +1,3 @@
-using BlazorPRF.Models;
 using R3;
 
 namespace BlazorPRF.Services;
@@ -11,6 +10,7 @@ public interface ISecureKeyCache : IDisposable
 {
     /// <summary>
     /// Observable that emits the cache key when a key expires due to TTL.
+    /// Note: For Strategy.None, this never emits (keys are removed immediately after use).
     /// </summary>
     Observable<string> KeyExpired { get; }
 
@@ -22,24 +22,8 @@ public interface ISecureKeyCache : IDisposable
     void Store(string keyId, byte[] key);
 
     /// <summary>
-    /// Retrieve a key from the cache.
-    /// </summary>
-    /// <param name="keyId">The key identifier</param>
-    /// <returns>A copy of the key, or null if not found or expired</returns>
-    byte[]? TryGet(string keyId);
-
-    /// <summary>
-    /// Execute an action with direct access to the key without creating a managed copy.
-    /// This is the preferred method for using keys securely.
-    /// </summary>
-    /// <param name="keyId">The key identifier</param>
-    /// <param name="action">Action to execute with the key span</param>
-    /// <returns>True if the key was found and action executed, false otherwise</returns>
-    bool UseKey(string keyId, ReadOnlySpanAction<byte> action);
-
-    /// <summary>
     /// Execute a function with direct access to the key without creating a managed copy.
-    /// This is the preferred method for using keys securely.
+    /// For Strategy.None, the key is removed immediately after this call.
     /// </summary>
     /// <typeparam name="TResult">The result type</typeparam>
     /// <param name="keyId">The key identifier</param>
@@ -56,20 +40,9 @@ public interface ISecureKeyCache : IDisposable
     bool Contains(string keyId);
 
     /// <summary>
-    /// Remove a specific key from the cache.
-    /// </summary>
-    /// <param name="keyId">The key identifier</param>
-    void Remove(string keyId);
-
-    /// <summary>
     /// Clear all keys from the cache.
     /// </summary>
     void Clear();
-
-    /// <summary>
-    /// Remove expired keys from the cache.
-    /// </summary>
-    void CleanupExpired();
 }
 
 /// <summary>

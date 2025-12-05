@@ -40,27 +40,23 @@ public sealed class SecureKeyCache : ISecureKeyCache
         }
 
         // Determine TTL based on strategy
+        // For Strategy.None: no TTL timer - key is removed immediately after use
         TimeSpan? ttl = _options.Strategy switch
         {
-            KeyCacheStrategy.None => TimeSpan.Zero, // Immediate expiration
+            KeyCacheStrategy.None => null, // No timer - removed after single use
             KeyCacheStrategy.Session => null, // No expiration (until page refresh)
             KeyCacheStrategy.Timed => TimeSpan.FromMinutes(_options.TtlMinutes),
             _ => TimeSpan.FromMinutes(15) // Default
         };
-        
-        // For 'None' strategy, we still store briefly to allow immediate retrieval
-        // but the key will be cleaned up on next cleanup cycle
-        if (_options.Strategy == KeyCacheStrategy.None)
-        {
-            ttl = TimeSpan.FromSeconds(1);
-        }
 
         var entry = new SecureKeyEntry(key, ttl);
 
-        // Subscribe to key's one-shot expiration observable
-        // Capture keyId for the callback
-        var capturedKeyId = keyId;
-        entry.Expired.Subscribe(_ => RemoveExpired(capturedKeyId));
+        // Subscribe to key's one-shot expiration observable (only for timed strategies)
+        if (ttl.HasValue)
+        {
+            var capturedKeyId = keyId;
+            entry.Expired.Subscribe(_ => RemoveExpired(capturedKeyId));
+        }
 
         _cache[keyId] = entry;
     }
@@ -122,6 +118,13 @@ public sealed class SecureKeyCache : ISecureKeyCache
         try
         {
             entry.UseKey(action);
+
+            // For Strategy.None: remove key immediately after single use (no event)
+            if (_options.Strategy == KeyCacheStrategy.None)
+            {
+                Remove(keyId);
+            }
+
             return true;
         }
         catch
@@ -160,6 +163,13 @@ public sealed class SecureKeyCache : ISecureKeyCache
             TResult? capturedResult = default;
             entry.UseKey(span => capturedResult = func(span));
             result = capturedResult;
+
+            // For Strategy.None: remove key immediately after single use (no event)
+            if (_options.Strategy == KeyCacheStrategy.None)
+            {
+                Remove(keyId);
+            }
+
             return true;
         }
         catch
@@ -238,6 +248,8 @@ public sealed class SecureKeyCache : ISecureKeyCache
 
     /// <summary>
     /// Remove a key that has expired and emit via KeyExpired observable.
+    /// Note: For Strategy.None, keys are removed immediately after use via Remove(),
+    /// so this method is never called for that strategy.
     /// </summary>
     private void RemoveExpired(string keyId)
     {

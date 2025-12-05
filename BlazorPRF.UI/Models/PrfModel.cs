@@ -125,6 +125,7 @@ public partial class PrfModel : ObservableModel
     /// <summary>
     /// Called when a key expires in the cache.
     /// Updates reactive state so UI can respond.
+    /// Note: For Strategy.None, the cache never emits expiration events.
     /// </summary>
     private void OnKeyExpired(string cacheKey)
     {
