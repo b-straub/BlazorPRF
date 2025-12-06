@@ -9,6 +9,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/b-straub/BlazorPRF</PackageProjectUrl>
     <RepositoryUrl>https://github.com/b-straub/BlazorPRF</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
     <IncludeSymbols>true</IncludeSymbols>
     <EmbedAllSources>true</EmbedAllSources>
@@ -18,12 +19,33 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <SupportedPlatform Include="browser" />
+    <None Include="../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BlazorPRF.Shared\BlazorPRF.Shared.csproj" />
-    <ProjectReference Include="..\BlazorPRF.Crypto\BlazorPRF.Crypto.csproj" />
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <!-- Reference internal libraries for build order only (no assembly reference) -->
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorPRF.Shared\BlazorPRF.Shared.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\BlazorPRF.Crypto\BlazorPRF.Crypto.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- Regular reference for compilation -->
+  <ItemGroup>
+    <Reference Include="BlazorPRF.Shared">
+      <HintPath>$(MSBuildThisFileDirectory)..\BlazorPRF.Shared\bin\$(Configuration)\net10.0\BlazorPRF.Shared.dll</HintPath>
+    </Reference>
+    <Reference Include="BlazorPRF.Crypto">
+      <HintPath>$(MSBuildThisFileDirectory)..\BlazorPRF.Crypto\bin\$(Configuration)\net10.0\BlazorPRF.Crypto.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Pack internal DLLs into lib folder -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\BlazorPRF.Shared\bin\$(Configuration)\net10.0\BlazorPRF.Shared.dll" Pack="true" PackagePath="lib/net10.0" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)..\BlazorPRF.Crypto\bin\$(Configuration)\net10.0\BlazorPRF.Crypto.dll" Pack="true" PackagePath="lib/net10.0" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,6 +55,8 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
     <PackageReference Include="R3" Version="1.3.0" />
+    <!-- BouncyCastle is used by BlazorPRF.Crypto (embedded) for WASM crypto operations -->
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.1" />
   </ItemGroup>
 
   <!-- TypeScript Build Integration -->

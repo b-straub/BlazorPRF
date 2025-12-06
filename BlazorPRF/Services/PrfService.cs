@@ -144,7 +144,7 @@ public sealed partial class PrfService : IPrfService, IAsyncDisposable
         }
 
         // Derive keypair from PRF output in C# (never exposed to JS)
-        var keypair = KeyDerivation.DeriveKeypairFromPrf(result.Value);
+        var keypair = KeyGenerator.DeriveKeypairFromPrf(result.Value);
 
         // Cache the private key securely
         var privateKeyBytes = Convert.FromBase64String(keypair.PrivateKeyBase64);
@@ -186,7 +186,7 @@ public sealed partial class PrfService : IPrfService, IAsyncDisposable
         }
 
         // Derive keypair from PRF output in C# (never exposed to JS)
-        var keypair = KeyDerivation.DeriveKeypairFromPrf(result.Value.PrfOutput);
+        var keypair = KeyGenerator.DeriveKeypairFromPrf(result.Value.PrfOutput);
 
         // Cache the private key securely
         var cacheKey = GetCacheKey(salt);

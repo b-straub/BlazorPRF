@@ -14,7 +14,7 @@ namespace BlazorPRF.Crypto;
 /// WASM-compatible cryptographic operations using BouncyCastle.
 /// Provides X25519 + ChaCha20-Poly1305 encryption matching the TypeScript implementation.
 /// </summary>
-public static class WasmCryptoOperations
+public static class CryptoOperations
 {
     private const int NonceLength = 12;
     private const int KeyLength = 32;

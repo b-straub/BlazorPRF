@@ -28,7 +28,7 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
         var cacheKey = GetCacheKey(salt);
 
         // Use the key directly from unmanaged memory without creating a managed copy
-        if (!_keyCache.UseKey(cacheKey, key => WasmCryptoOperations.EncryptSymmetric(message, key), out var result))
+        if (!_keyCache.UseKey(cacheKey, key => CryptoOperations.EncryptSymmetric(message, key), out var result))
         {
             return ValueTask.FromResult(PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.KeyDerivationFailed));
         }
@@ -45,7 +45,7 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
         var cacheKey = GetCacheKey(salt);
 
         // Use the key directly from unmanaged memory without creating a managed copy
-        if (!_keyCache.UseKey(cacheKey, key => WasmCryptoOperations.DecryptSymmetric(encrypted, key), out var result))
+        if (!_keyCache.UseKey(cacheKey, key => CryptoOperations.DecryptSymmetric(encrypted, key), out var result))
         {
             return ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.KeyDerivationFailed));
         }

@@ -6,19 +6,24 @@
 
     <PropertyGroup>
         <PackageId>BlazorPRF.UI</PackageId>
-        <Version>$(RxBlazorV2Version)</Version>
+        <Version>$(BlazorPRFVersion)</Version>
         <Authors>bernisoft</Authors>
         <Description>MudBlazor UI components for PRF-based deterministic encryption</Description>
         <PackageTags>blazor;mudblazor;webauthn;prf;encryption;ui</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageProjectUrl>https://github.com/b-straub/BlazorPRF</PackageProjectUrl>
         <RepositoryUrl>https://github.com/b-straub/BlazorPRF</RepositoryUrl>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
         <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
         <IncludeSymbols>true</IncludeSymbols>
         <EmbedAllSources>true</EmbedAllSources>
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
         <PackageOutputPath>$(MSBuildThisFileDirectory)../.nuget</PackageOutputPath>
     </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="../README.md" Pack="true" PackagePath="/" />
+    </ItemGroup>
 
     <ItemGroup>
         <SupportedPlatform Include="browser" />
@@ -34,6 +39,15 @@
 
     <ItemGroup>
         <ProjectReference Include="..\BlazorPRF\BlazorPRF.csproj" />
+        <!-- Reference Shared for build order only, use DLL reference for types -->
+        <ProjectReference Include="..\BlazorPRF.Shared\BlazorPRF.Shared.csproj" ReferenceOutputAssembly="false" />
+    </ItemGroup>
+
+    <!-- Direct reference to Shared DLL for compilation (types flow from BlazorPRF package at runtime) -->
+    <ItemGroup>
+        <Reference Include="BlazorPRF.Shared">
+            <HintPath>$(MSBuildThisFileDirectory)..\BlazorPRF.Shared\bin\$(Configuration)\net10.0\BlazorPRF.Shared.dll</HintPath>
+        </Reference>
     </ItemGroup>
 
 </Project>

@@ -4,7 +4,7 @@ using PseudoPRF.Services;
 namespace BlazorPRF.Tests.Unit;
 
 /// <summary>
-/// Tests to verify interoperability between NSec (PseudoPRF) and BouncyCastle (WasmCryptoOperations).
+/// Tests to verify interoperability between NSec (PseudoPRF) and BouncyCastle (CryptoOperations).
 /// These tests ensure that messages encrypted by one implementation can be decrypted by the other.
 /// </summary>
 public class CryptoInteropTests
@@ -21,7 +21,7 @@ public class CryptoInteropTests
         Assert.True(encryptResult.Success, $"NSec encryption failed: {encryptResult.ErrorCode}");
 
         // Decrypt with BouncyCastle
-        var decryptResult = WasmCryptoOperations.DecryptSymmetric(encryptResult.Value!, keyPair.PrivateKeyBase64);
+        var decryptResult = CryptoOperations.DecryptSymmetric(encryptResult.Value!, keyPair.PrivateKeyBase64);
 
         // Assert
         Assert.True(decryptResult.Success, $"BouncyCastle decryption failed: {decryptResult.ErrorCode}");
@@ -36,7 +36,7 @@ public class CryptoInteropTests
         const string plaintext = "Hello from BouncyCastle! 🏰";
 
         // Act - Encrypt with BouncyCastle
-        var encryptResult = WasmCryptoOperations.EncryptSymmetric(plaintext, keyPair.PrivateKeyBase64);
+        var encryptResult = CryptoOperations.EncryptSymmetric(plaintext, keyPair.PrivateKeyBase64);
         Assert.True(encryptResult.Success, $"BouncyCastle encryption failed: {encryptResult.ErrorCode}");
 
         // Decrypt with NSec
@@ -59,7 +59,7 @@ public class CryptoInteropTests
         Assert.True(encryptResult.Success, $"NSec encryption failed: {encryptResult.ErrorCode}");
 
         // Decrypt with BouncyCastle
-        var decryptResult = WasmCryptoOperations.DecryptAsymmetric(encryptResult.Value!, keyPair.PrivateKeyBase64);
+        var decryptResult = CryptoOperations.DecryptAsymmetric(encryptResult.Value!, keyPair.PrivateKeyBase64);
 
         // Assert
         Assert.True(decryptResult.Success, $"BouncyCastle decryption failed: {decryptResult.ErrorCode}");
@@ -74,7 +74,7 @@ public class CryptoInteropTests
         const string plaintext = "Asymmetric message from BouncyCastle! 🏰";
 
         // Act - Encrypt with BouncyCastle
-        var encryptResult = WasmCryptoOperations.EncryptAsymmetric(plaintext, keyPair.PublicKeyBase64);
+        var encryptResult = CryptoOperations.EncryptAsymmetric(plaintext, keyPair.PublicKeyBase64);
         Assert.True(encryptResult.Success, $"BouncyCastle encryption failed: {encryptResult.ErrorCode}");
 
         // Decrypt with NSec
@@ -94,12 +94,12 @@ public class CryptoInteropTests
         var prfOutputBase64 = Convert.ToBase64String(prfOutput);
 
         // Act - Derive keypair using BouncyCastle
-        var keypair = KeyDerivation.DeriveKeypairFromPrf(prfOutputBase64);
+        var keypair = KeyGenerator.DeriveKeypairFromPrf(prfOutputBase64);
 
         // Verify keys are valid - encrypt with BouncyCastle, decrypt with NSec
         const string testMessage = "Testing key derivation compatibility";
 
-        var encryptResult = WasmCryptoOperations.EncryptAsymmetric(testMessage, keypair.PublicKeyBase64);
+        var encryptResult = CryptoOperations.EncryptAsymmetric(testMessage, keypair.PublicKeyBase64);
         Assert.True(encryptResult.Success, $"Encryption failed: {encryptResult.ErrorCode}");
 
         var decryptResult = PseudoPrfCrypto.DecryptAsymmetric(encryptResult.Value!, keypair.PrivateKeyBase64);
@@ -120,8 +120,8 @@ public class CryptoInteropTests
         }
 
         // Act - Derive keypair twice
-        var keypair1 = KeyDerivation.DeriveKeypairFromPrf(prfOutput);
-        var keypair2 = KeyDerivation.DeriveKeypairFromPrf(prfOutput);
+        var keypair1 = KeyGenerator.DeriveKeypairFromPrf(prfOutput);
+        var keypair2 = KeyGenerator.DeriveKeypairFromPrf(prfOutput);
 
         // Assert - Same input should produce same output
         Assert.Equal(keypair1.PrivateKeyBase64, keypair2.PrivateKeyBase64);
@@ -136,7 +136,7 @@ public class CryptoInteropTests
         var plaintext = new string('A', 10000) + "🚀" + new string('B', 10000);
 
         // Act - Encrypt with BouncyCastle, decrypt with NSec
-        var encryptResult = WasmCryptoOperations.EncryptAsymmetric(plaintext, keyPair.PublicKeyBase64);
+        var encryptResult = CryptoOperations.EncryptAsymmetric(plaintext, keyPair.PublicKeyBase64);
         Assert.True(encryptResult.Success);
 
         var decryptResult = PseudoPrfCrypto.DecryptAsymmetric(encryptResult.Value!, keyPair.PrivateKeyBase64);
@@ -157,7 +157,7 @@ public class CryptoInteropTests
         var encryptResult = PseudoPrfCrypto.EncryptSymmetric(plaintext, keyPair.PrivateKeyBase64);
         Assert.True(encryptResult.Success);
 
-        var decryptResult = WasmCryptoOperations.DecryptSymmetric(encryptResult.Value!, keyPair.PrivateKeyBase64);
+        var decryptResult = CryptoOperations.DecryptSymmetric(encryptResult.Value!, keyPair.PrivateKeyBase64);
 
         // Assert
         Assert.True(decryptResult.Success);

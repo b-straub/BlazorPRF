@@ -1,4 +1,5 @@
 using System.Text.Json;
+using BlazorPRF.Crypto;
 using BlazorPRF.Shared.Formatting;
 using BlazorPRF.Shared.Json;
 using PseudoPRF.Services;
@@ -102,9 +103,7 @@ static int Encrypt(string[] args, bool debug)
         Console.Error.WriteLine($"[DEBUG] Recipient public key (hex): {Convert.ToHexString(Convert.FromBase64String(publicKey))}");
     }
 
-    var result = debug
-        ? CryptoOperations.EncryptAsymmetricDebug(message, publicKey)
-        : PseudoPrfCrypto.EncryptAsymmetric(message, publicKey);
+    var result = PseudoPrfCrypto.EncryptAsymmetric(message, publicKey);
 
     if (!result.Success)
     {
@@ -173,9 +172,7 @@ static int Decrypt(string[] args, bool debug)
         Console.Error.WriteLine($"[DEBUG] Ephemeral public key (hex): {Convert.ToHexString(Convert.FromBase64String(encrypted.EphemeralPublicKey))}");
     }
 
-    var result = debug
-        ? CryptoOperations.DecryptAsymmetricDebug(encrypted, privateKey)
-        : PseudoPrfCrypto.DecryptAsymmetric(encrypted, privateKey);
+    var result = PseudoPrfCrypto.DecryptAsymmetric(encrypted, privateKey);
 
     if (!result.Success)
     {

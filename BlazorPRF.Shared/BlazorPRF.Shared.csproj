@@ -1,20 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <PackageId>BlazorPRF.Shared</PackageId>
-    <Version>$(BlazorPRFVersion)</Version>
-    <Authors>bernisoft</Authors>
-    <Description>Shared models and interfaces for BlazorPRF and PseudoPRF - X25519/ChaCha20-Poly1305 encryption</Description>
-    <PackageTags>encryption;x25519;chacha20;cryptography</PackageTags>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/b-straub/BlazorPRF</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/b-straub/BlazorPRF</RepositoryUrl>
-    <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
-    <IncludeSymbols>true</IncludeSymbols>
-    <EmbedAllSources>true</EmbedAllSources>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <PackageOutputPath>$(MSBuildThisFileDirectory)../.nuget</PackageOutputPath>
-  </PropertyGroup>
-
+  <!-- Internal shared library - not published as separate package -->
 
 </Project>

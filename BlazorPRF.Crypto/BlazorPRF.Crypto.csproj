@@ -1,10 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <PackageId>BlazorPRF.Crypto</PackageId>
-    <Version>$(BlazorPRFVersion)</Version>
-    <Description>WASM-compatible cryptographic operations for BlazorPRF using BouncyCastle</Description>
-  </PropertyGroup>
+  <!-- Internal crypto library - not published as separate package -->
 
   <ItemGroup>
     <ProjectReference Include="..\BlazorPRF.Shared\BlazorPRF.Shared.csproj" />

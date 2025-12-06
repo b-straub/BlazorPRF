@@ -7,6 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="..\PseudoPRF\PseudoPRF.csproj" />
     <ProjectReference Include="..\BlazorPRF.Shared\BlazorPRF.Shared.csproj" />
+    <ProjectReference Include="..\BlazorPRF.Crypto\BlazorPRF.Crypto.csproj" />
   </ItemGroup>
 
 </Project>
