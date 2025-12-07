@@ -1,0 +1,26 @@
+@page "/invite"
+@attribute [Authorize]
+
+<PageTitle>Identity Verification Demo - BlazorPRF</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Identity Verification Demo</MudText>
+<MudText Typo="Typo.body1" Class="mb-2">
+    Simulate the invite flow: Create an invite, have another user sign their acceptance,
+    then verify their signature to prove identity.
+</MudText>
+<MudText Typo="Typo.body2" Class="mb-6 mud-text-secondary">
+    This demonstrates the "Registration with Signed Invite" pattern using Ed25519 signatures.
+    After verification, the invitee's public key is trusted (like PGP "full trust").
+</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="4">
+        <InviteCreationPanel />
+    </MudItem>
+    <MudItem xs="12" md="4">
+        <InviteAcceptancePanel />
+    </MudItem>
+    <MudItem xs="12" md="4">
+        <InviteVerificationPanel />
+    </MudItem>
+</MudGrid>

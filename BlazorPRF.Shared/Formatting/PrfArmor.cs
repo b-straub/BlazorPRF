@@ -17,6 +17,10 @@ public static partial class PrfArmor
     private const string PrivateKeyFooter = "-----END PFA PRIVATE KEY-----";
     private const string MessageHeader = "-----BEGIN PFA MESSAGE-----";
     private const string MessageFooter = "-----END PFA MESSAGE-----";
+    private const string SignedInviteHeader = "-----BEGIN PFA SIGNED INVITE-----";
+    private const string SignedInviteFooter = "-----END PFA SIGNED INVITE-----";
+    private const string SignedResponseHeader = "-----BEGIN PFA SIGNED RESPONSE-----";
+    private const string SignedResponseFooter = "-----END PFA SIGNED RESPONSE-----";
     private const int LineLength = 64;
     private const int FormatVersion = 1;
 
@@ -198,6 +202,86 @@ public static partial class PrfArmor
     public static bool IsArmoredMessage(string text)
     {
         return text.TrimStart().StartsWith(MessageHeader, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Checks if a string looks like an armored signed invite.
+    /// </summary>
+    public static bool IsArmoredSignedInvite(string text)
+    {
+        return text.TrimStart().StartsWith(SignedInviteHeader, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Checks if a string looks like an armored signed response.
+    /// </summary>
+    public static bool IsArmoredSignedResponse(string text)
+    {
+        return text.TrimStart().StartsWith(SignedResponseHeader, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Formats a signed invite in PGP-style armor.
+    /// </summary>
+    public static string ArmorSignedInvite(string inviteJson)
+    {
+        var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(inviteJson));
+        var wrapped = WrapBase64(base64);
+        return $"{SignedInviteHeader}\n\n{wrapped}\n{SignedInviteFooter}";
+    }
+
+    /// <summary>
+    /// Extracts and decodes a signed invite JSON from PGP-style armor.
+    /// </summary>
+    public static string? UnArmorSignedInvite(string armored)
+    {
+        var base64 = ExtractBase64(armored, SignedInviteHeader, SignedInviteFooter);
+        if (base64 is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var bytes = Convert.FromBase64String(base64);
+            return Encoding.UTF8.GetString(bytes);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Formats a signed response in PGP-style armor.
+    /// </summary>
+    public static string ArmorSignedResponse(string responseJson)
+    {
+        var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(responseJson));
+        var wrapped = WrapBase64(base64);
+        return $"{SignedResponseHeader}\n\n{wrapped}\n{SignedResponseFooter}";
+    }
+
+    /// <summary>
+    /// Extracts and decodes a signed response JSON from PGP-style armor.
+    /// </summary>
+    public static string? UnArmorSignedResponse(string armored)
+    {
+        var base64 = ExtractBase64(armored, SignedResponseHeader, SignedResponseFooter);
+        if (base64 is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var bytes = Convert.FromBase64String(base64);
+            return Encoding.UTF8.GetString(bytes);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static string WrapBase64(string base64)

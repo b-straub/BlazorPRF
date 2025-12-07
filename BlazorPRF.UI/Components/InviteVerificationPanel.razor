@@ -1,0 +1,359 @@
+@using BlazorPRF.Shared.Formatting
+@inherits PrfModelComponent
+@inject ISigningService SigningService
+@inject IClipboard Clipboard
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<MudCard>
+    <MudCardHeader>
+        <CardHeaderAvatar>
+            <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Color="Color.Tertiary" />
+        </CardHeaderAvatar>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Step 3: Verify Acceptance</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Verify both signatures to establish trust</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+
+    <MudCardContent>
+        <MudTextField @bind-Value="_signedResponse"
+                      Label="Signed Response"
+                      Variant="Variant.Outlined"
+                      Lines="8"
+                      Class="mb-4"
+                      Style="font-family: monospace;"
+                      Placeholder="Paste the armored signed response from the invitee"
+                      Immediate="true"
+                      Disabled="@_isProcessing" />
+
+        <MudButton Color="Color.Tertiary"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.CheckCircle"
+                   OnClick="VerifyAsync"
+                   Disabled="@(!CanVerify)">
+            @if (_isProcessing)
+            {
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                <span>Verifying...</span>
+            }
+            else
+            {
+                <span>Verify Signatures</span>
+            }
+        </MudButton>
+
+        @if (_errorMessage is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4" Variant="Variant.Outlined">
+                @_errorMessage
+            </MudAlert>
+        }
+
+        @if (_verificationComplete)
+        {
+            @if (_inviterSignatureValid && _accepterSignatureValid)
+            {
+                <MudAlert Severity="Severity.Success" Class="mt-4" Variant="Variant.Filled" Dense="true">
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+                        <MudText>Both signatures VALID - Identity verified!</MudText>
+                    </MudStack>
+                </MudAlert>
+
+                <MudPaper Class="pa-4 mt-4" Elevation="0" Style="background-color: var(--mud-palette-success-lighten);">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Verified" Size="Size.Small" Color="Color.Success" Class="mr-1" />
+                        Verification Details
+                    </MudText>
+
+                    <MudStack Spacing="1" Class="mb-3">
+                        <MudStack Row="true" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                            <MudText Typo="Typo.body2">Your invite signature: <strong>Valid</strong> (this is your invite)</MudText>
+                        </MudStack>
+                        <MudStack Row="true" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                            <MudText Typo="Typo.body2">Accepter's signature: <strong>Valid</strong> (they control their keys)</MudText>
+                        </MudStack>
+                    </MudStack>
+
+                    <MudDivider Class="my-3" />
+
+                    @if (!string.IsNullOrWhiteSpace(_verifiedUsername))
+                    {
+                        <MudText Typo="Typo.body2">
+                            <strong>Name:</strong> @_verifiedUsername
+                        </MudText>
+                    }
+                    <MudText Typo="Typo.body2" Class="mb-2">
+                        <strong>Email:</strong> @_verifiedEmail
+                    </MudText>
+
+                    <MudDivider Class="my-3" />
+
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">X25519 Public Key (for encryption)</MudText>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.Verified">Verified</MudChip>
+                        <MudText Typo="Typo.body2" Style="font-family: monospace; word-break: break-all; font-size: 0.75rem;">
+                            @_verifiedX25519PublicKey
+                        </MudText>
+                        <MudTooltip Text="Copy X25519 public key">
+                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                           Size="Size.Small"
+                                           OnClick="@(() => CopyKeyAsync(_verifiedX25519PublicKey!, "X25519 public key"))" />
+                        </MudTooltip>
+                    </MudStack>
+
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Ed25519 Public Key (for signature verification)</MudText>
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.Verified">Verified</MudChip>
+                        <MudText Typo="Typo.body2" Style="font-family: monospace; word-break: break-all; font-size: 0.75rem;">
+                            @_verifiedEd25519PublicKey
+                        </MudText>
+                        <MudTooltip Text="Copy Ed25519 public key">
+                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                           Size="Size.Small"
+                                           OnClick="@(() => CopyKeyAsync(_verifiedEd25519PublicKey!, "Ed25519 public key"))" />
+                        </MudTooltip>
+                    </MudStack>
+
+                    <MudDivider Class="my-3" />
+
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
+                        This is like PGP "full trust" - you've verified that this user controls these keys
+                        AND they were responding to YOUR specific invite.
+                    </MudText>
+
+                    <MudButton Color="Color.Primary"
+                               Variant="Variant.Filled"
+                               StartIcon="@Icons.Material.Filled.Lock"
+                               OnClick="NavigateToEncrypt"
+                               Size="Size.Small">
+                        Encrypt to This User
+                    </MudButton>
+                </MudPaper>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-4" Variant="Variant.Filled" Dense="true">
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.Cancel" />
+                        <MudText>Verification FAILED - Do not trust!</MudText>
+                    </MudStack>
+                </MudAlert>
+
+                <MudPaper Class="pa-4 mt-4" Elevation="0" Style="background-color: var(--mud-palette-error-lighten);">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Verification Details</MudText>
+
+                    <MudStack Spacing="1" Class="mb-3">
+                        <MudStack Row="true" AlignItems="AlignItems.Center">
+                            @if (_inviterSignatureValid)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                <MudText Typo="Typo.body2">Your invite signature: <strong>Valid</strong></MudText>
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" />
+                                <MudText Typo="Typo.body2">Your invite signature: <strong>INVALID</strong> - This is NOT your invite!</MudText>
+                            }
+                        </MudStack>
+                        <MudStack Row="true" AlignItems="AlignItems.Center">
+                            @if (_accepterSignatureValid)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                <MudText Typo="Typo.body2">Accepter's signature: <strong>Valid</strong></MudText>
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" />
+                                <MudText Typo="Typo.body2">Accepter's signature: <strong>INVALID</strong> - Message tampered!</MudText>
+                            }
+                        </MudStack>
+                    </MudStack>
+
+                    <MudText Typo="Typo.body2">
+                        This could mean:
+                    </MudText>
+                    <MudList T="string" Dense="true">
+                        @if (!_inviterSignatureValid)
+                        {
+                            <MudListItem Icon="@Icons.Material.Filled.Warning">Someone forged an invite pretending to be you</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.Warning">The invite was tampered with</MudListItem>
+                        }
+                        @if (!_accepterSignatureValid)
+                        {
+                            <MudListItem Icon="@Icons.Material.Filled.Warning">The response was tampered with</MudListItem>
+                            <MudListItem Icon="@Icons.Material.Filled.Warning">The signature doesn't match the public key</MudListItem>
+                        }
+                    </MudList>
+                </MudPaper>
+            }
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private string _signedResponse = string.Empty;
+    private bool _isProcessing;
+    private string? _errorMessage;
+    private bool _verificationComplete;
+    private bool _inviterSignatureValid;
+    private bool _accepterSignatureValid;
+    private string? _verifiedUsername;
+    private string? _verifiedEmail;
+    private string? _verifiedX25519PublicKey;
+    private string? _verifiedEd25519PublicKey;
+
+    private bool CanVerify => !_isProcessing && !string.IsNullOrWhiteSpace(_signedResponse);
+
+    private async Task VerifyAsync()
+    {
+        if (!CanVerify)
+        {
+            return;
+        }
+
+        _isProcessing = true;
+        _errorMessage = null;
+        _verificationComplete = false;
+        _inviterSignatureValid = false;
+        _accepterSignatureValid = false;
+        _verifiedUsername = null;
+        _verifiedEmail = null;
+        _verifiedX25519PublicKey = null;
+        _verifiedEd25519PublicKey = null;
+
+        try
+        {
+            // UnArmor if armored, otherwise try as raw JSON
+            var json = PrfArmor.IsArmoredSignedResponse(_signedResponse)
+                ? PrfArmor.UnArmorSignedResponse(_signedResponse)
+                : _signedResponse;
+
+            if (json is null)
+            {
+                _errorMessage = "Invalid armored format";
+                return;
+            }
+
+            // Parse the JSON response
+            var response = System.Text.Json.JsonSerializer.Deserialize<InviteAcceptanceResponse>(json);
+
+            if (response is null)
+            {
+                _errorMessage = "Invalid JSON format";
+                return;
+            }
+
+            // Validate required fields
+            if (response.signedInvite is null ||
+                string.IsNullOrEmpty(response.signedInvite.inviteCode) ||
+                string.IsNullOrEmpty(response.signedInvite.inviterSignature) ||
+                string.IsNullOrEmpty(response.signedInvite.inviterEd25519PublicKey))
+            {
+                _errorMessage = "Missing signed invite data";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(response.message) ||
+                string.IsNullOrEmpty(response.signature) ||
+                string.IsNullOrEmpty(response.ed25519PublicKey))
+            {
+                _errorMessage = "Missing required fields: message, signature, or ed25519PublicKey";
+                return;
+            }
+
+            // Step 1: Verify the INVITER's signature (proves this is YOUR invite)
+            _inviterSignatureValid = await SigningService.VerifyAsync(
+                response.signedInvite.inviteCode,
+                response.signedInvite.inviterSignature,
+                response.signedInvite.inviterEd25519PublicKey);
+
+            // Step 2: Verify the ACCEPTER's signature (proves they control their keys)
+            _accepterSignatureValid = await SigningService.VerifyAsync(
+                response.message,
+                response.signature,
+                response.ed25519PublicKey);
+
+            _verificationComplete = true;
+
+            // Only extract user info if both signatures are valid
+            if (_inviterSignatureValid && _accepterSignatureValid)
+            {
+                _verifiedUsername = response.username;
+                _verifiedEmail = response.email;
+                _verifiedX25519PublicKey = response.x25519PublicKey;
+                _verifiedEd25519PublicKey = response.ed25519PublicKey;
+            }
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            _errorMessage = "Invalid JSON format. Please paste the complete JSON response.";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task CopyKeyAsync(string key, string keyName)
+    {
+        try
+        {
+            await Clipboard.SetTextAsync(key);
+            Snackbar.Add($"{keyName} copied!", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Failed to copy", Severity.Error);
+        }
+    }
+
+    private void NavigateToEncrypt()
+    {
+        if (string.IsNullOrEmpty(_verifiedX25519PublicKey))
+        {
+            return;
+        }
+
+        // Create metadata from verified user info
+        var metadata = new PublicKeyMetadata
+        {
+            Name = _verifiedUsername,
+            Email = _verifiedEmail,
+            Comment = "Verified via signed invite"
+        };
+
+        // Armor the public key with metadata
+        var armoredKey = PrfArmor.ArmorPublicKey(_verifiedX25519PublicKey, metadata);
+
+        // Navigate to asymmetric encryption with the armored public key
+        var uri = $"encrypt?publicKey={Uri.EscapeDataString(armoredKey)}";
+        NavigationManager.NavigateTo(uri);
+    }
+
+    private sealed class SignedInvite
+    {
+        public string? inviteCode { get; set; }
+        public string? inviterSignature { get; set; }
+        public string? inviterEd25519PublicKey { get; set; }
+    }
+
+    private sealed class InviteAcceptanceResponse
+    {
+        public SignedInvite? signedInvite { get; set; }
+        public string? username { get; set; }
+        public string? email { get; set; }
+        public string? x25519PublicKey { get; set; }
+        public string? ed25519PublicKey { get; set; }
+        public long timestamp { get; set; }
+        public string? message { get; set; }
+        public string? signature { get; set; }
+    }
+}

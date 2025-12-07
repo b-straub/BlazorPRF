@@ -170,6 +170,56 @@
                 </MudCard>
             </MudItem>
 
+            <MudItem xs="12" md="6">
+                <MudCard Class="cursor-pointer" @onclick="@(() => NavigationManager.NavigateTo("signing"))">
+                    <MudCardHeader>
+                        <CardHeaderAvatar>
+                            <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Color="Color.Tertiary" />
+                        </CardHeaderAvatar>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Digital Signatures</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Prove authenticity</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2">
+                            Sign messages with your Ed25519 key to prove authenticity.
+                            Others can verify your signature using your public key.
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="signing" Variant="Variant.Text" Color="Color.Tertiary" EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Open
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudCard Class="cursor-pointer" @onclick="@(() => NavigationManager.NavigateTo("invite"))">
+                    <MudCardHeader>
+                        <CardHeaderAvatar>
+                            <MudIcon Icon="@Icons.Material.Filled.GroupAdd" Color="Color.Info" />
+                        </CardHeaderAvatar>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Identity Verification</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Establish trust</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2">
+                            Verify user identities through signed invite acceptance.
+                            Like PGP "full trust" - cryptographically prove who you're talking to.
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Href="invite" Variant="Variant.Text" Color="Color.Info" EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Open
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
             <MudItem xs="12">
                 <PublicKeyDisplay PublicKey="@Model.PublicKey"
                                   Metadata="@Model.KeyMetadata"

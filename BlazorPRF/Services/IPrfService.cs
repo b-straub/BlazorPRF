@@ -1,5 +1,6 @@
 using BlazorPRF.Configuration;
 using BlazorPRF.Models;
+using BlazorPRF.Shared.Models;
 using R3;
 
 namespace BlazorPRF.Services;
@@ -61,6 +62,13 @@ public interface IPrfService
     /// <param name="salt">The salt to check</param>
     /// <returns>True if keys are cached and valid</returns>
     bool HasCachedKeys(string salt);
+
+    /// <summary>
+    /// Get the cached Ed25519 signing public key for a salt, if available.
+    /// </summary>
+    /// <param name="salt">The salt used for key derivation</param>
+    /// <returns>The Ed25519 public key (Base64) or null if not cached</returns>
+    string? GetEd25519PublicKey(string salt);
 
     /// <summary>
     /// Clear all cached keys.

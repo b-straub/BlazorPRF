@@ -1,0 +1,181 @@
+@using BlazorPRF.Shared.Extensions
+@using BlazorPRF.Shared.Formatting
+@inherits PrfModelComponent
+@inject ISigningService SigningService
+@inject IClipboard Clipboard
+@inject ISnackbar Snackbar
+
+<MudCard>
+    <MudCardHeader>
+        <CardHeaderAvatar>
+            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Primary" />
+        </CardHeaderAvatar>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Step 1: Create Invite</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Generate a signed invite for a new user</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+
+    <MudCardContent>
+        @if (!Model.HasKeys && !Model.RequiresOnDemandAuth)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-4">
+                Please authenticate first to create signed invites.
+            </MudAlert>
+        }
+
+        <MudTextField @bind-Value="_email"
+                      Label="Email"
+                      Variant="Variant.Outlined"
+                      Class="mb-4"
+                      Placeholder="bob@example.com"
+                      HelperText="Email of the person you're inviting"
+                      Immediate="true"
+                      Disabled="@_isProcessing" />
+
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="CreateInviteAsync"
+                   Disabled="@(!CanCreate)">
+            @if (_isProcessing)
+            {
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                <span>Creating...</span>
+            }
+            else
+            {
+                <span>Create Signed Invite</span>
+            }
+        </MudButton>
+
+        @if (_errorMessage is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4" Variant="Variant.Outlined">
+                @_errorMessage
+            </MudAlert>
+        }
+
+        @if (_signedInvite is not null)
+        {
+            <MudPaper Class="pa-4 mt-4" Elevation="0" Outlined="true">
+                <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween">
+                    <div Style="flex: 1; overflow: hidden;">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Signed Invite (JSON)</MudText>
+                        <MudText Typo="Typo.body2" Style="font-family: monospace; word-break: break-all; white-space: pre-wrap; font-size: 0.75rem;">
+                            @_signedInvite
+                        </MudText>
+                    </div>
+                    <MudTooltip Text="Copy to clipboard">
+                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                       Color="Color.Primary"
+                                       OnClick="CopyInviteAsync" />
+                    </MudTooltip>
+                </MudStack>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
+                    Send this signed invite to the invitee (e.g., via email)
+                </MudText>
+            </MudPaper>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private string _email = string.Empty;
+    private string? _signedInvite;
+    private string? _errorMessage;
+    private bool _isProcessing;
+
+    private bool CanCreate => (Model.HasKeys || Model.RequiresOnDemandAuth)
+                              && !_isProcessing
+                              && !string.IsNullOrWhiteSpace(_email)
+                              && _email.Contains('@');
+
+    private async Task CreateInviteAsync()
+    {
+        if (!CanCreate)
+        {
+            return;
+        }
+
+        _isProcessing = true;
+        _errorMessage = null;
+        _signedInvite = null;
+
+        try
+        {
+            // Ensure keys are available (triggers WebAuthn if needed)
+            if (!await Model.EnsureKeysAsync())
+            {
+                _errorMessage = "Authentication cancelled or failed";
+                return;
+            }
+
+            // Generate random 8-character code
+            var code = GenerateRandomCode(8);
+            var timestamp = DateTimeExtensions.GetUnixSecondsNow();
+
+            // Format: INV-{code}|{email}|{timestamp}
+            var inviteCode = $"INV-{code}|{_email}|{timestamp}";
+
+            // Sign the invite code
+            var signResult = await SigningService.SignAsync(inviteCode, Model.Salt);
+
+            if (signResult is { Success: true, Value: not null })
+            {
+                // Build signed invite JSON
+                var signedInviteObj = new
+                {
+                    inviteCode,
+                    inviterSignature = signResult.Value,
+                    inviterEd25519PublicKey = Model.Ed25519PublicKey
+                };
+
+                var json = System.Text.Json.JsonSerializer.Serialize(signedInviteObj);
+                _signedInvite = PrfArmor.ArmorSignedInvite(json);
+            }
+            else
+            {
+                _errorMessage = signResult.Error ?? "Failed to sign invite";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private static string GenerateRandomCode(int length)
+    {
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        var random = new Random();
+        var result = new char[length];
+        for (var i = 0; i < length; i++)
+        {
+            result[i] = chars[random.Next(chars.Length)];
+        }
+        return new string(result);
+    }
+
+    private async Task CopyInviteAsync()
+    {
+        if (string.IsNullOrEmpty(_signedInvite))
+        {
+            return;
+        }
+
+        try
+        {
+            await Clipboard.SetTextAsync(_signedInvite);
+            Snackbar.Add("Signed invite copied!", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Failed to copy", Severity.Error);
+        }
+    }
+}

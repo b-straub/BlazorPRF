@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using BlazorPRF.Configuration;
 using BlazorPRF.Services;
+using BlazorPRF.Shared.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -37,9 +38,12 @@ public static class ServiceCollectionExtensions
 
         // Register services
         services.AddSingleton<ISecureKeyCache, SecureKeyCache>();
-        services.AddSingleton<IPrfService, PrfService>();
+        services.AddSingleton<PrfService>();
+        services.AddSingleton<IPrfService>(sp => sp.GetRequiredService<PrfService>());
+        services.AddSingleton<IEd25519PublicKeyProvider>(sp => sp.GetRequiredService<PrfService>());
         services.AddSingleton<ISymmetricEncryption, SymmetricEncryptionService>();
         services.AddSingleton<IAsymmetricEncryption, AsymmetricEncryptionService>();
+        services.AddSingleton<ISigningService, SigningService>();
 
         return services;
     }
@@ -61,9 +65,12 @@ public static class ServiceCollectionExtensions
 
         // Register services
         services.AddScoped<ISecureKeyCache, SecureKeyCache>();
-        services.AddScoped<IPrfService, PrfService>();
+        services.AddScoped<PrfService>();
+        services.AddScoped<IPrfService>(sp => sp.GetRequiredService<PrfService>());
+        services.AddScoped<IEd25519PublicKeyProvider>(sp => sp.GetRequiredService<PrfService>());
         services.AddScoped<ISymmetricEncryption, SymmetricEncryptionService>();
         services.AddScoped<IAsymmetricEncryption, AsymmetricEncryptionService>();
+        services.AddScoped<ISigningService, SigningService>();
 
         return services;
     }

@@ -36,6 +36,7 @@
                       Lines="5"
                       Class="mb-4"
                       Style="font-family: monospace;"
+                      Immediate="true"
                       Disabled="@_isProcessing" />
 
         @if (_recipientMetadata is not null)
@@ -70,6 +71,7 @@
                       Variant="Variant.Outlined"
                       Lines="4"
                       Class="mb-4"
+                      Immediate="true"
                       Disabled="@_isProcessing" />
 
         @if (_errorMessage is not null)
@@ -125,6 +127,17 @@
     private string? _errorMessage;
     private string? _armoredMessage;
     private PublicKeyMetadata? _recipientMetadata;
+
+    [Parameter]
+    public string? InitialPublicKey { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(InitialPublicKey) && string.IsNullOrWhiteSpace(_recipientPublicKeyInput))
+        {
+            RecipientPublicKey = InitialPublicKey;
+        }
+    }
 
     private string RecipientPublicKey
     {

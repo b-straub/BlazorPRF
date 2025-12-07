@@ -29,6 +29,7 @@
                       Class="mb-4"
                       Style="font-family: monospace;"
                       HelperText="Paste the PFA message"
+                      Immediate="true"
                       Disabled="@(_isProcessing || (!Model.HasKeys && !Model.RequiresOnDemandAuth))" />
 
         @if (_errorMessage is not null)

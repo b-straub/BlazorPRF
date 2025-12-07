@@ -17,38 +17,53 @@ var command = args[0].ToLowerInvariant();
 return command switch
 {
     "keygen" => KeyGen(args),
+    "keygen-ed25519" => KeyGenEd25519(args),
+    "keygen-dual" => KeyGenDual(args),
     "encrypt" => Encrypt(args, debugMode),
     "decrypt" => Decrypt(args, debugMode),
     "encrypt-sym" => EncryptSymmetric(args),
     "decrypt-sym" => DecryptSymmetric(args),
+    "sign" => Sign(args),
+    "verify" => Verify(args),
     _ => ShowHelp()
 };
 
 static int ShowHelp()
 {
     Console.WriteLine("""
-        PseudoPRF - X25519/ChaCha20-Poly1305 Encryption Tool
+        PseudoPRF - X25519/ChaCha20-Poly1305 Encryption & Ed25519 Signing Tool
 
         Usage: pseudoprf <command> [options]
 
-        Commands:
-          keygen                    Generate a new X25519 key pair
+        Key Generation:
+          keygen                    Generate X25519 encryption key pair
+          keygen-ed25519            Generate Ed25519 signing key pair
+          keygen-dual               Generate both X25519 and Ed25519 key pairs
+
+        Encryption (X25519 + ChaCha20-Poly1305):
           encrypt <pubkey> <msg>    Encrypt message to recipient's public key
           decrypt <privkey> [msg]   Decrypt message with private key
           encrypt-sym <key> <msg>   Symmetric encrypt with 32-byte key
           decrypt-sym <key> [msg]   Symmetric decrypt with 32-byte key
 
+        Signing (Ed25519):
+          sign <privkey> <msg>      Sign message with Ed25519 private key
+          verify <pubkey> <sig> <msg>  Verify Ed25519 signature
+
         Options:
           --armor                   Use PFA ASCII armor format
           --json                    Output as JSON (default for messages)
-          --stdin                   Read encrypted message from stdin (for decrypt commands)
+          --stdin                   Read from stdin
           --debug                   Show intermediate crypto values (hex)
 
         Examples:
           pseudoprf keygen --armor
+          pseudoprf keygen-ed25519
+          pseudoprf keygen-dual
           pseudoprf encrypt "BASE64_PUBLIC_KEY" "Hello, World!"
           pseudoprf decrypt "BASE64_PRIVATE_KEY" '{"ephemeralPublicKey":"...","ciphertext":"...","nonce":"..."}'
-          echo '...' | pseudoprf decrypt "BASE64_PRIVATE_KEY" --stdin
+          pseudoprf sign "BASE64_ED25519_PRIVATE_KEY" "Hello, World!"
+          pseudoprf verify "BASE64_ED25519_PUBLIC_KEY" "SIGNATURE" "Hello, World!"
         """);
     return 0;
 }
@@ -261,4 +276,88 @@ static int DecryptSymmetric(string[] args)
 
     Console.WriteLine(result.Value);
     return 0;
+}
+
+// ============================================================
+// ED25519 SIGNING COMMANDS
+// ============================================================
+
+static int KeyGenEd25519(string[] args)
+{
+    var keyPair = KeyGenerator.GenerateEd25519KeyPair();
+
+    Console.WriteLine($"Private (seed): {keyPair.PrivateKeyBase64}");
+    Console.WriteLine($"Public:         {keyPair.PublicKeyBase64}");
+
+    return 0;
+}
+
+static int KeyGenDual(string[] args)
+{
+    // Generate a random seed and derive both key types
+    var seed = new byte[32];
+    System.Security.Cryptography.RandomNumberGenerator.Fill(seed);
+    var dualKeys = KeyGenerator.DeriveDualKeyPair(seed);
+
+    Console.WriteLine("=== X25519 (Encryption) ===");
+    Console.WriteLine($"Private: {dualKeys.X25519PrivateKey}");
+    Console.WriteLine($"Public:  {dualKeys.X25519PublicKey}");
+    Console.WriteLine();
+    Console.WriteLine("=== Ed25519 (Signing) ===");
+    Console.WriteLine($"Private: {dualKeys.Ed25519PrivateKey}");
+    Console.WriteLine($"Public:  {dualKeys.Ed25519PublicKey}");
+
+    return 0;
+}
+
+static int Sign(string[] args)
+{
+    var useStdin = args.Contains("--stdin");
+
+    if (args.Length < 2 || (!useStdin && args.Length < 3))
+    {
+        Console.Error.WriteLine("Usage: pseudoprf sign <privkey> <message>");
+        Console.Error.WriteLine("       pseudoprf sign <privkey> --stdin");
+        return 1;
+    }
+
+    var privateKey = args[1];
+    var message = useStdin ? Console.In.ReadToEnd().TrimEnd() : args[2];
+
+    var result = CryptoOperations.Sign(message, privateKey);
+
+    if (!result.Success)
+    {
+        Console.Error.WriteLine($"Signing failed: {result.Error}");
+        return 1;
+    }
+
+    Console.WriteLine(result.Value);
+    return 0;
+}
+
+static int Verify(string[] args)
+{
+    if (args.Length < 4)
+    {
+        Console.Error.WriteLine("Usage: pseudoprf verify <pubkey> <signature> <message>");
+        return 1;
+    }
+
+    var publicKey = args[1];
+    var signature = args[2];
+    var message = args[3];
+
+    var isValid = CryptoOperations.Verify(message, signature, publicKey);
+
+    if (isValid)
+    {
+        Console.WriteLine("Signature is VALID");
+        return 0;
+    }
+    else
+    {
+        Console.Error.WriteLine("Signature is INVALID");
+        return 1;
+    }
 }

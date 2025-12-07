@@ -1,0 +1,12 @@
+@page "/signing"
+@attribute [Authorize]
+
+<PageTitle>Digital Signatures - BlazorPRF</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Digital Signatures</MudText>
+<MudText Typo="Typo.body1" Class="mb-6">
+    Sign messages to prove authenticity and verify signatures from others.
+    Uses Ed25519 signatures derived from your PRF key.
+</MudText>
+
+<SigningPanel />

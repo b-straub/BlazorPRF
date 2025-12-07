@@ -28,9 +28,16 @@ public partial class PrfModel : ObservableModel
     public partial string? CredentialId { get; set; }
 
     /// <summary>
-    /// Public key derived from PRF (Base64).
+    /// X25519 public key derived from PRF (Base64).
+    /// Used for asymmetric encryption.
     /// </summary>
     public partial string? PublicKey { get; set; }
+
+    /// <summary>
+    /// Ed25519 public key derived from PRF (Base64).
+    /// Used for digital signatures.
+    /// </summary>
+    public string? Ed25519PublicKey => PrfService.GetEd25519PublicKey(Salt);
 
     /// <summary>
     /// Optional metadata for the public key (name, email, etc.).

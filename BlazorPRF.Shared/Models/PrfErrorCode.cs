@@ -16,6 +16,8 @@ public enum PrfErrorCode
     RegistrationFailed,
     InvalidPublicKey,
     InvalidPrivateKey,
+    SigningFailed,
+    VerificationFailed,
 }
 
 /// <summary>
@@ -48,6 +50,10 @@ public static class PrfErrorMessages
             "The public key is invalid or malformed.",
         PrfErrorCode.InvalidPrivateKey =>
             "The private key is invalid or malformed.",
+        PrfErrorCode.SigningFailed =>
+            "Signing failed. Please try again.",
+        PrfErrorCode.VerificationFailed =>
+            "Signature verification failed. The signature is invalid or the data has been tampered with.",
         _ =>
             "An unknown error occurred."
     };

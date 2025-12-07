@@ -1,25 +1,26 @@
-using System.Security.Cryptography;
 using System.Text;
+using BlazorPRF.Shared.Extensions;
 using BlazorPRF.Shared.Models;
 using Org.BouncyCastle.Crypto.Agreement;
-using Org.BouncyCastle.Crypto.Engines;
+using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.Generators;
 using BcChaCha20Poly1305 = Org.BouncyCastle.Crypto.Modes.ChaCha20Poly1305;
 using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Security;
 
 namespace BlazorPRF.Crypto;
 
 /// <summary>
-/// WASM-compatible cryptographic operations using BouncyCastle.
-/// Provides X25519 + ChaCha20-Poly1305 encryption matching the TypeScript implementation.
+/// Cryptographic operations using BouncyCastle.
+/// Provides X25519 + ChaCha20-Poly1305 encryption and Ed25519 signing.
+/// Compatible with WASM and server-side execution.
 /// </summary>
 public static class CryptoOperations
 {
     private const int NonceLength = 12;
     private const int KeyLength = 32;
-    private const int TagLength = 16;
-    private static readonly byte[] HkdfInfo = Encoding.UTF8.GetBytes("BlazorPRF-ECIES-v1");
+    private static readonly byte[] HkdfInfo = "BlazorPRF-ECIES-v1"u8.ToArray();
 
     /// <summary>
     /// Encrypts a message using ChaCha20-Poly1305 symmetric encryption.
@@ -52,7 +53,7 @@ public static class CryptoOperations
 
             var plaintextBytes = Encoding.UTF8.GetBytes(plaintext);
             var nonce = new byte[NonceLength];
-            RandomNumberGenerator.Fill(nonce);
+            new SecureRandom().NextBytes(nonce);
 
             var ciphertext = EncryptChaCha20Poly1305(plaintextBytes, key, nonce);
 
@@ -158,7 +159,7 @@ public static class CryptoOperations
             // Encrypt with ChaCha20-Poly1305
             var plaintextBytes = Encoding.UTF8.GetBytes(plaintext);
             var nonce = new byte[NonceLength];
-            RandomNumberGenerator.Fill(nonce);
+            new SecureRandom().NextBytes(nonce);
 
             var ciphertext = EncryptChaCha20Poly1305(plaintextBytes, encryptionKey, nonce);
 
@@ -256,17 +257,25 @@ public static class CryptoOperations
     /// <summary>
     /// Derives an encryption key from the shared secret using HKDF-SHA256.
     /// Uses ephemeral public key as salt to match TypeScript implementation.
+    /// Uses BouncyCastle for WASM compatibility (System.Security.Cryptography.HKDF not supported in WASM).
     /// </summary>
     private static byte[] DeriveEncryptionKey(byte[] sharedSecret, byte[] ephemeralPublicKey)
     {
-        // Use .NET's HKDF implementation
-        return HKDF.DeriveKey(
-            HashAlgorithmName.SHA256,
-            sharedSecret,
-            KeyLength,
-            salt: ephemeralPublicKey,
-            info: HkdfInfo
-        );
+        return HkdfDeriveKey(sharedSecret, ephemeralPublicKey, HkdfInfo, KeyLength);
+    }
+
+    /// <summary>
+    /// HKDF key derivation using BouncyCastle (WASM-compatible).
+    /// </summary>
+    private static byte[] HkdfDeriveKey(byte[] ikm, byte[]? salt, byte[]? info, int outputLength)
+    {
+        var hkdf = new HkdfBytesGenerator(new Sha256Digest());
+        var hkdfParams = new HkdfParameters(ikm, salt, info);
+        hkdf.Init(hkdfParams);
+
+        var output = new byte[outputLength];
+        hkdf.GenerateBytes(output, 0, outputLength);
+        return output;
     }
 
     /// <summary>
@@ -307,5 +316,224 @@ public static class CryptoOperations
         {
             return null;
         }
+    }
+
+    // ============================================================
+    // ED25519 DIGITAL SIGNATURES
+    // ============================================================
+
+    /// <summary>
+    /// Signs a message with an Ed25519 private key.
+    /// </summary>
+    /// <param name="message">The message to sign (UTF-8 string)</param>
+    /// <param name="privateKeyBase64">Base64-encoded Ed25519 private key (32-byte seed)</param>
+    /// <returns>Result containing Base64-encoded signature (64 bytes)</returns>
+    public static PrfResult<string> Sign(string message, string privateKeyBase64)
+    {
+        try
+        {
+            var privateKeyBytes = Convert.FromBase64String(privateKeyBase64);
+            if (privateKeyBytes.Length != KeyLength)
+            {
+                return PrfResult<string>.Fail(PrfErrorCode.InvalidPrivateKey);
+            }
+
+            var messageBytes = Encoding.UTF8.GetBytes(message);
+            var signature = SignBytes(messageBytes, privateKeyBytes);
+
+            return PrfResult<string>.Ok(Convert.ToBase64String(signature));
+        }
+        catch
+        {
+            return PrfResult<string>.Fail(PrfErrorCode.SigningFailed);
+        }
+    }
+
+    /// <summary>
+    /// Signs a message with an Ed25519 private key from a span.
+    /// Preferred overload for secure key cache - avoids creating managed copies.
+    /// </summary>
+    /// <param name="message">The message to sign (UTF-8 string)</param>
+    /// <param name="privateKey">Ed25519 private key (32-byte seed)</param>
+    /// <returns>Result containing Base64-encoded signature (64 bytes)</returns>
+    public static PrfResult<string> Sign(string message, ReadOnlySpan<byte> privateKey)
+    {
+        try
+        {
+            if (privateKey.Length != KeyLength)
+            {
+                return PrfResult<string>.Fail(PrfErrorCode.InvalidPrivateKey);
+            }
+
+            var messageBytes = Encoding.UTF8.GetBytes(message);
+            var signature = SignBytes(messageBytes, privateKey.ToArray());
+
+            return PrfResult<string>.Ok(Convert.ToBase64String(signature));
+        }
+        catch
+        {
+            return PrfResult<string>.Fail(PrfErrorCode.SigningFailed);
+        }
+    }
+
+    /// <summary>
+    /// Signs raw bytes with an Ed25519 private key.
+    /// </summary>
+    /// <param name="message">The message bytes to sign</param>
+    /// <param name="privateKey">Ed25519 private key (32-byte seed)</param>
+    /// <returns>Ed25519 signature (64 bytes)</returns>
+    public static byte[] SignBytes(byte[] message, byte[] privateKey)
+    {
+        if (privateKey.Length != KeyLength)
+        {
+            throw new ArgumentException("Ed25519 private key must be 32 bytes", nameof(privateKey));
+        }
+
+        var signer = new Ed25519Signer();
+        var privateKeyParams = new Ed25519PrivateKeyParameters(privateKey, 0);
+
+        signer.Init(true, privateKeyParams);
+        signer.BlockUpdate(message, 0, message.Length);
+
+        return signer.GenerateSignature();
+    }
+
+    /// <summary>
+    /// Verifies an Ed25519 signature.
+    /// </summary>
+    /// <param name="message">The original message (UTF-8 string)</param>
+    /// <param name="signatureBase64">Base64-encoded signature (64 bytes)</param>
+    /// <param name="publicKeyBase64">Base64-encoded Ed25519 public key (32 bytes)</param>
+    /// <returns>True if signature is valid, false otherwise</returns>
+    public static bool Verify(string message, string signatureBase64, string publicKeyBase64)
+    {
+        try
+        {
+            var signatureBytes = Convert.FromBase64String(signatureBase64);
+            var publicKeyBytes = Convert.FromBase64String(publicKeyBase64);
+            var messageBytes = Encoding.UTF8.GetBytes(message);
+
+            return VerifyBytes(messageBytes, signatureBytes, publicKeyBytes);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Verifies an Ed25519 signature on raw bytes.
+    /// </summary>
+    /// <param name="message">The message bytes</param>
+    /// <param name="signature">Ed25519 signature (64 bytes)</param>
+    /// <param name="publicKey">Ed25519 public key (32 bytes)</param>
+    /// <returns>True if signature is valid, false otherwise</returns>
+    public static bool VerifyBytes(byte[] message, byte[] signature, byte[] publicKey)
+    {
+        if (signature.Length != 64)
+        {
+            return false;
+        }
+
+        if (publicKey.Length != KeyLength)
+        {
+            return false;
+        }
+
+        try
+        {
+            var verifier = new Ed25519Signer();
+            var publicKeyParams = new Ed25519PublicKeyParameters(publicKey, 0);
+
+            verifier.Init(false, publicKeyParams);
+            verifier.BlockUpdate(message, 0, message.Length);
+
+            return verifier.VerifySignature(signature);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Creates a signed message with timestamp.
+    /// </summary>
+    /// <param name="message">The message to sign</param>
+    /// <param name="privateKeyBase64">Base64-encoded Ed25519 private key</param>
+    /// <param name="publicKeyBase64">Base64-encoded Ed25519 public key (for inclusion in result)</param>
+    /// <returns>SignedMessage containing message, signature, public key, and timestamp</returns>
+    public static PrfResult<SignedMessage> CreateSignedMessage(
+        string message,
+        string privateKeyBase64,
+        string publicKeyBase64)
+    {
+        var timestampUnix = DateTimeExtensions.GetUnixSecondsNow();
+        var messageWithTimestamp = $"{message}|{timestampUnix}";
+
+        var signResult = Sign(messageWithTimestamp, privateKeyBase64);
+        if (!signResult.Success)
+        {
+            return PrfResult<SignedMessage>.Fail(signResult.ErrorCode ?? PrfErrorCode.SigningFailed);
+        }
+
+        return PrfResult<SignedMessage>.Ok(new SignedMessage(
+            Message: message,
+            Signature: signResult.Value!,
+            PublicKey: publicKeyBase64,
+            TimestampUnix: timestampUnix
+        ));
+    }
+
+    /// <summary>
+    /// Creates a signed message with timestamp using a key span.
+    /// Preferred overload for secure key cache - avoids creating managed copies.
+    /// </summary>
+    /// <param name="message">The message to sign</param>
+    /// <param name="privateKey">Ed25519 private key (32-byte seed)</param>
+    /// <param name="publicKeyBase64">Base64-encoded Ed25519 public key (for inclusion in result)</param>
+    /// <returns>SignedMessage containing message, signature, public key, and timestamp</returns>
+    public static PrfResult<SignedMessage> CreateSignedMessage(
+        string message,
+        ReadOnlySpan<byte> privateKey,
+        string publicKeyBase64)
+    {
+        var timestampUnix = DateTimeExtensions.GetUnixSecondsNow();
+        var messageWithTimestamp = $"{message}|{timestampUnix}";
+
+        var signResult = Sign(messageWithTimestamp, privateKey);
+        if (!signResult.Success)
+        {
+            return PrfResult<SignedMessage>.Fail(signResult.ErrorCode ?? PrfErrorCode.SigningFailed);
+        }
+
+        return PrfResult<SignedMessage>.Ok(new SignedMessage(
+            Message: message,
+            Signature: signResult.Value!,
+            PublicKey: publicKeyBase64,
+            TimestampUnix: timestampUnix
+        ));
+    }
+
+    /// <summary>
+    /// Verifies a signed message, including timestamp validation.
+    /// </summary>
+    /// <param name="signedMessage">The signed message to verify</param>
+    /// <param name="maxAgeSeconds">Maximum age of the signature in seconds (default 5 minutes)</param>
+    /// <returns>True if signature is valid and not expired</returns>
+    public static bool VerifySignedMessage(SignedMessage signedMessage, int maxAgeSeconds = 300)
+    {
+        // Check timestamp is not too old
+        var nowUnix = DateTimeExtensions.GetUnixSecondsNow();
+        var ageSeconds = nowUnix - signedMessage.TimestampUnix;
+        if (ageSeconds > maxAgeSeconds || ageSeconds < -60) // Allow 60s clock skew
+        {
+            return false;
+        }
+
+        // Reconstruct the signed message
+        var messageWithTimestamp = $"{signedMessage.Message}|{signedMessage.TimestampUnix}";
+
+        return Verify(messageWithTimestamp, signedMessage.Signature, signedMessage.PublicKey);
     }
 }

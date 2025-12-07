@@ -10,7 +10,7 @@ PRF-based deterministic encryption for Blazor WebAssembly using the WebAuthn PRF
 >
 > **Do NOT use this in production systems handling sensitive data without a thorough security audit.**
 >
-> The cryptographic primitives used (X25519, ChaCha20-Poly1305, HKDF) are industry-standard, but correct implementation is critical for security.
+> The cryptographic primitives used (X25519, ChaCha20-Poly1305, Ed25519, HKDF) are industry-standard, but correct implementation is critical for security.
 
 ## Overview
 
@@ -23,6 +23,8 @@ BlazorPRF enables client-side encryption in Blazor WebAssembly applications usin
 - **Client-Side Encryption**: All cryptography happens in the browser - keys never leave the client
 - **Symmetric Encryption**: Encrypt data for yourself using ChaCha20-Poly1305
 - **Asymmetric Encryption**: Share your public key; others can encrypt messages only you can decrypt (ECIES with X25519)
+- **Digital Signatures**: Sign and verify messages with Ed25519 for authentication and integrity
+- **Identity Verification**: Establish trust through dual-signed invites (like PGP "full trust")
 - **Secure Key Storage**: Keys stored in unmanaged memory, cryptographically zeroed on disposal
 
 ## Packages
@@ -87,7 +89,47 @@ builder.Services.AddSingleton<AuthenticationStateProvider>(sp =>
 - **Key Derivation**: HKDF-SHA256 from WebAuthn PRF output
 - **Symmetric Encryption**: ChaCha20-Poly1305 (AEAD)
 - **Asymmetric Encryption**: X25519 ECDH + ChaCha20-Poly1305 (ECIES)
+- **Digital Signatures**: Ed25519 (sign/verify)
 - **Key Storage**: Unmanaged memory with cryptographic zeroing
+
+## Dual Key Derivation
+
+BlazorPRF derives two independent key pairs from a single PRF seed:
+
+```
+PRF Seed (32 bytes)
+       │
+       ├─── HKDF(context: "x25519-encryption") ──→ X25519 Key Pair (encryption)
+       │
+       └─── HKDF(context: "ed25519-signing")  ──→ Ed25519 Key Pair (signatures)
+```
+
+This enables:
+- **X25519**: Asymmetric encryption (ECIES) - share public key, receive encrypted messages
+- **Ed25519**: Digital signatures - sign messages to prove identity/integrity
+
+## Identity Verification (Signed Invites)
+
+BlazorPRF implements a dual-signature invite flow for secure identity verification:
+
+```
+USER A (Inviter)                    USER B (Invitee)
+     │                                    │
+     │ 1. Create invite for email         │
+     │ 2. Sign invite with Ed25519        │
+     │ 3. Send signed invite ─────────────┼───→ 4. Verify A's signature
+     │                                    │    5. Sign acceptance with B's keys
+     │    7. Verify A's original sig ←────┼─── 6. Send signed response
+     │    8. Verify B's signature         │
+     │                                    │
+     ▼                                    ▼
+ ✅ Both signatures valid = Trusted identity
+```
+
+**Security guarantees:**
+- A's signature proves the invite is authentic (not forged)
+- B's signature proves key ownership (B controls the private keys)
+- Combined verification prevents invite tampering and key substitution
 
 ## Browser Support
 
@@ -102,6 +144,8 @@ See [BlazorPRF.Sample](./BlazorPRF.Sample/) for a complete example application d
 - Passkey registration
 - Symmetric encryption/decryption
 - Asymmetric encryption with public key sharing
+- Digital signatures (sign and verify)
+- Identity verification via signed invites
 - Session management with different caching strategies
 
 ## License

@@ -1,0 +1,70 @@
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@code {
+    private DotNetObjectReference<ServiceWorkerUpdateNotification>? _objRef;
+    private Snackbar? _updateSnackbar;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                _objRef = DotNetObjectReference.Create(this);
+                await JS.InvokeVoidAsync("ServiceWorkerUpdate.registerUpdateCallback", _objRef);
+            }
+            catch (JSException)
+            {
+                // ServiceWorkerUpdate not available (e.g., in debug mode where service worker is disabled)
+                // This is expected and can be safely ignored
+            }
+        }
+    }
+
+    [JSInvokable]
+    public void OnUpdateAvailable()
+    {
+        _updateSnackbar = Snackbar.Add(
+            @<MudPaper Class="pa-6">
+                <MudStack Spacing="2" StretchItems="StretchItems.All">
+                    <MudText Typo="Typo.body1" Align="Align.Center">An update for BlazorPRF is available!</MudText>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateApp">Update Now</MudButton>
+                </MudStack>
+            </MudPaper>,
+            Severity.Info,
+            config =>
+            {
+                config.RequireInteraction = true;
+                config.DuplicatesBehavior = SnackbarDuplicatesBehavior.Prevent;
+            });
+    }
+
+    private async Task UpdateApp()
+    {
+        if (_updateSnackbar is not null)
+        {
+            Snackbar.Remove(_updateSnackbar);
+            _updateSnackbar = null;
+        }
+
+        await JS.InvokeVoidAsync("ServiceWorkerUpdate.skipWaitingAndReload");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_objRef is not null)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("ServiceWorkerUpdate.registerUpdateCallback", null);
+            }
+            catch (JSException)
+            {
+                // ServiceWorkerUpdate not available - safe to ignore
+            }
+            _objRef.Dispose();
+        }
+    }
+}

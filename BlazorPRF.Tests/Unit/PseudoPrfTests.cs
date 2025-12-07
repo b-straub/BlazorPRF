@@ -174,4 +174,245 @@ public class PseudoPrfTests
         var saltBytes = Convert.FromBase64String(salt);
         Assert.Equal(16, saltBytes.Length);
     }
+
+    // ============================================================
+    // ED25519 SIGNING TESTS
+    // ============================================================
+
+    [Fact]
+    public void GenerateEd25519KeyPair_CreatesValidKeys()
+    {
+        // Act
+        var keyPair = KeyGenerator.GenerateEd25519KeyPair();
+
+        // Assert
+        Assert.NotNull(keyPair.PrivateKeyBase64);
+        Assert.NotNull(keyPair.PublicKeyBase64);
+        Assert.True(KeyGenerator.IsValidEd25519PrivateKey(keyPair.PrivateKeyBase64));
+        Assert.True(KeyGenerator.IsValidEd25519PublicKey(keyPair.PublicKeyBase64));
+
+        // Keys should be 32 bytes (256 bits) base64 encoded
+        var privateBytes = Convert.FromBase64String(keyPair.PrivateKeyBase64);
+        var publicBytes = Convert.FromBase64String(keyPair.PublicKeyBase64);
+        Assert.Equal(32, privateBytes.Length);
+        Assert.Equal(32, publicBytes.Length);
+    }
+
+    [Fact]
+    public void GetEd25519PublicKey_DerivesSamePublicKeyFromPrivate()
+    {
+        // Arrange
+        var keyPair = KeyGenerator.GenerateEd25519KeyPair();
+
+        // Act
+        var derivedPublicKey = KeyGenerator.GetEd25519PublicKey(keyPair.PrivateKeyBase64);
+
+        // Assert
+        Assert.Equal(keyPair.PublicKeyBase64, derivedPublicKey);
+    }
+
+    [Fact]
+    public void Sign_CreatesValidSignature()
+    {
+        // Arrange
+        var keyPair = KeyGenerator.GenerateEd25519KeyPair();
+        const string message = "Hello, World!";
+
+        // Act
+        var signResult = CryptoOperations.Sign(message, keyPair.PrivateKeyBase64);
+
+        // Assert
+        Assert.True(signResult.Success);
+        Assert.NotNull(signResult.Value);
+
+        // Ed25519 signature is 64 bytes
+        var signatureBytes = Convert.FromBase64String(signResult.Value);
+        Assert.Equal(64, signatureBytes.Length);
+    }
+
+    [Fact]
+    public void SignAndVerify_RoundTrip_Success()
+    {
+        // Arrange
+        var keyPair = KeyGenerator.GenerateEd25519KeyPair();
+        const string message = "Hello, World! 🌍";
+
+        // Act
+        var signResult = CryptoOperations.Sign(message, keyPair.PrivateKeyBase64);
+        Assert.True(signResult.Success);
+
+        var isValid = CryptoOperations.Verify(message, signResult.Value!, keyPair.PublicKeyBase64);
+
+        // Assert
+        Assert.True(isValid);
+    }
+
+    [Fact]
+    public void Verify_WrongMessage_ReturnsFalse()
+    {
+        // Arrange
+        var keyPair = KeyGenerator.GenerateEd25519KeyPair();
+        const string originalMessage = "Hello, World!";
+        const string tamperedMessage = "Hello, World!!";
+
+        // Act
+        var signResult = CryptoOperations.Sign(originalMessage, keyPair.PrivateKeyBase64);
+        Assert.True(signResult.Success);
+
+        var isValid = CryptoOperations.Verify(tamperedMessage, signResult.Value!, keyPair.PublicKeyBase64);
+
+        // Assert
+        Assert.False(isValid);
+    }
+
+    [Fact]
+    public void Verify_WrongPublicKey_ReturnsFalse()
+    {
+        // Arrange
+        var keyPair1 = KeyGenerator.GenerateEd25519KeyPair();
+        var keyPair2 = KeyGenerator.GenerateEd25519KeyPair();
+        const string message = "Secret message";
+
+        // Act
+        var signResult = CryptoOperations.Sign(message, keyPair1.PrivateKeyBase64);
+        Assert.True(signResult.Success);
+
+        var isValid = CryptoOperations.Verify(message, signResult.Value!, keyPair2.PublicKeyBase64);
+
+        // Assert
+        Assert.False(isValid);
+    }
+
+    [Fact]
+    public void DeriveDualKeyPair_CreatesBothKeyPairs()
+    {
+        // Arrange
+        var seed = new byte[32];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(seed);
+
+        // Act
+        var dualKeys = KeyGenerator.DeriveDualKeyPair(seed);
+
+        // Assert
+        Assert.True(KeyGenerator.IsValidPrivateKey(dualKeys.X25519PrivateKey));
+        Assert.True(KeyGenerator.IsValidPublicKey(dualKeys.X25519PublicKey));
+        Assert.True(KeyGenerator.IsValidEd25519PrivateKey(dualKeys.Ed25519PrivateKey));
+        Assert.True(KeyGenerator.IsValidEd25519PublicKey(dualKeys.Ed25519PublicKey));
+
+        // Keys should be different due to different HKDF contexts
+        Assert.NotEqual(dualKeys.X25519PrivateKey, dualKeys.Ed25519PrivateKey);
+        Assert.NotEqual(dualKeys.X25519PublicKey, dualKeys.Ed25519PublicKey);
+    }
+
+    [Fact]
+    public void DeriveDualKeyPair_DeterministicFromSameSeed()
+    {
+        // Arrange
+        var seed = new byte[32];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(seed);
+
+        // Act
+        var dualKeys1 = KeyGenerator.DeriveDualKeyPair(seed);
+        var dualKeys2 = KeyGenerator.DeriveDualKeyPair(seed);
+
+        // Assert - Same seed produces same keys
+        Assert.Equal(dualKeys1.X25519PrivateKey, dualKeys2.X25519PrivateKey);
+        Assert.Equal(dualKeys1.X25519PublicKey, dualKeys2.X25519PublicKey);
+        Assert.Equal(dualKeys1.Ed25519PrivateKey, dualKeys2.Ed25519PrivateKey);
+        Assert.Equal(dualKeys1.Ed25519PublicKey, dualKeys2.Ed25519PublicKey);
+    }
+
+    [Fact]
+    public void DeriveDualKeyPair_EncryptionAndSigningWork()
+    {
+        // Arrange
+        var seed = new byte[32];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(seed);
+        var dualKeys = KeyGenerator.DeriveDualKeyPair(seed);
+        const string message = "Test message";
+
+        // Act & Assert - X25519 encryption works
+        var encryptResult = PseudoPrfCrypto.EncryptAsymmetric(message, dualKeys.X25519PublicKey);
+        Assert.True(encryptResult.Success);
+
+        var decryptResult = PseudoPrfCrypto.DecryptAsymmetric(encryptResult.Value!, dualKeys.X25519PrivateKey);
+        Assert.True(decryptResult.Success);
+        Assert.Equal(message, decryptResult.Value);
+
+        // Act & Assert - Ed25519 signing works
+        var signResult = CryptoOperations.Sign(message, dualKeys.Ed25519PrivateKey);
+        Assert.True(signResult.Success);
+
+        var isValid = CryptoOperations.Verify(message, signResult.Value!, dualKeys.Ed25519PublicKey);
+        Assert.True(isValid);
+    }
+
+    [Fact]
+    public void DualKeyPair_PublicKeysProperty_ReturnsCorrectKeys()
+    {
+        // Arrange
+        var seed = new byte[32];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(seed);
+
+        // Act
+        var dualKeys = KeyGenerator.DeriveDualKeyPair(seed);
+        var publicKeys = dualKeys.PublicKeys;
+
+        // Assert
+        Assert.Equal(dualKeys.X25519PublicKey, publicKeys.X25519PublicKey);
+        Assert.Equal(dualKeys.Ed25519PublicKey, publicKeys.Ed25519PublicKey);
+    }
+
+    [Fact]
+    public void CreateSignedMessage_CreatesValidStructure()
+    {
+        // Arrange
+        var keyPair = KeyGenerator.GenerateEd25519KeyPair();
+        const string message = "Token data";
+
+        // Act
+        var result = CryptoOperations.CreateSignedMessage(message, keyPair.PrivateKeyBase64, keyPair.PublicKeyBase64);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(message, result.Value!.Message);
+        Assert.NotNull(result.Value.Signature);
+        Assert.Equal(keyPair.PublicKeyBase64, result.Value.PublicKey);
+        Assert.True(result.Value.TimestampUnix <= (long)(DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds);
+    }
+
+    [Fact]
+    public void VerifySignedMessage_ValidMessage_ReturnsTrue()
+    {
+        // Arrange
+        var keyPair = KeyGenerator.GenerateEd25519KeyPair();
+        const string message = "Token data";
+        var signedMessage = CryptoOperations.CreateSignedMessage(message, keyPair.PrivateKeyBase64, keyPair.PublicKeyBase64);
+        Assert.True(signedMessage.Success);
+
+        // Act
+        var isValid = CryptoOperations.VerifySignedMessage(signedMessage.Value!);
+
+        // Assert
+        Assert.True(isValid);
+    }
+
+    [Fact]
+    public void VerifySignedMessage_TamperedMessage_ReturnsFalse()
+    {
+        // Arrange
+        var keyPair = KeyGenerator.GenerateEd25519KeyPair();
+        const string message = "Token data";
+        var signedMessage = CryptoOperations.CreateSignedMessage(message, keyPair.PrivateKeyBase64, keyPair.PublicKeyBase64);
+        Assert.True(signedMessage.Success);
+
+        // Tamper with the message
+        var tamperedMessage = signedMessage.Value! with { Message = "Tampered data" };
+
+        // Act
+        var isValid = CryptoOperations.VerifySignedMessage(tamperedMessage);
+
+        // Assert
+        Assert.False(isValid);
+    }
 }

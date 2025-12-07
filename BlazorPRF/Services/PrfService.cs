@@ -14,7 +14,7 @@ namespace BlazorPRF.Services;
 /// Implementation of PRF service using JSImport for WebAuthn operations.
 /// </summary>
 [SupportedOSPlatform("browser")]
-public sealed partial class PrfService : IPrfService, IAsyncDisposable
+public sealed partial class PrfService : IPrfService, IEd25519PublicKeyProvider, IAsyncDisposable
 {
     private readonly PrfOptions _options;
     private readonly KeyCacheOptions _cacheOptions;
@@ -24,6 +24,7 @@ public sealed partial class PrfService : IPrfService, IAsyncDisposable
 
     // Cache for public keys (not sensitive, can store directly)
     private readonly Dictionary<string, string> _publicKeyCache = new();
+    private readonly Dictionary<string, string> _ed25519PublicKeyCache = new();
 
     /// <inheritdoc />
     public KeyCacheStrategy CacheStrategy => _cacheOptions.Strategy;
@@ -143,20 +144,25 @@ public sealed partial class PrfService : IPrfService, IAsyncDisposable
             return PrfResult<string>.Fail(result.ErrorCode ?? PrfErrorCode.KeyDerivationFailed);
         }
 
-        // Derive keypair from PRF output in C# (never exposed to JS)
-        var keypair = KeyGenerator.DeriveKeypairFromPrf(result.Value);
+        // Derive both X25519 (encryption) and Ed25519 (signing) keypairs from PRF output
+        var dualKeys = KeyGenerator.DeriveDualKeyPair(result.Value);
 
-        // Cache the private key securely
-        var privateKeyBytes = Convert.FromBase64String(keypair.PrivateKeyBase64);
-        _keyCache.Store(cacheKey, privateKeyBytes);
+        // Cache the X25519 private key securely
+        var x25519PrivateKeyBytes = Convert.FromBase64String(dualKeys.X25519PrivateKey);
+        _keyCache.Store(cacheKey, x25519PrivateKeyBytes);
+        Array.Clear(x25519PrivateKeyBytes, 0, x25519PrivateKeyBytes.Length);
 
-        // Clear the byte array after storing
-        Array.Clear(privateKeyBytes, 0, privateKeyBytes.Length);
+        // Cache the Ed25519 private key securely
+        var ed25519CacheKey = GetEd25519CacheKey(salt);
+        var ed25519PrivateKeyBytes = Convert.FromBase64String(dualKeys.Ed25519PrivateKey);
+        _keyCache.Store(ed25519CacheKey, ed25519PrivateKeyBytes);
+        Array.Clear(ed25519PrivateKeyBytes, 0, ed25519PrivateKeyBytes.Length);
 
-        // Cache the public key (not sensitive)
-        _publicKeyCache[salt] = keypair.PublicKeyBase64;
+        // Cache the public keys (not sensitive)
+        _publicKeyCache[salt] = dualKeys.X25519PublicKey;
+        _ed25519PublicKeyCache[salt] = dualKeys.Ed25519PublicKey;
 
-        return PrfResult<string>.Ok(keypair.PublicKeyBase64);
+        return PrfResult<string>.Ok(dualKeys.X25519PublicKey);
     }
 
     /// <inheritdoc />
@@ -185,21 +191,26 @@ public sealed partial class PrfService : IPrfService, IAsyncDisposable
             return PrfResult<(string, string)>.Fail(result.ErrorCode ?? PrfErrorCode.KeyDerivationFailed);
         }
 
-        // Derive keypair from PRF output in C# (never exposed to JS)
-        var keypair = KeyGenerator.DeriveKeypairFromPrf(result.Value.PrfOutput);
+        // Derive both X25519 (encryption) and Ed25519 (signing) keypairs from PRF output
+        var dualKeys = KeyGenerator.DeriveDualKeyPair(result.Value.PrfOutput);
 
-        // Cache the private key securely
+        // Cache the X25519 private key securely
         var cacheKey = GetCacheKey(salt);
-        var privateKeyBytes = Convert.FromBase64String(keypair.PrivateKeyBase64);
-        _keyCache.Store(cacheKey, privateKeyBytes);
+        var x25519PrivateKeyBytes = Convert.FromBase64String(dualKeys.X25519PrivateKey);
+        _keyCache.Store(cacheKey, x25519PrivateKeyBytes);
+        Array.Clear(x25519PrivateKeyBytes, 0, x25519PrivateKeyBytes.Length);
 
-        // Clear the byte array after storing
-        Array.Clear(privateKeyBytes, 0, privateKeyBytes.Length);
+        // Cache the Ed25519 private key securely
+        var ed25519CacheKey = GetEd25519CacheKey(salt);
+        var ed25519PrivateKeyBytes = Convert.FromBase64String(dualKeys.Ed25519PrivateKey);
+        _keyCache.Store(ed25519CacheKey, ed25519PrivateKeyBytes);
+        Array.Clear(ed25519PrivateKeyBytes, 0, ed25519PrivateKeyBytes.Length);
 
-        // Cache the public key (not sensitive)
-        _publicKeyCache[salt] = keypair.PublicKeyBase64;
+        // Cache the public keys (not sensitive)
+        _publicKeyCache[salt] = dualKeys.X25519PublicKey;
+        _ed25519PublicKeyCache[salt] = dualKeys.Ed25519PublicKey;
 
-        return PrfResult<(string, string)>.Ok((result.Value.CredentialId, keypair.PublicKeyBase64));
+        return PrfResult<(string, string)>.Ok((result.Value.CredentialId, dualKeys.X25519PublicKey));
     }
 
     /// <inheritdoc />
@@ -235,9 +246,22 @@ public sealed partial class PrfService : IPrfService, IAsyncDisposable
     {
         _keyCache.Clear();
         _publicKeyCache.Clear();
+        _ed25519PublicKeyCache.Clear();
+    }
+
+    /// <inheritdoc />
+    public string? GetEd25519PublicKey(string keyIdentifier)
+    {
+        if (string.IsNullOrEmpty(keyIdentifier))
+        {
+            return null;
+        }
+
+        return _ed25519PublicKeyCache.GetValueOrDefault(keyIdentifier);
     }
 
     private static string GetCacheKey(string salt) => $"prf-key:{salt}";
+    private static string GetEd25519CacheKey(string salt) => $"prf-ed25519-key:{salt}";
 
     public ValueTask DisposeAsync()
     {
