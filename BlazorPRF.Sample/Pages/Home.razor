@@ -1,5 +1,5 @@
 @page "/"
-@using BlazorPRF.Shared.Formatting
+@using BlazorPRF.Shared.Crypto.Formatting
 @inherits PrfModelComponent
 
 <PageTitle>BlazorPRF Demo</PageTitle>
@@ -33,9 +33,11 @@
 
             @if (Model.IsPrfSupported != false)
             {
-                <MudStack Row="true" Spacing="2" Class="mb-4">
-                    @if (!string.IsNullOrWhiteSpace(Model.CredentialId))
-                    {
+                @* Decision based on stored credential hint - the only reliable way to know if user registered before *@
+                @if (!string.IsNullOrWhiteSpace(Model.CredentialId))
+                {
+                    @* Returning user with stored credential *@
+                    <MudStack Row="true" Spacing="2" Class="mb-4">
                         <MudButtonAsyncRx Command="@Model.DeriveKeys"
                                           Variant="Variant.Filled"
                                           Color="Color.Primary"
@@ -43,47 +45,47 @@
                                           StartIcon="@Icons.Material.Filled.Fingerprint">
                             Authenticate
                         </MudButtonAsyncRx>
-                    }
-                    else
-                    {
-                        <MudButtonAsyncRx Command="@Model.DeriveKeysDiscoverable"
-                                          Variant="Variant.Filled"
-                                          Color="Color.Primary"
-                                          Size="Size.Large"
-                                          StartIcon="@Icons.Material.Filled.Fingerprint">
-                            Authenticate
-                        </MudButtonAsyncRx>
-                    }
-                </MudStack>
-
-                <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                    @if (!string.IsNullOrWhiteSpace(Model.CredentialId))
-                    {
-                        <text>Using saved credential</text>
-                    }
-                    else
-                    {
-                        <text>Select from available passkeys</text>
-                    }
-                </MudText>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                        Using saved credential
+                    </MudText>
+                }
+                else
+                {
+                    @* New user or cleared storage - prompt to register *@
+                    <MudAlert Severity="Severity.Info" Class="mb-4" Variant="Variant.Outlined">
+                        No saved passkey found. Register a new passkey to get started.
+                    </MudAlert>
+                    <MudButton Href="setup"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.PersonAdd">
+                        Register Passkey
+                    </MudButton>
+                }
             }
 
             <MudDivider Class="my-6" Style="width: 100%;" />
 
             <MudStack Row="true" Spacing="4" Justify="Justify.Center" AlignItems="AlignItems.Center">
-                <div>
-                    <MudText Typo="Typo.h6" Align="Align.Center" GutterBottom="true">
-                        New here?
-                    </MudText>
-                    <MudButton Href="setup"
-                               Variant="Variant.Outlined"
-                               Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.PersonAdd">
-                        Register a new Passkey
-                    </MudButton>
-                </div>
+                @if (!string.IsNullOrWhiteSpace(Model.CredentialId))
+                {
+                    @* Returning user - offer to register additional passkey or use different one *@
+                    <div>
+                        <MudText Typo="Typo.h6" Align="Align.Center" GutterBottom="true">
+                            Different passkey?
+                        </MudText>
+                        <MudButton Href="setup"
+                                   Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.PersonAdd">
+                            Setup
+                        </MudButton>
+                    </div>
 
-                <MudDivider Vertical="true" FlexItem="true" />
+                    <MudDivider Vertical="true" FlexItem="true" />
+                }
 
                 <div>
                     <MudText Typo="Typo.h6" Align="Align.Center" GutterBottom="true">
@@ -243,7 +245,7 @@
 
 @code {
     [Inject]
-    private NavigationManager NavigationManager { get; set; } = default!;
+    public required NavigationManager NavigationManager { get; init; }
 
     private async Task OnMetadataChanged(PublicKeyMetadata? metadata)
     {

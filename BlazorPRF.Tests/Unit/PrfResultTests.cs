@@ -1,5 +1,4 @@
-using BlazorPRF.Models;
-using BlazorPRF.Shared.Models;
+using BlazorPRF.Shared.Crypto.Models;
 
 namespace BlazorPRF.Tests.Unit;
 

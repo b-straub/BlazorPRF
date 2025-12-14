@@ -1,0 +1,241 @@
+@page "/contacts"
+@attribute [Authorize]
+@inherits ContactsModelComponent
+@using BlazorPRF.Sample.Models
+@using BlazorPRF.Shared.Crypto.Formatting
+@using TextCopy
+@inject PrfModel PrfModel
+
+<PageTitle>Contacts - BlazorPRF</PageTitle>
+
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h4" GutterBottom="true">Trusted Contacts</MudText>
+        <MudText Typo="Typo.body1">
+            Manage your verified contacts. User data is encrypted with your PRF-derived key.
+        </MudText>
+    </div>
+    <MudButton Color="Color.Primary"
+               Variant="Variant.Filled"
+               StartIcon="@Icons.Material.Filled.PersonAdd"
+               OnClick="OpenVerifyDialogAsync">
+        Add via Response
+    </MudButton>
+</MudStack>
+
+@if (_loading)
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+        <MudText>Loading contacts...</MudText>
+    </MudStack>
+}
+else if (_errorMessage is not null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mb-4" Variant="Variant.Outlined">
+        @_errorMessage
+        <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="LoadContactsAsync" Class="ml-2">
+            Retry
+        </MudButton>
+    </MudAlert>
+}
+else if (_contacts.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Class="mb-4" Variant="Variant.Outlined">
+        No trusted contacts yet. Use the <MudLink Href="invite">Identity Verification</MudLink> page to establish trust with others.
+    </MudAlert>
+}
+else
+{
+    <MudTable Items="@_contacts" Hover="true" Striped="true" Dense="true" Class="mb-4">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Email</MudTh>
+            <MudTh>Trust</MudTh>
+            <MudTh>Direction</MudTh>
+            <MudTh>Verified</MudTh>
+            <MudTh Style="width: 120px;">Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@context.UserData.Username</MudTd>
+            <MudTd DataLabel="Email">@context.UserData.Email</MudTd>
+            <MudTd DataLabel="Trust">
+                <MudChip T="string" Size="Size.Small" Color="@GetTrustColor(context.Contact.TrustLevel)">
+                    @context.Contact.TrustLevel
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Direction">
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                         Color="@(context.Contact.Direction == TrustDirection.Sent ? Color.Primary : Color.Secondary)">
+                    @(context.Contact.Direction == TrustDirection.Sent ? "I invited" : "They invited")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Verified">@context.Contact.VerifiedAt.ToLocalTime().ToString("g")</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudTooltip Text="Copy X25519 public key">
+                    <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                   Size="Size.Small"
+                                   OnClick="@(() => CopyPublicKeyAsync(context.Contact))" />
+                </MudTooltip>
+                <MudTooltip Text="Encrypt message for this contact">
+                    <MudIconButton Icon="@Icons.Material.Filled.Send"
+                                   Size="Size.Small"
+                                   Href="@($"asymmetric?key={Uri.EscapeDataString(context.Contact.X25519PublicKey)}")" />
+                </MudTooltip>
+                <MudTooltip Text="Delete contact">
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                   Size="Size.Small"
+                                   Color="Color.Error"
+                                   OnClick="@(() => DeleteContactAsync(context.Contact.Id))" />
+                </MudTooltip>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+<MudDivider Class="my-4" />
+
+<MudStack Row="true" Spacing="2">
+    <MudButton Href="invite"
+               Variant="Variant.Outlined"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.GroupAdd">
+        Create New Invitation
+    </MudButton>
+    <MudButton Variant="Variant.Outlined"
+               Color="Color.Default"
+               StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="LoadContactsAsync"
+               Disabled="@_loading">
+        Refresh
+    </MudButton>
+</MudStack>
+
+@code {
+    [Inject]
+    public required ITrustedContactService ContactService { get; init; }
+
+    [Inject]
+    public required ISnackbar Snackbar { get; init; }
+
+    [Inject]
+    public required IClipboard Clipboard { get; init; }
+
+    [Inject]
+    public required IDialogService DialogService { get; init; }
+
+    private List<(TrustedContact Contact, ContactUserData UserData)> _contacts = [];
+    private bool _loading = true;
+    private string? _errorMessage;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadContactsAsync();
+        }
+    }
+
+    private async Task LoadContactsAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        // Ensure user is authenticated to decrypt contact data
+        if (!await PrfModel.EnsureKeysAsync())
+        {
+            _errorMessage = "Authentication required to view contacts. Please authenticate first.";
+            _loading = false;
+            StateHasChanged();
+            return;
+        }
+
+        var result = await ContactService.GetAllAsync();
+
+        if (result is { Success: true, Value: not null })
+        {
+            _contacts = result.Value;
+        }
+        else
+        {
+            _errorMessage = result.Error ?? "Failed to load contacts. Please try again.";
+            _contacts = [];
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task DeleteContactAsync(Guid id)
+    {
+        var deleted = await ContactService.DeleteAsync(id);
+        if (deleted)
+        {
+            Snackbar.Add("Contact deleted", Severity.Success);
+            _contacts.RemoveAll(c => c.Contact.Id == id);
+            StateHasChanged();
+        }
+        else
+        {
+            Snackbar.Add("Failed to delete contact", Severity.Error);
+        }
+    }
+
+    private async Task CopyPublicKeyAsync(TrustedContact contact)
+    {
+        // Create armored public key with metadata
+        var userData = _contacts.FirstOrDefault(c => c.Contact.Id == contact.Id).UserData;
+        var metadata = userData is not null
+            ? new PublicKeyMetadata
+              {
+                  Name = userData.Username,
+                  Email = userData.Email,
+                  Comment = userData.Comment
+              }
+            : null;
+
+        var armored = PrfArmor.ArmorPublicKey(contact.X25519PublicKey, metadata);
+        await Clipboard.SetTextAsync(armored);
+        Snackbar.Add("Public key copied to clipboard", Severity.Success);
+    }
+
+    private static Color GetTrustColor(TrustLevel level) => level switch
+    {
+        TrustLevel.Full => Color.Success,
+        TrustLevel.Marginal => Color.Warning,
+        _ => Color.Default
+    };
+
+    private async Task OpenVerifyDialogAsync()
+    {
+        // Ensure user is authenticated before opening dialog
+        if (!await PrfModel.EnsureKeysAsync())
+        {
+            Snackbar.Add("Authentication required to verify responses.", Severity.Warning);
+            return;
+        }
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<VerifyResponseDialog>("Verify Response & Add Contact", options);
+        var result = await dialog.Result;
+
+        // Dialog closes - reactive OnContactsVersionChanged will handle refresh
+        _ = result;
+    }
+
+    /// <summary>
+    /// Called reactively when contacts are modified (via ContactsModel.NotifyContactsChanged).
+    /// </summary>
+    protected override void OnContactsVersionChanged()
+    {
+        _ = InvokeAsync(LoadContactsAsync);
+    }
+}

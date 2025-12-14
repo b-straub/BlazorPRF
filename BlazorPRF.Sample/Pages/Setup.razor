@@ -1,46 +1,23 @@
 @page "/setup"
-@inherits PrfModelComponent
+@inject NavigationManager NavigationManager
 
 <PageTitle>Setup - BlazorPRF</PageTitle>
 
 <MudText Typo="Typo.h4" GutterBottom="true">Passkey Setup</MudText>
 <MudText Typo="Typo.body1" Class="mb-6">
-    Register a new passkey or authenticate with an existing one to derive encryption keys.
+    Register a new passkey to enable PRF-based encryption.
 </MudText>
 
 <MudGrid>
     <MudItem xs="12" md="6">
         <PrfRegistration OnRegistered="HandleRegistered" />
     </MudItem>
-
-    <MudItem xs="12" md="6">
-        <PrfAuthenticate CredentialId="@_credentialId" />
-    </MudItem>
 </MudGrid>
 
-@if (Model.HasKeys)
-{
-    <MudPaper Class="pa-4 mt-4" Elevation="2">
-        <MudText Typo="Typo.h6" GutterBottom="true">Ready to Encrypt!</MudText>
-        <MudText Typo="Typo.body2" Class="mb-4">
-            Your keys are derived and cached. You can now use symmetric or asymmetric encryption.
-        </MudText>
-        <MudButtonGroup Variant="Variant.Filled">
-            <MudButton Color="Color.Primary" Href="symmetric" StartIcon="@Icons.Material.Filled.Lock">
-                Symmetric Encryption
-            </MudButton>
-            <MudButton Color="Color.Secondary" Href="asymmetric" StartIcon="@Icons.Material.Filled.Send">
-                Asymmetric Encryption
-            </MudButton>
-        </MudButtonGroup>
-    </MudPaper>
-}
-
 @code {
-    private string? _credentialId;
-
     private void HandleRegistered(string credentialId)
     {
-        _credentialId = credentialId;
+        // After registration, navigate to home to authenticate
+        NavigationManager.NavigateTo("/");
     }
 }

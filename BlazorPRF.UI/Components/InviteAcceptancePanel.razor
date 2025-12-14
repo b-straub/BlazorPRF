@@ -1,5 +1,4 @@
-@using BlazorPRF.Shared.Extensions
-@using BlazorPRF.Shared.Formatting
+@using BlazorPRF.Shared.Crypto.Extensions
 @inherits PrfModelComponent
 @inject ISigningService SigningService
 @inject IClipboard Clipboard
@@ -11,85 +10,101 @@
             <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Secondary" />
         </CardHeaderAvatar>
         <CardHeaderContent>
-            <MudText Typo="Typo.h6">Step 2: Accept Invite</MudText>
+            <MudText Typo="Typo.h6">Accept an Invite</MudText>
             <MudText Typo="Typo.body2" Class="mud-text-secondary">Sign your acceptance to prove identity</MudText>
         </CardHeaderContent>
     </MudCardHeader>
 
     <MudCardContent>
-        @if (!Model.HasKeys && !Model.RequiresOnDemandAuth)
+        @if (Model is { HasKeys: false, RequiresOnDemandAuth: false })
         {
             <MudAlert Severity="Severity.Warning" Class="mb-4">
                 Please authenticate first using the main page.
             </MudAlert>
         }
 
-        <MudTextField Value="_signedInviteInput"
-                      ValueChanged="@((string v) => OnSignedInviteChanged(v))"
-                      Label="Signed Invite"
-                      Variant="Variant.Outlined"
-                      Lines="6"
-                      Class="mb-2"
-                      Placeholder="Paste the armored signed invite from Step 1"
-                      Style="font-family: monospace;"
-                      Immediate="true"
-                      Disabled="@_isProcessing" />
-
-        @if (_inviteValid == true && _parsedEmail is not null)
+        @if (_signedResponse is null)
         {
-            <MudAlert Severity="Severity.Success" Class="mb-2" Variant="Variant.Outlined" Dense="true">
-                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
-                    <MudIcon Icon="@Icons.Material.Filled.Verified" Size="Size.Small" />
-                    <MudText Typo="Typo.body2">Valid invite for: <strong>@_parsedEmail</strong></MudText>
-                </MudStack>
-            </MudAlert>
-        }
-        else if (_inviteValid == false)
-        {
-            <MudAlert Severity="Severity.Error" Class="mb-2" Variant="Variant.Outlined" Dense="true">
-                <MudText Typo="Typo.body2">Invalid invite signature - do not trust this invite!</MudText>
-            </MudAlert>
-        }
+            <MudTextField Value="_signedInviteInput"
+                          ValueChanged="@((string v) => OnSignedInviteChanged(v))"
+                          Label="Signed Invite"
+                          Variant="Variant.Outlined"
+                          Lines="5"
+                          Class="mb-2"
+                          Placeholder="Paste the signed invite you received"
+                          Style="font-family: monospace;"
+                          Immediate="true"
+                          Disabled="@_isProcessing" />
 
-        <MudTextField @bind-Value="_username"
-                      Label="Your Name"
-                      Variant="Variant.Outlined"
-                      Class="mb-4"
-                      Placeholder="Bob Smith"
-                      HelperText="Choose a display name for your public key"
-                      Immediate="true"
-                      Disabled="@_isProcessing" />
-
-        <MudButton Color="Color.Secondary"
-                   Variant="Variant.Filled"
-                   StartIcon="@Icons.Material.Filled.Create"
-                   OnClick="SignAcceptanceAsync"
-                   Disabled="@(!CanSign)">
-            @if (_isProcessing)
+            @if (_inviteValid == true && _parsedEmail is not null)
             {
-                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
-                <span>Signing...</span>
+                <MudAlert Severity="Severity.Success" Class="mb-2" Variant="Variant.Outlined" Dense="true">
+                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.Verified" Size="Size.Small" />
+                        <MudText Typo="Typo.body2">Valid invite for: <strong>@_parsedEmail</strong></MudText>
+                    </MudStack>
+                </MudAlert>
             }
-            else
+            else if (_inviteValid == false)
             {
-                <span>Sign Acceptance</span>
+                <MudAlert Severity="Severity.Error" Class="mb-2" Variant="Variant.Outlined" Dense="true">
+                    <MudText Typo="Typo.body2">Invalid invite signature - do not trust this invite!</MudText>
+                </MudAlert>
             }
-        </MudButton>
 
-        @if (_errorMessage is not null)
-        {
-            <MudAlert Severity="Severity.Error" Class="mt-4" Variant="Variant.Outlined">
-                @_errorMessage
-            </MudAlert>
+            <MudTextField @bind-Value="_username"
+                          Label="Your Name"
+                          Variant="Variant.Outlined"
+                          Class="mb-4"
+                          Placeholder="Bob Smith"
+                          HelperText="Choose a display name for your public key"
+                          Immediate="true"
+                          Disabled="@_isProcessing" />
+
+            <MudButton Color="Color.Secondary"
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Create"
+                       OnClick="SignAcceptanceAsync"
+                       Disabled="@(!CanSign)">
+                @if (_isProcessing)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                    <span>Signing...</span>
+                }
+                else
+                {
+                    <span>Sign Acceptance</span>
+                }
+            </MudButton>
+
+            @if (_errorMessage is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-4" Variant="Variant.Outlined">
+                    @_errorMessage
+                </MudAlert>
+            }
         }
-
-        @if (_signedResponse is not null)
+        else
         {
-            <MudPaper Class="pa-4 mt-4" Elevation="0" Outlined="true">
+            <MudAlert Severity="Severity.Success" Class="mb-4" Icon="@Icons.Material.Filled.Check">
+                Acceptance signed as @_username
+            </MudAlert>
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Next Steps:</MudText>
+            <MudList T="string" Dense="true">
+                <MudListItem Icon="@Icons.Material.Filled.Reply" IconColor="Color.Primary">
+                    Copy and send the response below to the inviter
+                </MudListItem>
+                <MudListItem Icon="@Icons.Material.Filled.VerifiedUser" IconColor="Color.Secondary">
+                    They will verify and add you as a trusted contact
+                </MudListItem>
+            </MudList>
+
+            <MudPaper Class="pa-3 mt-4" Elevation="0" Outlined="true">
                 <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween">
                     <div Style="flex: 1; overflow: hidden;">
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Signed Response (JSON)</MudText>
-                        <MudText Typo="Typo.body2" Style="font-family: monospace; word-break: break-all; white-space: pre-wrap; font-size: 0.75rem;">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Signed Response</MudText>
+                        <MudText Typo="Typo.body2" Style="font-family: monospace; word-break: break-all; white-space: pre-wrap; font-size: 0.7rem; max-height: 120px; overflow-y: auto;">
                             @_signedResponse
                         </MudText>
                     </div>
@@ -99,10 +114,15 @@
                                        OnClick="CopyResponseAsync" />
                     </MudTooltip>
                 </MudStack>
-                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
-                    Send this response back to the inviter
-                </MudText>
             </MudPaper>
+
+            <MudButton Color="Color.Default"
+                       Variant="Variant.Text"
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       OnClick="Reset"
+                       Class="mt-4">
+                Accept Another Invite
+            </MudButton>
         }
     </MudCardContent>
 </MudCard>
@@ -257,8 +277,18 @@
 
                 var json = System.Text.Json.JsonSerializer.Serialize(response);
                 _signedResponse = PrfArmor.ArmorSignedResponse(json);
+
+                // Notify via reactive model - just set the property
+                Model.InviteModel.LastInviteAccepted = new InviteAcceptedEventArgs
+                {
+                    InviteCode = _parsedInviteCode,
+                    InviterEd25519PublicKey = _inviterEd25519PublicKey!,
+                    Username = _username,
+                    Email = _parsedEmail,
+                    ArmoredResponse = _signedResponse
+                };
             }
-            else if (signResult.ErrorCode == BlazorPRF.Shared.Models.PrfErrorCode.KeyDerivationFailed)
+            else if (signResult.ErrorCode == PrfErrorCode.KeyDerivationFailed)
             {
                 Model.OnKeyDerivationFailed();
                 _errorMessage = "Keys expired. Please try again.";
@@ -294,6 +324,19 @@
         {
             Snackbar.Add("Failed to copy", Severity.Error);
         }
+    }
+
+    private void Reset()
+    {
+        _signedInviteInput = string.Empty;
+        _username = string.Empty;
+        _parsedEmail = null;
+        _parsedInviteCode = null;
+        _inviterSignature = null;
+        _inviterEd25519PublicKey = null;
+        _inviteValid = null;
+        _errorMessage = null;
+        _signedResponse = null;
     }
 
     private sealed class SignedInvite

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>BlazorPRF.BaseCrypto.Server</PackageId>
+    <Version>$(BlazorPRFVersion)</Version>
+    <Authors>bernisoft</Authors>
+    <Description>PRF-compatible encryption library for server applications using NSec/libsodium (AES-GCM, Ed25519). Compatible with BlazorPRF.BaseCrypto.Wasm.</Description>
+    <PackageTags>prf;encryption;aes-gcm;ed25519;nsec;libsodium;server</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/b-straub/BlazorPRF</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/b-straub/BlazorPRF</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <EmbedAllSources>true</EmbedAllSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)../../.nuget</PackageOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NSec.Cryptography" Version="24.4.0" />
+  </ItemGroup>
+
+</Project>

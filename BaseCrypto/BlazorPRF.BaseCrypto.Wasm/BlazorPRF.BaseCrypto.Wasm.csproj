@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <PackageId>BlazorPRF.BaseCrypto.Wasm</PackageId>
+    <Version>$(BlazorPRFVersion)</Version>
+    <Authors>bernisoft</Authors>
+    <Description>Simple WebAuthn PRF-based encryption library for Blazor WebAssembly. Private keys never leave JavaScript - all crypto uses salt-based key lookup with AES-GCM encryption and Ed25519 signing.</Description>
+    <PackageTags>blazor;webauthn;prf;encryption;aes-gcm;ed25519;webcrypto;wasm</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/b-straub/BlazorPRF</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/b-straub/BlazorPRF</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <EmbedAllSources>true</EmbedAllSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)../../.nuget</PackageOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+
+  <!-- TypeScript Build Integration -->
+  <Target Name="NpmInstall" BeforeTargets="BuildTypeScriptDebug;BuildTypeScriptRelease">
+    <Exec WorkingDirectory="TypeScript" Command="npm install" Condition="Exists('TypeScript/package.json') And !Exists('TypeScript/node_modules')" />
+  </Target>
+
+  <Target Name="BuildTypeScriptDebug" BeforeTargets="BeforeCompile;ResolveStaticWebAssetsInputs" Condition="'$(Configuration)' == 'Debug'">
+    <Exec WorkingDirectory="TypeScript" Command="npm run build" Condition="Exists('TypeScript/package.json')" />
+  </Target>
+
+  <Target Name="BuildTypeScriptRelease" BeforeTargets="BeforeCompile;ResolveStaticWebAssetsInputs" Condition="'$(Configuration)' == 'Release'">
+    <Exec WorkingDirectory="TypeScript" Command="npm run build:release" Condition="Exists('TypeScript/package.json')" />
+  </Target>
+
+</Project>

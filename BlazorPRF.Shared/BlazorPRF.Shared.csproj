@@ -1,5 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <!-- Internal shared library - not published as separate package -->
-
-</Project>

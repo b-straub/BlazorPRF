@@ -23,11 +23,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: 'BlazorPRF/TypeScript/package-lock.json'
 
-      - name: Install npm dependencies
-        working-directory: BlazorPRF/TypeScript
+      - name: Install npm dependencies (Noble.Crypto)
+        working-directory: BlazorPRF.Noble.Crypto/TypeScript
+        run: npm install
+
+      - name: Install npm dependencies (BaseCrypto.Wasm)
+        working-directory: BaseCrypto/BlazorPRF.BaseCrypto.Wasm/TypeScript
         run: npm install
 
       - name: Restore .NET dependencies

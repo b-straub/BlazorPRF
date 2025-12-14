@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Reusable persistence layer for PRF-based WebAssembly apps -->
+    <Description>Ready-to-use persistence layer for BlazorPRF applications. Provides trusted contacts, invitations, and settings storage using EF Core with SQLite.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
+    <PackageReference Include="SqliteWasmBlazor" Version="0.7.0-pre" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <ProjectReference Include="..\BlazorPRF.Shared.Crypto\BlazorPRF.Shared.Crypto.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- Direct reference to Shared.Crypto DLL for Debug compilation -->
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <Reference Include="BlazorPRF.Shared.Crypto">
+      <HintPath>$(MSBuildThisFileDirectory)..\BlazorPRF.Shared.Crypto\bin\$(Configuration)\net10.0\BlazorPRF.Shared.Crypto.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <PackageReference Include="BlazorPRF.BC.Crypto" Version="$(BlazorPRFVersion)" />
+  </ItemGroup>
+
+</Project>

@@ -1,5 +1,4 @@
-@using BlazorPRF.Shared.Extensions
-@using BlazorPRF.Shared.Formatting
+@using BlazorPRF.Shared.Crypto.Extensions
 @inherits PrfModelComponent
 @inject ISigningService SigningService
 @inject IClipboard Clipboard
@@ -11,58 +10,77 @@
             <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Primary" />
         </CardHeaderAvatar>
         <CardHeaderContent>
-            <MudText Typo="Typo.h6">Step 1: Create Invite</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">Generate a signed invite for a new user</MudText>
+            <MudText Typo="Typo.h6">Invite Someone</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Create a signed invitation</MudText>
         </CardHeaderContent>
     </MudCardHeader>
 
     <MudCardContent>
-        @if (!Model.HasKeys && !Model.RequiresOnDemandAuth)
+        @if (Model is { HasKeys: false, RequiresOnDemandAuth: false })
         {
             <MudAlert Severity="Severity.Warning" Class="mb-4">
                 Please authenticate first to create signed invites.
             </MudAlert>
         }
 
-        <MudTextField @bind-Value="_email"
-                      Label="Email"
-                      Variant="Variant.Outlined"
-                      Class="mb-4"
-                      Placeholder="bob@example.com"
-                      HelperText="Email of the person you're inviting"
-                      Immediate="true"
-                      Disabled="@_isProcessing" />
-
-        <MudButton Color="Color.Primary"
-                   Variant="Variant.Filled"
-                   StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="CreateInviteAsync"
-                   Disabled="@(!CanCreate)">
-            @if (_isProcessing)
-            {
-                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
-                <span>Creating...</span>
-            }
-            else
-            {
-                <span>Create Signed Invite</span>
-            }
-        </MudButton>
-
-        @if (_errorMessage is not null)
+        @if (_signedInvite is null)
         {
-            <MudAlert Severity="Severity.Error" Class="mt-4" Variant="Variant.Outlined">
-                @_errorMessage
-            </MudAlert>
+            <MudTextField @bind-Value="_email"
+                          Label="Email"
+                          Variant="Variant.Outlined"
+                          Class="mb-4"
+                          Placeholder="bob@example.com"
+                          HelperText="Email of the person you're inviting"
+                          Immediate="true"
+                          Disabled="@_isProcessing" />
+
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="CreateInviteAsync"
+                       Disabled="@(!CanCreate)">
+                @if (_isProcessing)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                    <span>Creating...</span>
+                }
+                else
+                {
+                    <span>Create Signed Invite</span>
+                }
+            </MudButton>
+
+            @if (_errorMessage is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-4" Variant="Variant.Outlined">
+                    @_errorMessage
+                </MudAlert>
+            }
         }
-
-        @if (_signedInvite is not null)
+        else
         {
-            <MudPaper Class="pa-4 mt-4" Elevation="0" Outlined="true">
+            <MudAlert Severity="Severity.Success" Class="mb-4" Icon="@Icons.Material.Filled.Check">
+                Invite created for @_email
+            </MudAlert>
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Next Steps:</MudText>
+            <MudList T="string" Dense="true">
+                <MudListItem Icon="@Icons.Material.Filled.Share" IconColor="Color.Primary">
+                    Share the invite below with the invitee
+                </MudListItem>
+                <MudListItem Icon="@Icons.Material.Filled.Reply" IconColor="Color.Secondary">
+                    They will sign and send back a response
+                </MudListItem>
+                <MudListItem Icon="@Icons.Material.Filled.Contacts" IconColor="Color.Tertiary">
+                    Add them via Contacts → "Add via Response"
+                </MudListItem>
+            </MudList>
+
+            <MudPaper Class="pa-3 mt-4" Elevation="0" Outlined="true">
                 <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween">
                     <div Style="flex: 1; overflow: hidden;">
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Signed Invite (JSON)</MudText>
-                        <MudText Typo="Typo.body2" Style="font-family: monospace; word-break: break-all; white-space: pre-wrap; font-size: 0.75rem;">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Signed Invite</MudText>
+                        <MudText Typo="Typo.body2" Style="font-family: monospace; word-break: break-all; white-space: pre-wrap; font-size: 0.7rem; max-height: 120px; overflow-y: auto;">
                             @_signedInvite
                         </MudText>
                     </div>
@@ -72,10 +90,15 @@
                                        OnClick="CopyInviteAsync" />
                     </MudTooltip>
                 </MudStack>
-                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
-                    Send this signed invite to the invitee (e.g., via email)
-                </MudText>
             </MudPaper>
+
+            <MudButton Color="Color.Default"
+                       Variant="Variant.Text"
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       OnClick="Reset"
+                       Class="mt-4">
+                Create Another Invite
+            </MudButton>
         }
     </MudCardContent>
 </MudCard>
@@ -83,6 +106,7 @@
 @code {
     private string _email = string.Empty;
     private string? _signedInvite;
+    private string? _inviteCode;
     private string? _errorMessage;
     private bool _isProcessing;
 
@@ -123,6 +147,8 @@
 
             if (signResult is { Success: true, Value: not null })
             {
+                _inviteCode = inviteCode;
+
                 // Build signed invite JSON
                 var signedInviteObj = new
                 {
@@ -133,6 +159,15 @@
 
                 var json = System.Text.Json.JsonSerializer.Serialize(signedInviteObj);
                 _signedInvite = PrfArmor.ArmorSignedInvite(json);
+
+                // Notify via reactive model - just set the property
+                Model.InviteModel.LastInviteCreated = new InviteCreatedEventArgs
+                {
+                    InviteCode = inviteCode,
+                    Email = _email,
+                    ArmoredInvite = _signedInvite,
+                    InviterEd25519PublicKey = Model.Ed25519PublicKey!
+                };
             }
             else
             {
@@ -177,5 +212,13 @@
         {
             Snackbar.Add("Failed to copy", Severity.Error);
         }
+    }
+
+    private void Reset()
+    {
+        _email = string.Empty;
+        _signedInvite = null;
+        _inviteCode = null;
+        _errorMessage = null;
     }
 }

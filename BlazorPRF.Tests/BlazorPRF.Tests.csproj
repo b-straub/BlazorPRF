@@ -18,10 +18,9 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\BlazorPRF\BlazorPRF.csproj"/>
-        <ProjectReference Include="..\BlazorPRF.Crypto\BlazorPRF.Crypto.csproj"/>
+        <ProjectReference Include="..\BlazorPRF.Shared.Crypto\BlazorPRF.Shared.Crypto.csproj"/>
+        <ProjectReference Include="..\BlazorPRF.BC.Crypto\BlazorPRF.BC.Crypto.csproj"/>
         <ProjectReference Include="..\BlazorPRF.UI\BlazorPRF.UI.csproj"/>
-        <ProjectReference Include="..\PseudoPRF\PseudoPRF.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

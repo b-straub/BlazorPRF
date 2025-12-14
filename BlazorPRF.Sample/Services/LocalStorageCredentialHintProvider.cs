@@ -1,5 +1,5 @@
 using Blazored.LocalStorage;
-using BlazorPRF.Shared.Formatting;
+using BlazorPRF.Shared.Crypto.Formatting;
 using BlazorPRF.UI.Services;
 
 namespace BlazorPRF.Sample.Services;

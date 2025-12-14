@@ -33,20 +33,23 @@
         <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
         <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.0" />
         <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.0" />
-        <PackageReference Include="RxBlazorV2.MudBlazor" Version="1.0.3" />
+        <PackageReference Include="RxBlazorV2.MudBlazor" Version="1.0.4" />
         <PackageReference Include="TextCopy" Version="6.2.1" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\BlazorPRF\BlazorPRF.csproj" />
+        <!--
+        <ProjectReference Include="..\BlazorPRF.BC.Crypto\BlazorPRF.BC.Crypto.csproj" />
+        -->
+        <ProjectReference Include="..\BlazorPRF.Noble.Crypto\BlazorPRF.Noble.Crypto.csproj" />
         <!-- Reference Shared for build order only, use DLL reference for types -->
-        <ProjectReference Include="..\BlazorPRF.Shared\BlazorPRF.Shared.csproj" ReferenceOutputAssembly="false" />
+        <ProjectReference Include="..\BlazorPRF.Shared.Crypto\BlazorPRF.Shared.Crypto.csproj" ReferenceOutputAssembly="false" />
     </ItemGroup>
 
-    <!-- Direct reference to Shared DLL for compilation (types flow from BlazorPRF package at runtime) -->
+    <!-- Direct reference to Shared.Crypto DLL for compilation (types flow from BlazorPRF package at runtime) -->
     <ItemGroup>
-        <Reference Include="BlazorPRF.Shared">
-            <HintPath>$(MSBuildThisFileDirectory)..\BlazorPRF.Shared\bin\$(Configuration)\net10.0\BlazorPRF.Shared.dll</HintPath>
+        <Reference Include="BlazorPRF.Shared.Crypto">
+            <HintPath>$(MSBuildThisFileDirectory)..\BlazorPRF.Shared.Crypto\bin\$(Configuration)\net10.0\BlazorPRF.Shared.Crypto.dll</HintPath>
         </Reference>
     </ItemGroup>
 

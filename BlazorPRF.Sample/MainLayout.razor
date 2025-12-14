@@ -6,6 +6,7 @@
 <MudSnackbarProvider />
 <SessionExpiredPopover />
 <ServiceWorkerUpdateNotification />
+<InviteStatusDisplay />
 
 <MudLayout>
     <MudAppBar Elevation="1">
@@ -46,7 +47,8 @@
                     <MudNavLink Href="asymmetric" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Send">Asymmetric</MudNavLink>
                     <MudNavLink Href="signing" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.VerifiedUser">Signing</MudNavLink>
                     <MudNavLink Href="invite" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.GroupAdd">Identity</MudNavLink>
-                </MudNavMenu>
+                    <MudNavLink Href="contacts" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Contacts">Contacts</MudNavLink>
+                 </MudNavMenu>
             </MudDrawer>
         </Authorized>
     </AuthorizeView>

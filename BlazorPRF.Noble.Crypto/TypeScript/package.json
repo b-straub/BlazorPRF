@@ -1,0 +1,19 @@
+{
+  "name": "blazorprf-noble-crypto",
+  "version": "1.0.0",
+  "description": "Noble.js + SubtleCrypto hybrid for BlazorPRF",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --format=esm --sourcemap=inline --outfile=../wwwroot/blazorprf-noble.js",
+    "build:release": "esbuild src/index.ts --bundle --format=esm --minify --outfile=../wwwroot/blazorprf-noble.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@noble/curves": "^1.7.0",
+    "@noble/ciphers": "^1.2.1",
+    "@noble/hashes": "^1.6.1"
+  }
+}

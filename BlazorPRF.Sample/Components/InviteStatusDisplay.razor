@@ -1,0 +1,25 @@
+@inherits InviteModelComponent
+
+@code
+{
+    [Inject]
+    public required ISnackbar Snackbar { get; init; }
+
+    protected override void OnStatusChanged()
+    {
+        if (Model.Status is null)
+        {
+            return;
+        }
+
+        var severity = Model.Status.Severity switch
+        {
+            StatusSeverity.Success => Severity.Success,
+            StatusSeverity.Warning => Severity.Warning,
+            StatusSeverity.Error => Severity.Error,
+            _ => Severity.Info
+        };
+
+        InvokeAsync(() => Snackbar.Add(Model.Status.Message, severity));
+    }
+}

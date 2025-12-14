@@ -23,8 +23,12 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install npm dependencies
-        working-directory: BlazorPRF/TypeScript
+      - name: Install npm dependencies (Noble.Crypto)
+        working-directory: BlazorPRF.Noble.Crypto/TypeScript
+        run: npm install
+
+      - name: Install npm dependencies (BaseCrypto.Wasm)
+        working-directory: BaseCrypto/BlazorPRF.BaseCrypto.Wasm/TypeScript
         run: npm install
 
       - name: Extract version from tag
@@ -32,16 +36,35 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
       - name: Build
-        run: dotnet build --configuration Release
+        run: dotnet build --configuration Release -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
 
       - name: Test
         run: dotnet test --configuration Release --no-build
 
-      - name: Pack BlazorPRF
-        run: dotnet pack BlazorPRF/BlazorPRF.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./nupkg
+      # Core packages
+      - name: Pack BlazorPRF.Shared.Crypto
+        run: dotnet pack BlazorPRF.Shared.Crypto/BlazorPRF.Shared.Crypto.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./nupkg
 
       - name: Pack BlazorPRF.UI
         run: dotnet pack BlazorPRF.UI/BlazorPRF.UI.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./nupkg
+
+      # Crypto providers
+      - name: Pack BlazorPRF.Noble.Crypto
+        run: dotnet pack BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./nupkg
+
+      - name: Pack BlazorPRF.BC.Crypto
+        run: dotnet pack BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./nupkg
+
+      # Persistence
+      - name: Pack BlazorPRF.Persistence
+        run: dotnet pack BlazorPRF.Persistence/BlazorPRF.Persistence.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./nupkg
+
+      # BaseCrypto packages
+      - name: Pack BlazorPRF.BaseCrypto.Wasm
+        run: dotnet pack BaseCrypto/BlazorPRF.BaseCrypto.Wasm/BlazorPRF.BaseCrypto.Wasm.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./nupkg
+
+      - name: Pack BlazorPRF.BaseCrypto.Server
+        run: dotnet pack BaseCrypto/BlazorPRF.BaseCrypto.Server/BlazorPRF.BaseCrypto.Server.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./nupkg
 
       - name: Push to NuGet
         run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate

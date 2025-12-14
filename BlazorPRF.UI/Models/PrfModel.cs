@@ -1,11 +1,10 @@
-using BlazorPRF.Configuration;
-using BlazorPRF.Shared.Formatting;
-using BlazorPRF.Services;
+using BlazorPRF.Shared.Crypto.Configuration;
+using BlazorPRF.Shared.Crypto.Formatting;
+using BlazorPRF.Shared.Crypto.Services;
 using BlazorPRF.UI.Services;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;
 using System.Diagnostics.CodeAnalysis;
-using R3;
 
 namespace BlazorPRF.UI.Models;
 
@@ -20,7 +19,7 @@ public partial class PrfModel : ObservableModel
     /// <summary>
     /// Current salt used for key derivation.
     /// </summary>
-    public partial string Salt { get; set; } = "my-encryption-keypair";
+    public partial string Salt { get; set; } = KeyDomains.DefaultAuthSalt;
 
     /// <summary>
     /// Current credential ID (Base64).
@@ -57,6 +56,14 @@ public partial class PrfModel : ObservableModel
     /// null = not yet checked, true = supported, false = not supported (fatal).
     /// </summary>
     public partial bool? IsPrfSupported { get; set; }
+
+    /// <summary>
+    /// Whether conditional mediation (passkey autofill) is available.
+    /// When true, the browser can show passkey suggestions in form autofill UI,
+    /// indicating that existing passkeys may be available for this RP.
+    /// null = not yet checked.
+    /// </summary>
+    public partial bool? IsConditionalMediationAvailable { get; set; }
 
     /// <summary>
     /// The configured key caching strategy.
@@ -106,11 +113,12 @@ public partial class PrfModel : ObservableModel
     public partial IObservableCommand ClearKeys { get; }
 
     [SuppressMessage("RxBlazorGenerator", "RXBG050:Partial constructor parameter type may not be registered in DI", Justification = "Services registered externally")]
-    public partial PrfModel(IPrfService prfService, ICredentialHintProvider credentialHintProvider);
+    public partial PrfModel(InviteModel inviteModel, IPrfService prfService, ICredentialHintProvider credentialHintProvider);
 
     protected override async Task OnContextReadyAsync()
     {
         IsPrfSupported = await PrfService.IsPrfSupportedAsync();
+        IsConditionalMediationAvailable = await PrfService.IsConditionalMediationAvailableAsync();
 
         // Subscribe to key expiration events for reactive UI updates
         // Using Subscriptions ensures automatic disposal with the model

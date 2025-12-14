@@ -1,14 +1,19 @@
 <Solution>
+  <Folder Name="/BaseCrypto/">
+    <Project Path="BaseCrypto\BlazorPRF.BaseCrypto.Cli\BlazorPRF.BaseCrypto.Cli.csproj" />
+    <Project Path="BaseCrypto\BlazorPRF.BaseCrypto.Sample\BlazorPRF.BaseCrypto.Sample.csproj" />
+    <Project Path="BaseCrypto\BlazorPRF.BaseCrypto.Server\BlazorPRF.BaseCrypto.Server.csproj" />
+    <Project Path="BaseCrypto\BlazorPRF.BaseCrypto.Wasm\BlazorPRF.BaseCrypto.Wasm.csproj" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path="Directory.Build.props" />
     <File Path=".gitignore" />
   </Folder>
-  <Project Path="BlazorPRF.Shared/BlazorPRF.Shared.csproj" />
-  <Project Path="BlazorPRF.Crypto/BlazorPRF.Crypto.csproj" />
-  <Project Path="PseudoPRF/PseudoPRF.csproj" />
-  <Project Path="PseudoPRF.Console/PseudoPRF.Console.csproj" />
-  <Project Path="BlazorPRF/BlazorPRF.csproj" />
+  <Project Path="BlazorPRF.Shared.Crypto/BlazorPRF.Shared.Crypto.csproj" />
+  <Project Path="BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj" />
+  <Project Path="BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj" />
   <Project Path="BlazorPRF.UI/BlazorPRF.UI.csproj" />
+  <Project Path="BlazorPRF.Persistence/BlazorPRF.Persistence.csproj" />
   <Project Path="BlazorPRF.Sample/BlazorPRF.Sample.csproj" />
   <Project Path="BlazorPRF.Tests/BlazorPRF.Tests.csproj" />
 </Solution>

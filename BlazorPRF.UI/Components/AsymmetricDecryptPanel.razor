@@ -1,5 +1,4 @@
-@using BlazorPRF.Shared.Formatting
-@using BlazorPRF.Shared.Json
+@using BlazorPRF.Shared.Crypto.Json
 @inherits PrfModelComponent
 @inject IAsymmetricEncryption AsymmetricEncryption
 
@@ -15,7 +14,7 @@
     </MudCardHeader>
 
     <MudCardContent>
-        @if (!Model.HasKeys && !Model.RequiresOnDemandAuth)
+        @if (Model is { HasKeys: false, RequiresOnDemandAuth: false })
         {
             <MudAlert Severity="Severity.Warning" Class="mb-4">
                 Please derive keys first using the authentication panel.
@@ -30,7 +29,7 @@
                       Style="font-family: monospace;"
                       HelperText="Paste the PFA message"
                       Immediate="true"
-                      Disabled="@(_isProcessing || (!Model.HasKeys && !Model.RequiresOnDemandAuth))" />
+                      Disabled="@(_isProcessing || Model is { HasKeys: false, RequiresOnDemandAuth: false })" />
 
         @if (_errorMessage is not null)
         {
@@ -125,7 +124,7 @@
             {
                 _decryptedResult = result.Value;
             }
-            else if (result.ErrorCode == BlazorPRF.Shared.Models.PrfErrorCode.KeyDerivationFailed)
+            else if (result.ErrorCode == PrfErrorCode.KeyDerivationFailed)
             {
                 // Keys expired between EnsureKeysAsync and operation - notify model
                 Model.OnKeyDerivationFailed();

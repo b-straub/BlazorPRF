@@ -6,6 +6,7 @@
     <OverrideHtmlAssetPlaceholders>false</OverrideHtmlAssetPlaceholders>
     <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
     <WasmFingerprintAssets>false</WasmFingerprintAssets>
+    <NoWarn>WASM0001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,20 +18,30 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.0" PrivateAssets="all" />
+    <PackageReference Include="SqliteWasmBlazor" Version="0.7.0-pre" />
     <PackageReference Include="BlazorPRF.UI" Version="$(BlazorPRFVersion)" Condition="'$(Configuration)' == 'Release'" />
-    <PackageReference Include="BlazorPRF" Version="$(BlazorPRFVersion)" Condition="'$(Configuration)' == 'Release'" />
+    <PackageReference Include="BlazorPRF.BC.Crypto" Version="$(BlazorPRFVersion)" Condition="'$(Configuration)' == 'Release'" />
+    <PackageReference Include="BlazorPRF.Persistence" Version="$(BlazorPRFVersion)" Condition="'$(Configuration)' == 'Release'" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorPRF.Persistence\BlazorPRF.Persistence.csproj" />
+  </ItemGroup>
+  
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
     <ProjectReference Include="..\BlazorPRF.UI\BlazorPRF.UI.csproj" />
+    <!--
+    <ProjectReference Include="..\BlazorPRF.BC.Crypto\BlazorPRF.BC.Crypto.csproj" />
+    -->
+    <ProjectReference Include="..\BlazorPRF.Noble.Crypto\BlazorPRF.Noble.Crypto.csproj" />
     <!-- Reference Shared for build order only -->
-    <ProjectReference Include="..\BlazorPRF.Shared\BlazorPRF.Shared.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\BlazorPRF.Shared.Crypto\BlazorPRF.Shared.Crypto.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
-  <!-- Direct reference to Shared DLL for Debug compilation -->
+  <!-- Direct reference to Shared.Crypto DLL for Debug compilation -->
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <Reference Include="BlazorPRF.Shared">
-      <HintPath>$(MSBuildThisFileDirectory)..\BlazorPRF.Shared\bin\$(Configuration)\net10.0\BlazorPRF.Shared.dll</HintPath>
+    <Reference Include="BlazorPRF.Shared.Crypto">
+      <HintPath>$(MSBuildThisFileDirectory)..\BlazorPRF.Shared.Crypto\bin\$(Configuration)\net10.0\BlazorPRF.Shared.Crypto.dll</HintPath>
     </Reference>
   </ItemGroup>
 

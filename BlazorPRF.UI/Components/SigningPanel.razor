@@ -15,7 +15,7 @@
     </MudCardHeader>
 
     <MudCardContent>
-        @if (!Model.HasKeys && !Model.RequiresOnDemandAuth)
+        @if (Model is { HasKeys: false, RequiresOnDemandAuth: false })
         {
             <MudAlert Severity="Severity.Warning" Class="mb-4">
                 Please derive keys first using the authentication panel.
@@ -30,7 +30,7 @@
                               Lines="4"
                               Class="mt-4 mb-4"
                               Immediate="true"
-                              Disabled="@(_isProcessing || (!Model.HasKeys && !Model.RequiresOnDemandAuth))" />
+                              Disabled="@(_isProcessing || Model is { HasKeys: false, RequiresOnDemandAuth: false })" />
 
                 <MudButton Color="Color.Primary"
                            Variant="Variant.Filled"
@@ -181,7 +181,7 @@
             {
                 _signature = result.Value;
             }
-            else if (result.ErrorCode == BlazorPRF.Shared.Models.PrfErrorCode.KeyDerivationFailed)
+            else if (result.ErrorCode == PrfErrorCode.KeyDerivationFailed)
             {
                 Model.OnKeyDerivationFailed();
                 _errorMessage = "Keys expired. Please try again.";

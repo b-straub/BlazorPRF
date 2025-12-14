@@ -1,0 +1,521 @@
+@page "/"
+@inherits OwningComponentBase<IBasePrfService>
+
+<MudText Typo="Typo.h4" Class="mb-4">WebAuthn PRF + WebCrypto Demo</MudText>
+<MudText Typo="Typo.caption" Class="mb-4">Private keys never leave JavaScript - stored as non-extractable CryptoKey objects</MudText>
+
+@* REGISTRATION *@
+<MudCard Class="mb-4">
+    <MudCardHeader>
+        <MudText Typo="Typo.h6">1. Registration</MudText>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudTextField @bind-Value="_displayName" Label="Display Name (optional)" Class="mb-2" />
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="RegisterAsync" Disabled="_isLoading">
+            Register Passkey
+        </MudButton>
+        @if (!string.IsNullOrEmpty(_credentialId))
+        {
+            <MudAlert Severity="Severity.Success" Class="mt-2" Dense="true">
+                <strong>Credential ID:</strong><br />
+                <code style="word-break: break-all;">@_credentialId</code>
+            </MudAlert>
+        }
+        @if (!string.IsNullOrEmpty(_registerError))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-2" Dense="true">@_registerError</MudAlert>
+        }
+    </MudCardContent>
+</MudCard>
+
+@* AUTHENTICATION *@
+<MudCard Class="mb-4">
+    <MudCardHeader>
+        <MudText Typo="Typo.h6">2. Authentication</MudText>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudTextField @bind-Value="_salt" Label="Salt" Class="mb-2" Placeholder="any-unique-value" />
+        <MudNumericField @bind-Value="_cacheTtlSeconds" Label="Cache TTL (seconds, 0 = no expiration)" Class="mb-2" Min="0" />
+        <MudButtonGroup Variant="Variant.Filled" Class="mb-2">
+            <MudButton Color="Color.Primary" OnClick="AuthenticateAsync" Disabled="_isLoading || string.IsNullOrEmpty(_credentialId)">
+                Authenticate
+            </MudButton>
+            <MudButton Color="Color.Secondary" OnClick="AuthenticateDiscoverableAsync" Disabled="_isLoading">
+                Discoverable
+            </MudButton>
+        </MudButtonGroup>
+
+        @if (_hasCachedKeys)
+        {
+            <MudAlert Severity="Severity.Info" Class="mt-2" Dense="true">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <span>Keys cached for salt: @_salt</span>
+                    <MudButton Size="Size.Small" Color="Color.Warning" OnClick="ClearCachedKeys">Clear</MudButton>
+                </MudStack>
+            </MudAlert>
+        }
+
+        @if (!string.IsNullOrEmpty(_keyExpiredMessage))
+        {
+            <MudAlert Severity="Severity.Warning" Class="mt-2" Dense="true">
+                @_keyExpiredMessage
+            </MudAlert>
+        }
+        else if (_authResult is not null)
+        {
+            <MudAlert Severity="Severity.Success" Class="mt-2" Dense="true">
+                <strong>Public Key (Ed25519):</strong><br />
+                <code style="word-break: break-all;">@_authResult.PublicKeyBase64</code><br /><br />
+                <MudText Typo="Typo.caption" Color="Color.Success">
+                    Private keys securely stored in JavaScript (non-extractable CryptoKey)
+                </MudText>
+            </MudAlert>
+        }
+        @if (!string.IsNullOrEmpty(_authError))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-2" Dense="true">@_authError</MudAlert>
+        }
+    </MudCardContent>
+</MudCard>
+
+@* ENCRYPTION *@
+<MudCard Class="mb-4">
+    <MudCardHeader>
+        <MudText Typo="Typo.h6">3. Encryption (AES-256-GCM)</MudText>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudTextField @bind-Value="_plaintext" Label="Message to Encrypt" Class="mb-2" />
+        <MudButtonGroup Variant="Variant.Filled" Class="mb-2">
+            <MudButton Color="Color.Primary" OnClick="EncryptAsync" Disabled="_isLoading || !_hasCachedKeys">
+                Encrypt
+            </MudButton>
+            <MudButton Color="Color.Secondary" OnClick="DecryptAsync" Disabled="_isLoading || _encryptedData is null">
+                Decrypt
+            </MudButton>
+        </MudButtonGroup>
+        @if (_encryptedData is not null)
+        {
+            <MudAlert Severity="Severity.Info" Class="mt-2" Dense="true">
+                <strong>Ciphertext:</strong><br />
+                <code style="word-break: break-all;">@_encryptedData.CiphertextBase64</code><br /><br />
+                <strong>Nonce:</strong><br />
+                <code style="word-break: break-all;">@_encryptedData.NonceBase64</code>
+            </MudAlert>
+        }
+        @if (!string.IsNullOrEmpty(_decryptedText))
+        {
+            <MudAlert Severity="Severity.Success" Class="mt-2" Dense="true">
+                <strong>Decrypted:</strong> @_decryptedText
+            </MudAlert>
+        }
+        @if (!string.IsNullOrEmpty(_encryptError))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-2" Dense="true">@_encryptError</MudAlert>
+        }
+    </MudCardContent>
+</MudCard>
+
+@* SIGNING *@
+<MudCard Class="mb-4">
+    <MudCardHeader>
+        <MudText Typo="Typo.h6">4. Signing (Ed25519)</MudText>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudTextField @bind-Value="_messageToSign" Label="Message to Sign" Class="mb-2" />
+        <MudButtonGroup Variant="Variant.Filled" Class="mb-2">
+            <MudButton Color="Color.Primary" OnClick="SignAsync" Disabled="_isLoading || !_hasCachedKeys">
+                Sign
+            </MudButton>
+            <MudButton Color="Color.Secondary" OnClick="VerifyAsync" Disabled="_isLoading || string.IsNullOrEmpty(_signature)">
+                Verify
+            </MudButton>
+        </MudButtonGroup>
+        @if (!string.IsNullOrEmpty(_signature))
+        {
+            <MudAlert Severity="Severity.Info" Class="mt-2" Dense="true">
+                <strong>Signature:</strong><br />
+                <code style="word-break: break-all;">@_signature</code>
+                <MudButton Size="Size.Small" Color="Color.Primary" Variant="Variant.Text" OnClick="CopyToExternalVerification" Class="mt-2">
+                    Copy to External Verification →
+                </MudButton>
+            </MudAlert>
+        }
+        @if (_verifyResult.HasValue)
+        {
+            <MudAlert Severity="@(_verifyResult.Value ? Severity.Success : Severity.Error)" Class="mt-2" Dense="true">
+                <strong>Valid:</strong> @(_verifyResult.Value ? "Yes" : "No")
+            </MudAlert>
+        }
+        @if (!string.IsNullOrEmpty(_signError))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-2" Dense="true">@_signError</MudAlert>
+        }
+    </MudCardContent>
+</MudCard>
+
+@* VERIFY EXTERNAL SIGNATURE *@
+<MudCard Class="mb-4">
+    <MudCardHeader>
+        <MudText Typo="Typo.h6">5. Verify External Signature</MudText>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudText Typo="Typo.caption" Class="mb-2">Verify a signature from another user using their public key</MudText>
+        <MudTextField @bind-Value="_extMessage" Label="Message" Class="mb-2" />
+        <MudTextField @bind-Value="_extSignature" Label="Signature (Base64)" Class="mb-2" />
+        <MudTextField @bind-Value="_extPublicKey" Label="Public Key (Base64)" Class="mb-2" />
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="VerifyExternalAsync" Disabled="_isLoading" Class="mb-2">
+            Verify External Signature
+        </MudButton>
+        @if (_extVerifyResult.HasValue)
+        {
+            <MudAlert Severity="@(_extVerifyResult.Value ? Severity.Success : Severity.Error)" Class="mt-2" Dense="true">
+                <strong>Valid:</strong> @(_extVerifyResult.Value ? "Yes" : "No")
+            </MudAlert>
+        }
+        @if (!string.IsNullOrEmpty(_extVerifyError))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-2" Dense="true">@_extVerifyError</MudAlert>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private bool _isLoading;
+
+    // Registration
+    private string _displayName = "";
+    private string _credentialId = "";
+    private string _registerError = "";
+
+    // Authentication
+    private string _salt = "my-app-salt";
+    private int _cacheTtlSeconds = 60;
+    private AuthResult? _authResult;
+    private string _authError = "";
+    private bool _hasCachedKeys;
+
+    // Encryption
+    private string _plaintext = "Hello, BlazorPRF.BaseCrypto.Wasm!";
+    private EncryptedData? _encryptedData;
+    private string _decryptedText = "";
+    private string _encryptError = "";
+
+    // Signing
+    private string _messageToSign = "Sign this message";
+    private string _signature = "";
+    private bool? _verifyResult;
+    private string _signError = "";
+
+    // External signature verification
+    private string _extMessage = "";
+    private string _extSignature = "";
+    private string _extPublicKey = "";
+    private bool? _extVerifyResult;
+    private string _extVerifyError = "";
+
+    // Key expiration
+    private string _keyExpiredMessage = "";
+
+    protected override void OnInitialized()
+    {
+        Service.KeyExpired += OnKeyExpired;
+    }
+
+    private void OnKeyExpired(string salt)
+    {
+        InvokeAsync(() =>
+        {
+            _keyExpiredMessage = $"Keys for salt '{salt}' have expired!";
+            _hasCachedKeys = false;
+            _authResult = null;
+            StateHasChanged();
+        });
+    }
+
+    private string GetSaltBase64() => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(_salt));
+
+    private void UpdateCacheStatus()
+    {
+        _hasCachedKeys = Service.HasCachedKeys(GetSaltBase64());
+    }
+
+    private async Task RegisterAsync()
+    {
+        _isLoading = true;
+        _registerError = "";
+        StateHasChanged();
+
+        try
+        {
+            var result = await Service.RegisterAsync(string.IsNullOrEmpty(_displayName) ? null : _displayName);
+            if (result.Success)
+            {
+                _credentialId = result.Value ?? "";
+            }
+            else
+            {
+                _registerError = result.Error ?? "Registration failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            _registerError = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task AuthenticateAsync()
+    {
+        _isLoading = true;
+        _authError = "";
+        _authResult = null;
+        _keyExpiredMessage = "";
+        StateHasChanged();
+
+        try
+        {
+            var saltBase64 = GetSaltBase64();
+            var ttl = _cacheTtlSeconds > 0 ? TimeSpan.FromSeconds(_cacheTtlSeconds) : (TimeSpan?)null;
+            var result = await Service.AuthenticateAsync(_credentialId, saltBase64, ttl);
+            if (result.Success)
+            {
+                _authResult = result.Value;
+                UpdateCacheStatus();
+            }
+            else
+            {
+                _authError = result.Error ?? "Authentication failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            _authError = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task AuthenticateDiscoverableAsync()
+    {
+        _isLoading = true;
+        _authError = "";
+        _authResult = null;
+        _keyExpiredMessage = "";
+        StateHasChanged();
+
+        try
+        {
+            var saltBase64 = GetSaltBase64();
+            var ttl = _cacheTtlSeconds > 0 ? TimeSpan.FromSeconds(_cacheTtlSeconds) : (TimeSpan?)null;
+            var result = await Service.AuthenticateDiscoverableAsync(saltBase64, ttl);
+            if (result.Success)
+            {
+                _authResult = result.Value;
+                // Capture credential ID from discoverable auth for subsequent regular auth
+                if (!string.IsNullOrEmpty(_authResult?.CredentialIdBase64))
+                {
+                    _credentialId = _authResult.CredentialIdBase64;
+                }
+                UpdateCacheStatus();
+            }
+            else
+            {
+                _authError = result.Error ?? "Authentication failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            _authError = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void ClearCachedKeys()
+    {
+        Service.ClearCachedKeys(GetSaltBase64());
+        _hasCachedKeys = false;
+        _authResult = null;
+        _keyExpiredMessage = "Keys cleared";
+    }
+
+    private async Task EncryptAsync()
+    {
+        _isLoading = true;
+        _encryptError = "";
+        _encryptedData = null;
+        _decryptedText = "";
+        StateHasChanged();
+
+        try
+        {
+            var result = await Service.EncryptAsync(_plaintext, GetSaltBase64());
+            if (result.Success)
+            {
+                _encryptedData = result.Value;
+            }
+            else
+            {
+                _encryptError = result.Error ?? "Encryption failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            _encryptError = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task DecryptAsync()
+    {
+        if (_encryptedData is null)
+        {
+            return;
+        }
+
+        _isLoading = true;
+        _encryptError = "";
+        _decryptedText = "";
+        StateHasChanged();
+
+        try
+        {
+            var result = await Service.DecryptAsync(_encryptedData, GetSaltBase64());
+            if (result.Success)
+            {
+                _decryptedText = result.Value ?? "";
+            }
+            else
+            {
+                _encryptError = result.Error ?? "Decryption failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            _encryptError = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SignAsync()
+    {
+        _isLoading = true;
+        _signError = "";
+        _signature = "";
+        _verifyResult = null;
+        StateHasChanged();
+
+        try
+        {
+            var result = await Service.SignAsync(_messageToSign, GetSaltBase64());
+            if (result.Success)
+            {
+                _signature = result.Value ?? "";
+            }
+            else
+            {
+                _signError = result.Error ?? "Signing failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            _signError = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task VerifyAsync()
+    {
+        if (string.IsNullOrEmpty(_signature))
+        {
+            return;
+        }
+
+        _isLoading = true;
+        _signError = "";
+        _verifyResult = null;
+        StateHasChanged();
+
+        try
+        {
+            // Get public key from auth result or cached info
+            var publicKey = _authResult?.PublicKeyBase64 ?? Service.GetCachedPublicInfo(GetSaltBase64())?.PublicKeyBase64;
+            if (publicKey is null)
+            {
+                _signError = "No public key available";
+                return;
+            }
+
+            _verifyResult = await Service.VerifyAsync(_messageToSign, _signature, publicKey);
+        }
+        catch (Exception ex)
+        {
+            _signError = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void CopyToExternalVerification()
+    {
+        _extMessage = _messageToSign;
+        _extSignature = _signature;
+        _extPublicKey = _authResult?.PublicKeyBase64 ?? Service.GetCachedPublicInfo(GetSaltBase64())?.PublicKeyBase64 ?? "";
+        _extVerifyResult = null;
+        _extVerifyError = "";
+    }
+
+    private async Task VerifyExternalAsync()
+    {
+        _isLoading = true;
+        _extVerifyError = "";
+        _extVerifyResult = null;
+        StateHasChanged();
+
+        try
+        {
+            if (string.IsNullOrEmpty(_extMessage) || string.IsNullOrEmpty(_extSignature) || string.IsNullOrEmpty(_extPublicKey))
+            {
+                _extVerifyError = "Message, signature, and public key are required";
+                return;
+            }
+
+            _extVerifyResult = await Service.VerifyAsync(_extMessage, _extSignature, _extPublicKey);
+        }
+        catch (Exception ex)
+        {
+            _extVerifyError = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            Service.KeyExpired -= OnKeyExpired;
+        }
+        base.Dispose(disposing);
+    }
+}
