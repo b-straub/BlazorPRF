@@ -34,7 +34,7 @@ jobs:
       - name: Create local NuGet folder
         run: mkdir -p .nuget
 
-      # Step 1: Install all npm dependencies
+      # Install all npm dependencies
       - name: Install npm dependencies (Noble.Crypto)
         working-directory: BlazorPRF.Noble.Crypto/TypeScript
         run: npm install
@@ -47,36 +47,56 @@ jobs:
         working-directory: BaseCrypto/BlazorPRF.Wasm.Crypto/TypeScript
         run: npm install
 
-      # Step 2: Build ALL packages first
+      # Build base packages (no external package dependencies)
+      - name: Restore Shared.Crypto
+        run: dotnet restore BlazorPRF.Shared.Crypto/BlazorPRF.Shared.Crypto.csproj
+
       - name: Build Shared.Crypto
-        run: dotnet build BlazorPRF.Shared.Crypto/BlazorPRF.Shared.Crypto.csproj --configuration Release
+        run: dotnet build BlazorPRF.Shared.Crypto/BlazorPRF.Shared.Crypto.csproj --configuration Release --no-restore
+
+      - name: Restore Noble.Crypto
+        run: dotnet restore BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj
 
       - name: Build Noble.Crypto
-        run: dotnet build BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj --configuration Release
+        run: dotnet build BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj --configuration Release --no-restore
+
+      - name: Restore BC.Crypto
+        run: dotnet restore BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj
 
       - name: Build BC.Crypto
-        run: dotnet build BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj --configuration Release
+        run: dotnet build BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj --configuration Release --no-restore
+
+      - name: Restore Wasm.Crypto
+        run: dotnet restore BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj
 
       - name: Build Wasm.Crypto
-        run: dotnet build BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj --configuration Release
+        run: dotnet build BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj --configuration Release --no-restore
+
+      - name: Restore Server.Crypto
+        run: dotnet restore BaseCrypto/BlazorPRF.Server.Crypto/BlazorPRF.Server.Crypto.csproj
 
       - name: Build Server.Crypto
-        run: dotnet build BaseCrypto/BlazorPRF.Server.Crypto/BlazorPRF.Server.Crypto.csproj --configuration Release
+        run: dotnet build BaseCrypto/BlazorPRF.Server.Crypto/BlazorPRF.Server.Crypto.csproj --configuration Release --no-restore
 
-      # Step 3: Clear NuGet cache before building package consumers
-      - name: Clear NuGet cache
-        run: dotnet nuget locals all --clear
+      - name: List local NuGet packages
+        run: ls -la .nuget/
 
-      # Step 4: Build packages that consume the above packages
+      - name: Clear NuGet HTTP cache
+        run: dotnet nuget locals http-cache --clear
+
+      # Build packages that depend on Noble.Crypto package
       - name: Build UI
         run: dotnet build BlazorPRF.UI/BlazorPRF.UI.csproj --configuration Release
 
       - name: Build Persistence
         run: dotnet build BlazorPRF.Persistence/BlazorPRF.Persistence.csproj --configuration Release
 
-      # Step 5: Build and test rest of solution
-      - name: Build
-        run: dotnet build --configuration Release
+      # Restore and build entire solution
+      - name: Restore solution
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build --configuration Release --no-restore
 
       - name: Test
         run: dotnet test --configuration Release --no-build --verbosity normal
