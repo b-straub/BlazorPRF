@@ -8,12 +8,12 @@
     "build:release": "esbuild src/index.ts --bundle --format=esm --minify --outfile=../wwwroot/blazorprf-noble.js"
   },
   "devDependencies": {
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.27.1",
     "typescript": "^5.7.2"
   },
   "dependencies": {
-    "@noble/curves": "^1.7.0",
     "@noble/ciphers": "^1.2.1",
+    "@noble/curves": "^1.7.0",
     "@noble/hashes": "^1.6.1"
   }
 }

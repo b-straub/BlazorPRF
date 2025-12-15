@@ -27,8 +27,8 @@ jobs:
         working-directory: BlazorPRF.Noble.Crypto/TypeScript
         run: npm install
 
-      - name: Install npm dependencies (BaseCrypto.Wasm)
-        working-directory: BaseCrypto/BlazorPRF.BaseCrypto.Wasm/TypeScript
+      - name: Install npm dependencies (Wasm.Crypto)
+        working-directory: BaseCrypto/BlazorPRF.Wasm.Crypto/TypeScript
         run: npm install
 
       - name: Extract version from tag
@@ -60,11 +60,11 @@ jobs:
         run: dotnet pack BlazorPRF.Persistence/BlazorPRF.Persistence.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./nupkg
 
       # BaseCrypto packages
-      - name: Pack BlazorPRF.BaseCrypto.Wasm
-        run: dotnet pack BaseCrypto/BlazorPRF.BaseCrypto.Wasm/BlazorPRF.BaseCrypto.Wasm.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./nupkg
+      - name: Pack BlazorPRF.Wasm.Crypto
+        run: dotnet pack BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./nupkg
 
-      - name: Pack BlazorPRF.BaseCrypto.Server
-        run: dotnet pack BaseCrypto/BlazorPRF.BaseCrypto.Server/BlazorPRF.BaseCrypto.Server.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./nupkg
+      - name: Pack BlazorPRF.Server.Crypto
+        run: dotnet pack BaseCrypto/BlazorPRF.Server.Crypto/BlazorPRF.Server.Crypto.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.VERSION }} -o ./nupkg
 
       - name: Push to NuGet
         run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate

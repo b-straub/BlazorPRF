@@ -28,8 +28,8 @@ jobs:
         working-directory: BlazorPRF.Noble.Crypto/TypeScript
         run: npm install
 
-      - name: Install npm dependencies (BaseCrypto.Wasm)
-        working-directory: BaseCrypto/BlazorPRF.BaseCrypto.Wasm/TypeScript
+      - name: Install npm dependencies (Wasm.Crypto)
+        working-directory: BaseCrypto/BlazorPRF.Wasm.Crypto/TypeScript
         run: npm install
 
       - name: Restore .NET dependencies
