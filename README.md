@@ -1,5 +1,11 @@
 # BlazorPRF
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/)
+[![NuGet](https://img.shields.io/nuget/v/BlazorPRF)](https://www.nuget.org/packages/BlazorPRF)
+[![Build and Test](https://github.com/b-straub/BlazorPRF/actions/workflows/build.yml/badge.svg)](https://github.com/b-straub/BlazorPRF/actions/workflows/build.yml)
+[![GitHub Repo stars](https://img.shields.io/github/stars/b-straub/BlazorPRF)](https://github.com/b-straub/BlazorPRF/stargazers)
+
 PRF-based deterministic encryption for Blazor WebAssembly using the WebAuthn PRF extension.
 
 ## Security Disclaimer
@@ -49,7 +55,7 @@ Choose one based on your platform:
 
 | Package | Platform | Description |
 |---------|----------|-------------|
-| [BlazorPRF.BaseCrypto.Wasm](./BaseCrypto/BlazorPRF.BaseCrypto.Wasm/) | WASM | Simple WebAuthn PRF library. Keys never leave JS - salt-based lookup with AES-GCM and Ed25519. |
+| [BlazorPRF.Wasm.Crypto](./BaseCrypto/BlazorPRF.Wasm.Crypto/) | WASM | Simple WebAuthn PRF library. Keys never leave JS - salt-based lookup with AES-GCM and Ed25519. |
 | [BlazorPRF.Persistence](./BlazorPRF.Persistence/) | Any | SQLite persistence for credentials and trusted contacts |
 
 ### Choosing a Crypto Provider
@@ -62,7 +68,7 @@ Server/.NET:
   └─ Use BlazorPRF.BC.Crypto (BouncyCastle, full .NET support)
 
 Simple use case (just encrypt/sign):
-  └─ Use BlazorPRF.BaseCrypto.Wasm (standalone, minimal dependencies)
+  └─ Use BlazorPRF.Wasm.Crypto (standalone, minimal dependencies)
 ```
 
 ## Quick Start
