@@ -1,0 +1,23 @@
+@inherits LayoutComponentBase
+
+<MudThemeProvider IsDarkMode="true" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudText Typo="Typo.h5">BlazorPRF.Wasm.Crypto Demo</MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@Icons.Custom.Brands.GitHub"
+                       Color="Color.Inherit"
+                       Href="https://github.com/b-straub/BlazorPRF"
+                       Target="_blank" />
+    </MudAppBar>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Medium" Class="my-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>

@@ -1,0 +1,13 @@
+{
+  "name": "blazorprf-wasm-crypto",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/blazorprfwasm.ts --bundle --format=esm --sourcemap --outfile=../wwwroot/blazorprf-wasm-crypto.js",
+    "build:release": "esbuild src/blazorprfwasm.ts --bundle --format=esm --minify --outfile=../wwwroot/blazorprf-wasm-crypto.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.1",
+    "typescript": "^5.7.2"
+  }
+}
