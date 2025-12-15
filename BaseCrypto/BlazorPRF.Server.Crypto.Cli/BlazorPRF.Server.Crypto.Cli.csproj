@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BlazorPRF.Server.Crypto" Version="0.2.0-pre" Condition="'$(Configuration)' == 'Release'"/>
+    <PackageReference Include="BlazorPRF.Server.Crypto" Version="$(BlazorPRFVersion)" Condition="'$(Configuration)' == 'Release'"/>
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
