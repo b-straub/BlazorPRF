@@ -93,13 +93,13 @@ jobs:
 
       # Restore and build entire solution
       - name: Restore solution
-        run: dotnet restore
+        run: dotnet restore BlazorPRF.slnx
 
       - name: Build solution
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build BlazorPRF.slnx --configuration Release
 
       - name: Test
-        run: dotnet test --configuration Release --no-build --verbosity normal
+        run: dotnet test BlazorPRF.slnx --configuration Release --no-build --verbosity normal
 
       # Deploy to GitHub Pages (only on push to master)
       - name: Set base path for GitHub Pages
