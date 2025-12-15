@@ -39,24 +39,19 @@ export async function evaluatePrf(
 
         const credentialId = base64ToArrayBuffer(credentialIdBase64);
 
-        // Determine transports based on authenticator attachment
-        const transports: AuthenticatorTransport[] =
-            options.authenticatorAttachment === 'platform'
-                ? ['internal']
-                : ['internal', 'usb', 'nfc', 'ble'];
-
         // Build authentication options with PRF extension
+        // Note: Don't specify transports - let browser determine the best transport
         const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
             challenge: crypto.getRandomValues(new Uint8Array(32)),
+            rpId: options.rpId ?? window.location.hostname,
             allowCredentials: [
                 {
                     id: credentialId,
-                    type: 'public-key',
-                    transports
+                    type: 'public-key'
                 }
             ],
             timeout: options.timeoutMs,
-            userVerification: 'required',
+            userVerification: 'preferred',
             extensions: {
                 prf: {
                     eval: {
@@ -156,11 +151,11 @@ export async function evaluatePrfDiscoverable(
         const saltHash = await sha256(saltBytes);
 
         // Build authentication options without allowCredentials (discoverable)
+        // Note: Don't set timeout for discoverable - let browser handle it naturally
         const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
             challenge: crypto.getRandomValues(new Uint8Array(32)),
             rpId: options.rpId ?? window.location.hostname,
-            timeout: options.timeoutMs,
-            userVerification: 'required',
+            userVerification: 'preferred',
             extensions: {
                 prf: {
                     eval: {

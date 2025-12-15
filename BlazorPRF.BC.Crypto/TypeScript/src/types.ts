@@ -9,7 +9,7 @@ export interface PrfOptions {
     rpName: string;
     rpId?: string;
     timeoutMs: number;
-    authenticatorAttachment: 'platform' | 'cross-platform';
+    authenticatorAttachment: 'platform' | 'cross-platform' | 'any';
 }
 
 export interface KeyCacheConfig {

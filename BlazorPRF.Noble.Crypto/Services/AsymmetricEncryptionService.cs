@@ -1,7 +1,9 @@
 using System.Runtime.Versioning;
 using BlazorPRF.Shared.Crypto.Abstractions;
+using BlazorPRF.Shared.Crypto.Configuration;
 using BlazorPRF.Shared.Crypto.Models;
 using BlazorPRF.Shared.Crypto.Services;
+using Microsoft.Extensions.Options;
 
 namespace BlazorPRF.Noble.Crypto.Services;
 
@@ -13,11 +15,16 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
 {
     private readonly ISecureKeyCache _keyCache;
     private readonly ICryptoProvider _cryptoProvider;
+    private readonly EncryptionAlgorithm _defaultAlgorithm;
 
-    public AsymmetricEncryptionService(ISecureKeyCache keyCache, ICryptoProvider cryptoProvider)
+    public AsymmetricEncryptionService(
+        ISecureKeyCache keyCache,
+        ICryptoProvider cryptoProvider,
+        IOptions<PrfOptions> options)
     {
         _keyCache = keyCache;
         _cryptoProvider = cryptoProvider;
+        _defaultAlgorithm = options.Value.DefaultAlgorithm;
     }
 
     /// <inheritdoc />
@@ -27,7 +34,7 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
         ArgumentException.ThrowIfNullOrEmpty(recipientPublicKey);
 
         // Encryption only needs the public key (not sensitive, no cache lookup needed)
-        return await _cryptoProvider.EncryptAsymmetricAsync(message, recipientPublicKey, EncryptionAlgorithm.AesGcm);
+        return await _cryptoProvider.EncryptAsymmetricAsync(message, recipientPublicKey, _defaultAlgorithm);
     }
 
     /// <inheritdoc />
@@ -43,7 +50,8 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
             return PrfResult<string>.Fail(PrfErrorCode.KeyDerivationFailed);
         }
 
-        var result = await _cryptoProvider.DecryptAsymmetricAsync(encrypted, privateKey, EncryptionAlgorithm.AesGcm);
+        // Use algorithm from message if available, otherwise use default
+        var result = await _cryptoProvider.DecryptAsymmetricAsync(encrypted, privateKey, encrypted.EffectiveAlgorithm);
         Array.Clear(privateKey, 0, privateKey.Length);
         return result;
     }

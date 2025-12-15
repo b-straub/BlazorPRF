@@ -1,3 +1,5 @@
+using BlazorPRF.Shared.Crypto.Abstractions;
+
 namespace BlazorPRF.Shared.Crypto.Configuration;
 
 /// <summary>
@@ -31,6 +33,13 @@ public sealed class PrfOptions
     /// CrossPlatform = USB/NFC security keys (few support PRF)
     /// </summary>
     public AuthenticatorAttachment AuthenticatorAttachment { get; set; } = AuthenticatorAttachment.Platform;
+
+    /// <summary>
+    /// Default encryption algorithm for symmetric and asymmetric encryption.
+    /// AesGcm is recommended for broad compatibility.
+    /// ChaCha20Poly1305 is faster on devices without AES hardware acceleration.
+    /// </summary>
+    public EncryptionAlgorithm DefaultAlgorithm { get; set; } = EncryptionAlgorithm.AesGcm;
 }
 
 /// <summary>
@@ -46,7 +55,13 @@ public enum AuthenticatorAttachment
 
     /// <summary>
     /// Cross-platform authenticator (USB/NFC security keys).
-    /// Warning: Very few hardware keys support the PRF extension.
+    /// Many modern hardware keys (YubiKey 5+, SoloKeys v2) support the PRF extension.
     /// </summary>
-    CrossPlatform
+    CrossPlatform,
+
+    /// <summary>
+    /// Allow both platform and cross-platform authenticators.
+    /// The browser will show all available options to the user.
+    /// </summary>
+    Any
 }

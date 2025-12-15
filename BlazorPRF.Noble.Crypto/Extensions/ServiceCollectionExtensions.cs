@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using BlazorPRF.Noble.Crypto;
 using BlazorPRF.Noble.Crypto.Services;
 using BlazorPRF.Shared.Crypto.Abstractions;
 using BlazorPRF.Shared.Crypto.Configuration;
@@ -6,7 +7,7 @@ using BlazorPRF.Shared.Crypto.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace BlazorPRF.Noble.Crypto.Extensions;
+namespace BlazorPRF.Crypto.Extensions;
 
 /// <summary>
 /// Extension methods for registering BlazorPRF services with Noble.js + SubtleCrypto provider.

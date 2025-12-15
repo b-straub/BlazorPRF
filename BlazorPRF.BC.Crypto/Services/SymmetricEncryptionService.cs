@@ -1,6 +1,9 @@
 using System.Runtime.Versioning;
+using BlazorPRF.Shared.Crypto.Abstractions;
+using BlazorPRF.Shared.Crypto.Configuration;
 using BlazorPRF.Shared.Crypto.Models;
 using BlazorPRF.Shared.Crypto.Services;
+using Microsoft.Extensions.Options;
 
 namespace BlazorPRF.BC.Crypto.Services;
 
@@ -19,10 +22,12 @@ namespace BlazorPRF.BC.Crypto.Services;
 public sealed class SymmetricEncryptionService : ISymmetricEncryption
 {
     private readonly ISecureKeyCache _keyCache;
+    private readonly EncryptionAlgorithm _defaultAlgorithm;
 
-    public SymmetricEncryptionService(ISecureKeyCache keyCache)
+    public SymmetricEncryptionService(ISecureKeyCache keyCache, IOptions<PrfOptions> options)
     {
         _keyCache = keyCache;
+        _defaultAlgorithm = options.Value.DefaultAlgorithm;
     }
 
     /// <inheritdoc />
@@ -43,7 +48,7 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
             if (!_keyCache.UseKey(prfSeedCacheKey, prfSeed =>
             {
                 var domainKey = KeyGenerator.DeriveDomainKey(prfSeed.ToArray(), domain);
-                return CryptoOperations.EncryptSymmetric(message, domainKey);
+                return CryptoOperations.EncryptSymmetric(message, domainKey, _defaultAlgorithm);
             }, out var domainResult))
             {
                 return ValueTask.FromResult(PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.KeyDerivationFailed));
@@ -54,7 +59,7 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
 
         // Backward compatible: use X25519 private key directly
         var cacheKey = GetCacheKey(keyIdentifier);
-        if (!_keyCache.UseKey(cacheKey, key => CryptoOperations.EncryptSymmetric(message, key), out var result))
+        if (!_keyCache.UseKey(cacheKey, key => CryptoOperations.EncryptSymmetric(message, key, _defaultAlgorithm), out var result))
         {
             return ValueTask.FromResult(PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.KeyDerivationFailed));
         }

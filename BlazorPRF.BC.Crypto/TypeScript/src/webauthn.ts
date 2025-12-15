@@ -5,8 +5,10 @@ import { arrayBufferToBase64 } from './utils.js';
 
 /**
  * Check if the current browser and platform support WebAuthn PRF extension.
+ * Note: This only checks for basic WebAuthn support. PRF support can only be
+ * truly verified during registration, as it depends on the specific authenticator.
  *
- * @returns true if PRF is likely supported
+ * @returns true if WebAuthn is available (PRF support depends on authenticator)
  */
 export async function checkPrfSupport(): Promise<boolean> {
     // Check basic WebAuthn support
@@ -14,34 +16,10 @@ export async function checkPrfSupport(): Promise<boolean> {
         return false;
     }
 
-    // Check if platform authenticator is available
-    if (typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
-        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-        if (!available) {
-            return false;
-        }
-    }
-
     // PRF extension support can only be truly verified during registration
-    // Most modern platform authenticators (iOS 17+, macOS 14+, Windows 10+, Android 14+) support it
+    // Modern platform authenticators (iOS 17+, macOS 14+, Windows 10+, Android 14+) support it
+    // Many hardware keys (YubiKey 5+, SoloKeys v2) also support PRF
     return true;
-}
-
-/**
- * Check if conditional mediation (passkey autofill) is available.
- * When true, the browser can show passkey suggestions in form autofill UI,
- * indicating that existing passkeys are likely available for this RP.
- *
- * @returns true if the browser supports passkey autofill UI
- */
-export async function checkConditionalMediationAvailable(): Promise<boolean> {
-    if (typeof PublicKeyCredential === 'undefined') {
-        return false;
-    }
-    if (typeof PublicKeyCredential.isConditionalMediationAvailable !== 'function') {
-        return false;
-    }
-    return await PublicKeyCredential.isConditionalMediationAvailable();
 }
 
 /**
@@ -62,9 +40,20 @@ export async function registerCredentialWithPrf(
         // Display name shown in platform passkey manager
         const effectiveDisplayName = displayName ?? options.rpName;
 
-        // Determine authenticator attachment
+        // Determine authenticator attachment (undefined = allow both platform and cross-platform)
         const authenticatorAttachment: AuthenticatorAttachment | undefined =
-            options.authenticatorAttachment === 'platform' ? 'platform' : 'cross-platform';
+            options.authenticatorAttachment === 'platform' ? 'platform' :
+            options.authenticatorAttachment === 'cross-platform' ? 'cross-platform' :
+            undefined;
+
+        // Build authenticator selection (omit authenticatorAttachment if 'any')
+        const authenticatorSelection: AuthenticatorSelectionCriteria = {
+            residentKey: 'preferred',
+            userVerification: 'preferred'
+        };
+        if (authenticatorAttachment !== undefined) {
+            authenticatorSelection.authenticatorAttachment = authenticatorAttachment;
+        }
 
         // Build registration options
         const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
@@ -82,11 +71,7 @@ export async function registerCredentialWithPrf(
                 { alg: -7, type: 'public-key' },   // ES256 (P-256)
                 { alg: -257, type: 'public-key' }  // RS256
             ],
-            authenticatorSelection: {
-                authenticatorAttachment,
-                residentKey: 'required',
-                userVerification: 'discouraged'
-            },
+            authenticatorSelection,
             timeout: options.timeoutMs,
             attestation: 'none',
             extensions: {

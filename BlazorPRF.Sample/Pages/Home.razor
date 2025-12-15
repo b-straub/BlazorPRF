@@ -33,8 +33,30 @@
 
             @if (Model.IsPrfSupported != false)
             {
-                @* Decision based on stored credential hint - the only reliable way to know if user registered before *@
-                @if (!string.IsNullOrWhiteSpace(Model.CredentialId))
+                @if (Model.DiscoverableCancelled)
+                {
+                    @* User cancelled discoverable - show register option *@
+                    <MudAlert Severity="Severity.Info" Class="mb-4" Variant="Variant.Outlined">
+                        No passkey selected. Register a new passkey to get started.
+                    </MudAlert>
+                    <MudStack Row="true" Spacing="2" Class="mb-4">
+                        <MudButton Href="setup"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   Size="Size.Large"
+                                   StartIcon="@Icons.Material.Filled.PersonAdd">
+                            Register Passkey
+                        </MudButton>
+                        <MudButtonAsyncRx Command="@Model.DeriveKeysDiscoverable"
+                                          Variant="Variant.Outlined"
+                                          Color="Color.Primary"
+                                          Size="Size.Large"
+                                          StartIcon="@Icons.Material.Filled.Fingerprint">
+                            Try Again
+                        </MudButtonAsyncRx>
+                    </MudStack>
+                }
+                else if (!string.IsNullOrWhiteSpace(Model.CredentialId))
                 {
                     @* Returning user with stored credential *@
                     <MudStack Row="true" Spacing="2" Class="mb-4">
@@ -52,29 +74,31 @@
                 }
                 else
                 {
-                    @* New user or cleared storage - prompt to register *@
-                    <MudAlert Severity="Severity.Info" Class="mb-4" Variant="Variant.Outlined">
-                        No saved passkey found. Register a new passkey to get started.
-                    </MudAlert>
-                    <MudButton Href="setup"
-                               Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               Size="Size.Large"
-                               StartIcon="@Icons.Material.Filled.PersonAdd">
-                        Register Passkey
-                    </MudButton>
+                    @* No credential stored - show discoverable (all passkeys) *@
+                    <MudStack Row="true" Spacing="2" Class="mb-4">
+                        <MudButtonAsyncRx Command="@Model.DeriveKeysDiscoverable"
+                                          Variant="Variant.Filled"
+                                          Color="Color.Primary"
+                                          Size="Size.Large"
+                                          StartIcon="@Icons.Material.Filled.Fingerprint">
+                            Authenticate
+                        </MudButtonAsyncRx>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                        Select from available passkeys
+                    </MudText>
                 }
             }
 
             <MudDivider Class="my-6" Style="width: 100%;" />
 
             <MudStack Row="true" Spacing="4" Justify="Justify.Center" AlignItems="AlignItems.Center">
-                @if (!string.IsNullOrWhiteSpace(Model.CredentialId))
+                @if (!string.IsNullOrWhiteSpace(Model.CredentialId) || Model.DiscoverableCancelled)
                 {
-                    @* Returning user - offer to register additional passkey or use different one *@
+                    @* Offer to register additional passkey or use different one *@
                     <div>
                         <MudText Typo="Typo.h6" Align="Align.Center" GutterBottom="true">
-                            Different passkey?
+                            @(Model.DiscoverableCancelled ? "Need a passkey?" : "Different passkey?")
                         </MudText>
                         <MudButton Href="setup"
                                    Variant="Variant.Outlined"

@@ -27,3 +27,6 @@ dist/
 .DS_Store
 Thumbs.db
 Docs
+BaseCrypto/BlazorPRF.BaseCrypto.Wasm/wwwroot/blazorprfbase-wasm.js
+BlazorPRF.BC.Crypto/wwwroot/blazor-prf.js
+BlazorPRF.Noble.Crypto/wwwroot/blazorprf-noble.js

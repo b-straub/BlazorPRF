@@ -11,35 +11,24 @@ namespace BlazorPRF.UI.Services;
 /// - Keys have been derived (HasKeys = true), OR
 /// - Strategy is None (on-demand auth) AND a credential is available
 /// </summary>
-public sealed class PrfAuthenticationStateProvider : AuthenticationStateProvider, IDisposable
+public sealed class PrfAuthenticationStateProvider : AuthenticationStateProvider
 {
-    private const string HasKeysProperty = "Model.HasKeys";
-    private const string CredentialIdProperty = "Model.CredentialId";
-    private const string SessionExpiredProperty = "Model.SessionExpired";
-
-    private readonly PrfModel _prfModel;
-    private readonly AuthenticationState _anonymous = new(new ClaimsPrincipal(new ClaimsIdentity()));
-    private readonly IDisposable _subscription;
-
-    public PrfAuthenticationStateProvider(PrfModel prfModel)
+    private PrfModel? _prfModel;
+    private readonly AuthenticationState _anonymous = new(new ClaimsPrincipal(new ClaimsIdentity())); 
+    
+    public void UpdateAuthenticationState(PrfModel prfModel)
     {
         _prfModel = prfModel;
-
-        // Subscribe to model changes to detect authentication state changes
-        // Property names are emitted as "Model.PropertyName" by RxBlazorV2
-        _subscription = _prfModel.Observable.Subscribe(changedProperties =>
-        {
-            if (changedProperties.Contains(HasKeysProperty) ||
-                changedProperties.Contains(CredentialIdProperty) ||
-                changedProperties.Contains(SessionExpiredProperty))
-            {
-                NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
-            }
-        });
+        NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
     }
-
+    
     public override Task<AuthenticationState> GetAuthenticationStateAsync()
     {
+        if (_prfModel is null)
+        {
+            return Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
+        }
+        
         // For Strategy.None user is "authenticated" (keys derived on-demand)
         var isOnDemandAuthenticated = _prfModel.RequiresOnDemandAuth;
 
@@ -70,10 +59,5 @@ public sealed class PrfAuthenticationStateProvider : AuthenticationStateProvider
         var principal = new ClaimsPrincipal(identity);
 
         return Task.FromResult(new AuthenticationState(principal));
-    }
-
-    public void Dispose()
-    {
-        _subscription.Dispose();
     }
 }

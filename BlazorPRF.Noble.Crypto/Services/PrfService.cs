@@ -87,11 +87,19 @@ public sealed partial class PrfService : IPrfService, IEd25519PublicKeyProvider,
     /// </summary>
     private string GetJsOptions()
     {
+        var attachment = _options.AuthenticatorAttachment switch
+        {
+            AuthenticatorAttachment.Platform => "platform",
+            AuthenticatorAttachment.CrossPlatform => "cross-platform",
+            AuthenticatorAttachment.Any => "any",
+            _ => "platform"
+        };
+
         var jsOptions = new JsPrfOptions(
             _options.RpName,
             _options.RpId,
             _options.TimeoutMs,
-            _options.AuthenticatorAttachment == AuthenticatorAttachment.Platform ? "platform" : "cross-platform"
+            attachment
         );
 
         return JsonSerializer.Serialize(jsOptions, PrfJsonContext.Default.JsPrfOptions);
@@ -102,13 +110,6 @@ public sealed partial class PrfService : IPrfService, IEd25519PublicKeyProvider,
     {
         await EnsureInitializedAsync();
         return await JsInterop.IsPrfSupported();
-    }
-
-    /// <inheritdoc />
-    public async ValueTask<bool> IsConditionalMediationAvailableAsync()
-    {
-        await EnsureInitializedAsync();
-        return await JsInterop.IsConditionalMediationAvailable();
     }
 
     /// <inheritdoc />
@@ -307,9 +308,6 @@ public sealed partial class PrfService : IPrfService, IEd25519PublicKeyProvider,
     {
         [JSImport("isPrfSupported", "blazorPrf")]
         public static partial Task<bool> IsPrfSupported();
-
-        [JSImport("isConditionalMediationAvailable", "blazorPrf")]
-        public static partial Task<bool> IsConditionalMediationAvailable();
 
         [JSImport("register", "blazorPrf")]
         public static partial Task<string> Register(string? displayName, string optionsJson);

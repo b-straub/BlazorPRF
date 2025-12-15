@@ -3,7 +3,7 @@
 import {
     type PrfOptions,
 } from './types.js';
-import { checkPrfSupport, checkConditionalMediationAvailable, registerCredentialWithPrf } from './webauthn.js';
+import { checkPrfSupport, registerCredentialWithPrf } from './webauthn.js';
 import { evaluatePrf, evaluatePrfDiscoverable } from './prf.js';
 import * as crypto from './crypto.js';
 
@@ -16,15 +16,6 @@ import * as crypto from './crypto.js';
  */
 export async function isPrfSupported(): Promise<boolean> {
     return checkPrfSupport();
-}
-
-/**
- * Check if conditional mediation (passkey autofill) is available.
- * When true, the browser can show passkey suggestions in form autofill UI.
- * This indicates that the user may have existing passkeys for this RP.
- */
-export async function isConditionalMediationAvailable(): Promise<boolean> {
-    return checkConditionalMediationAvailable();
 }
 
 /**
@@ -101,58 +92,57 @@ export async function evaluatePrfDiscoverableOutput(
 }
 
 // ============================================================================
-// Export to global scope for C# JSImport
+// Re-export crypto functions for C# JSImport (blazorPrfNoble module)
 // ============================================================================
 
-const blazorPrf = {
-    // WebAuthn / PRF functions
-    isPrfSupported,
-    isConditionalMediationAvailable,
-    register,
-    evaluatePrfOutput,
-    evaluatePrfDiscoverableOutput
-};
+// X25519 key operations
+export const generateX25519KeyPair = crypto.generateX25519KeyPair;
+export const getX25519PublicKey = crypto.getX25519PublicKey;
+export const deriveX25519KeyPair = crypto.deriveX25519KeyPair;
 
-const blazorPrfNoble = {
-    // X25519 key operations
-    generateX25519KeyPair: crypto.generateX25519KeyPair,
-    getX25519PublicKey: crypto.getX25519PublicKey,
-    deriveX25519KeyPair: crypto.deriveX25519KeyPair,
+// Ed25519 signing
+export const generateEd25519KeyPair = crypto.generateEd25519KeyPair;
+export const getEd25519PublicKey = crypto.getEd25519PublicKey;
+export const deriveEd25519KeyPair = crypto.deriveEd25519KeyPair;
+export const ed25519Sign = crypto.ed25519Sign;
+export const ed25519Verify = crypto.ed25519Verify;
 
-    // Ed25519 signing
-    generateEd25519KeyPair: crypto.generateEd25519KeyPair,
-    getEd25519PublicKey: crypto.getEd25519PublicKey,
-    deriveEd25519KeyPair: crypto.deriveEd25519KeyPair,
-    ed25519Sign: crypto.ed25519Sign,
-    ed25519Verify: crypto.ed25519Verify,
+// Dual key derivation
+export const deriveDualKeyPair = crypto.deriveDualKeyPair;
 
-    // Dual key derivation
-    deriveDualKeyPair: crypto.deriveDualKeyPair,
+// ChaCha20-Poly1305 symmetric encryption
+export const encryptChaCha = crypto.encryptChaCha;
+export const decryptChaCha = crypto.decryptChaCha;
 
-    // ChaCha20-Poly1305 symmetric encryption
-    encryptChaCha: crypto.encryptChaCha,
-    decryptChaCha: crypto.decryptChaCha,
+// AES-GCM symmetric encryption
+export const encryptAesGcm = crypto.encryptAesGcm;
+export const decryptAesGcm = crypto.decryptAesGcm;
 
-    // AES-GCM symmetric encryption
-    encryptAesGcm: crypto.encryptAesGcm,
-    decryptAesGcm: crypto.decryptAesGcm,
+// ECIES asymmetric encryption
+export const encryptAsymmetricChaCha = crypto.encryptAsymmetricChaCha;
+export const decryptAsymmetricChaCha = crypto.decryptAsymmetricChaCha;
+export const encryptAsymmetricAesGcm = crypto.encryptAsymmetricAesGcm;
+export const decryptAsymmetricAesGcm = crypto.decryptAsymmetricAesGcm;
 
-    // ECIES asymmetric encryption
-    encryptAsymmetricChaCha: crypto.encryptAsymmetricChaCha,
-    decryptAsymmetricChaCha: crypto.decryptAsymmetricChaCha,
-    encryptAsymmetricAesGcm: crypto.encryptAsymmetricAesGcm,
-    decryptAsymmetricAesGcm: crypto.decryptAsymmetricAesGcm,
+// Key derivation
+export const deriveHkdfKey = crypto.deriveHkdfKey;
 
-    // Key derivation
-    deriveHkdfKey: crypto.deriveHkdfKey,
+// Utility
+export const generateRandomBytes = crypto.generateRandomBytes;
+export const isSupported = crypto.isSupported;
 
-    // Utility
-    generateRandomBytes: crypto.generateRandomBytes,
-    isSupported: crypto.isSupported
-};
+// Key cache management
+export const storeKeys = crypto.storeKeys;
+export const getPublicKeys = crypto.getPublicKeys;
+export const hasKey = crypto.hasKey;
+export const removeKeys = crypto.removeKeys;
+export const clearAllKeys = crypto.clearAllKeys;
 
-// Make available globally for JSImport
-(globalThis as Record<string, unknown>).blazorPrf = blazorPrf;
-(globalThis as Record<string, unknown>).blazorPrfNoble = blazorPrfNoble;
-
-export default { blazorPrf, blazorPrfNoble };
+// Cached key operations
+export const signWithCachedKey = crypto.signWithCachedKey;
+export const encryptSymmetricCachedChaCha = crypto.encryptSymmetricCachedChaCha;
+export const decryptSymmetricCachedChaCha = crypto.decryptSymmetricCachedChaCha;
+export const encryptSymmetricCachedAesGcm = crypto.encryptSymmetricCachedAesGcm;
+export const decryptSymmetricCachedAesGcm = crypto.decryptSymmetricCachedAesGcm;
+export const decryptAsymmetricCachedChaCha = crypto.decryptAsymmetricCachedChaCha;
+export const decryptAsymmetricCachedAesGcm = crypto.decryptAsymmetricCachedAesGcm;

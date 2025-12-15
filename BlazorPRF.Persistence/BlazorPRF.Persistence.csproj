@@ -10,23 +10,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.1" />
     <PackageReference Include="SqliteWasmBlazor" Version="0.7.0-pre" />
+    <PackageReference Include="BlazorPRF.$(BlazorPRFCryptoEngine).Crypto" Version="$(BlazorPRFVersion)" Condition="'$(Configuration)' == 'Release'"/>
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
     <ProjectReference Include="..\BlazorPRF.Shared.Crypto\BlazorPRF.Shared.Crypto.csproj" ReferenceOutputAssembly="false" />
-  </ItemGroup>
-
-  <!-- Direct reference to Shared.Crypto DLL for Debug compilation -->
-  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
     <Reference Include="BlazorPRF.Shared.Crypto">
       <HintPath>$(MSBuildThisFileDirectory)..\BlazorPRF.Shared.Crypto\bin\$(Configuration)\net10.0\BlazorPRF.Shared.Crypto.dll</HintPath>
     </Reference>
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(Configuration)' == 'Release'">
-    <PackageReference Include="BlazorPRF.BC.Crypto" Version="$(BlazorPRFVersion)" />
   </ItemGroup>
 
 </Project>

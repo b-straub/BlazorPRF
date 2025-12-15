@@ -16,7 +16,10 @@ public sealed class BouncyCastleCryptoProvider : ICryptoProvider
 {
     private const int NonceLength = 12;
     private const int KeyLength = 32;
-    private static readonly byte[] HkdfInfo = "BlazorPRF-ECIES-v1"u8.ToArray();
+
+    // HKDF info strings must match Noble.js for interoperability
+    private static readonly byte[] HkdfInfoAesGcm = "ecies-aes-gcm"u8.ToArray();
+    private static readonly byte[] HkdfInfoChaCha = "ecies-xchacha20poly1305"u8.ToArray();
 
     private static readonly IReadOnlyList<EncryptionAlgorithm> Algorithms =
         [EncryptionAlgorithm.ChaCha20Poly1305, EncryptionAlgorithm.AesGcm];
@@ -152,8 +155,9 @@ public sealed class BouncyCastleCryptoProvider : ICryptoProvider
             var ephemeralPublicKeyBytes = new byte[32];
             ephemeralPublicKey.Encode(ephemeralPublicKeyBytes, 0);
 
-            // Derive encryption key using HKDF
-            var encryptionKey = KeyGenerator.HkdfDeriveKey(sharedSecret, ephemeralPublicKeyBytes, HkdfInfo, KeyLength);
+            // Derive encryption key using HKDF (null salt = 32 zeros to match Noble.js)
+            var hkdfInfo = algorithm == EncryptionAlgorithm.ChaCha20Poly1305 ? HkdfInfoChaCha : HkdfInfoAesGcm;
+            var encryptionKey = KeyGenerator.HkdfDeriveKey(sharedSecret, null, hkdfInfo, KeyLength);
 
             // Encrypt
             var plaintextBytes = Encoding.UTF8.GetBytes(plaintext);
@@ -174,7 +178,8 @@ public sealed class BouncyCastleCryptoProvider : ICryptoProvider
             return ValueTask.FromResult(PrfResult<EncryptedMessage>.Ok(new EncryptedMessage(
                 EphemeralPublicKey: Convert.ToBase64String(ephemeralPublicKeyBytes),
                 Ciphertext: Convert.ToBase64String(ciphertext),
-                Nonce: Convert.ToBase64String(nonce)
+                Nonce: Convert.ToBase64String(nonce),
+                Algorithm: algorithm
             )));
         }
         catch (NotSupportedException)
@@ -222,15 +227,19 @@ public sealed class BouncyCastleCryptoProvider : ICryptoProvider
             var sharedSecret = new byte[agreement.AgreementSize];
             agreement.CalculateAgreement(ephemeralPublicKey, sharedSecret, 0);
 
-            // Derive encryption key using HKDF
-            var encryptionKey = KeyGenerator.HkdfDeriveKey(sharedSecret, ephemeralPublicKeyBytes, HkdfInfo, KeyLength);
+            // Use algorithm from message if available, otherwise use parameter
+            var effectiveAlgorithm = encrypted.Algorithm ?? algorithm;
+
+            // Derive encryption key using HKDF (null salt = 32 zeros to match Noble.js)
+            var hkdfInfo = effectiveAlgorithm == EncryptionAlgorithm.ChaCha20Poly1305 ? HkdfInfoChaCha : HkdfInfoAesGcm;
+            var encryptionKey = KeyGenerator.HkdfDeriveKey(sharedSecret, null, hkdfInfo, KeyLength);
 
             // Decrypt
-            var plaintext = algorithm switch
+            var plaintext = effectiveAlgorithm switch
             {
                 EncryptionAlgorithm.ChaCha20Poly1305 => CryptoOperations.DecryptChaCha20Poly1305(ciphertext, encryptionKey, nonce),
                 EncryptionAlgorithm.AesGcm => CryptoOperations.DecryptAesGcm(ciphertext, encryptionKey, nonce),
-                _ => throw new NotSupportedException($"Algorithm {algorithm} not supported")
+                _ => throw new NotSupportedException($"Algorithm {effectiveAlgorithm} not supported")
             };
 
             // Clear sensitive data

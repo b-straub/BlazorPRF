@@ -4,7 +4,7 @@
 import {
     type PrfOptions,
 } from './types.js';
-import { checkPrfSupport, checkConditionalMediationAvailable, registerCredentialWithPrf } from './webauthn.js';
+import { checkPrfSupport, registerCredentialWithPrf } from './webauthn.js';
 import { evaluatePrf, evaluatePrfDiscoverable } from './prf.js';
 
 // ============================================================================
@@ -16,15 +16,6 @@ import { evaluatePrf, evaluatePrfDiscoverable } from './prf.js';
  */
 export async function isPrfSupported(): Promise<boolean> {
     return checkPrfSupport();
-}
-
-/**
- * Check if conditional mediation (passkey autofill) is available.
- * When true, the browser can show passkey suggestions in form autofill UI.
- * This indicates that the user may have existing passkeys for this RP.
- */
-export async function isConditionalMediationAvailable(): Promise<boolean> {
-    return checkConditionalMediationAvailable();
 }
 
 /**
@@ -106,7 +97,6 @@ export async function evaluatePrfDiscoverableOutput(
 
 const blazorPrf = {
     isPrfSupported,
-    isConditionalMediationAvailable,
     register,
     evaluatePrfOutput,
     evaluatePrfDiscoverableOutput

@@ -12,9 +12,9 @@ namespace BlazorPRF.BC.Crypto;
 /// </summary>
 public static class KeyGenerator
 {
-    // HKDF contexts for key separation - must match across all implementations
-    private static readonly byte[] X25519Context = "x25519-encryption"u8.ToArray();
-    private static readonly byte[] Ed25519Context = "ed25519-signing"u8.ToArray();
+    // HKDF contexts for key separation - must match Noble.js implementation
+    private static readonly byte[] X25519Context = "x25519-key"u8.ToArray();
+    private static readonly byte[] Ed25519Context = "ed25519-key"u8.ToArray();
     /// <summary>
     /// Derives an X25519 keypair from a 32-byte PRF output.
     /// The PRF output is used directly as the private key.
@@ -404,10 +404,17 @@ public static class KeyGenerator
     /// HKDF key derivation using BouncyCastle (WASM-compatible).
     /// System.Security.Cryptography.HKDF is not supported in Blazor WebAssembly.
     /// </summary>
+    /// <remarks>
+    /// When salt is null, uses 32 zero bytes (SHA-256 output length) to match Noble.js behavior.
+    /// This is per RFC 5869 which specifies salt defaults to HashLen zeros if not provided.
+    /// </remarks>
     internal static byte[] HkdfDeriveKey(byte[] ikm, byte[]? salt, byte[]? info, int outputLength)
     {
         var hkdf = new HkdfBytesGenerator(new Sha256Digest());
-        var hkdfParams = new HkdfParameters(ikm, salt, info);
+        // Per RFC 5869: if salt is not provided, use HashLen zeros (32 bytes for SHA-256)
+        // This matches Noble.js behavior where undefined salt becomes new Uint8Array(32)
+        var effectiveSalt = salt ?? new byte[32];
+        var hkdfParams = new HkdfParameters(ikm, effectiveSalt, info);
         hkdf.Init(hkdfParams);
 
         var output = new byte[outputLength];

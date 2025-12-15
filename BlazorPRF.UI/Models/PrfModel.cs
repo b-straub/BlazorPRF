@@ -4,6 +4,7 @@ using BlazorPRF.Shared.Crypto.Services;
 using BlazorPRF.UI.Services;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;
+using R3;
 using System.Diagnostics.CodeAnalysis;
 
 namespace BlazorPRF.UI.Models;
@@ -24,6 +25,7 @@ public partial class PrfModel : ObservableModel
     /// <summary>
     /// Current credential ID (Base64).
     /// </summary>
+    [ObservableTrigger(nameof(UpdateAuthenticationState))]
     public partial string? CredentialId { get; set; }
 
     /// <summary>
@@ -49,6 +51,7 @@ public partial class PrfModel : ObservableModel
     /// For Strategy.Timed, this reflects the actual cache state.
     /// </summary>
     [ObservableBatch("SessionState")]
+    [ObservableTrigger(nameof(UpdateAuthenticationState))]
     public partial bool HasKeys { get; set; }
 
     /// <summary>
@@ -56,14 +59,6 @@ public partial class PrfModel : ObservableModel
     /// null = not yet checked, true = supported, false = not supported (fatal).
     /// </summary>
     public partial bool? IsPrfSupported { get; set; }
-
-    /// <summary>
-    /// Whether conditional mediation (passkey autofill) is available.
-    /// When true, the browser can show passkey suggestions in form autofill UI,
-    /// indicating that existing passkeys may be available for this RP.
-    /// null = not yet checked.
-    /// </summary>
-    public partial bool? IsConditionalMediationAvailable { get; set; }
 
     /// <summary>
     /// The configured key caching strategy.
@@ -82,6 +77,12 @@ public partial class PrfModel : ObservableModel
     public bool IsExecuting => Register.Executing || DeriveKeys.Executing || DeriveKeysDiscoverable.Executing;
 
     /// <summary>
+    /// Whether the user cancelled the discoverable credential flow.
+    /// When true, UI should show the register option.
+    /// </summary>
+    public partial bool DiscoverableCancelled { get; set; }
+
+    /// <summary>
     /// Error message from last operation, if any.
     /// </summary>
     public partial string? ErrorMessage { get; set; }
@@ -97,6 +98,7 @@ public partial class PrfModel : ObservableModel
     /// </summary>
     [ObservableComponentTrigger]
     [ObservableBatch("SessionState")]
+    [ObservableTrigger(nameof(UpdateAuthenticationState))]
     public partial bool SessionExpired { get; set; }
 
     // Commands
@@ -113,12 +115,11 @@ public partial class PrfModel : ObservableModel
     public partial IObservableCommand ClearKeys { get; }
 
     [SuppressMessage("RxBlazorGenerator", "RXBG050:Partial constructor parameter type may not be registered in DI", Justification = "Services registered externally")]
-    public partial PrfModel(InviteModel inviteModel, IPrfService prfService, ICredentialHintProvider credentialHintProvider);
+    public partial PrfModel(InviteModel inviteModel, IPrfService prfService, ICredentialHintProvider credentialHintProvider, PrfAuthenticationStateProvider stateProvider);
 
     protected override async Task OnContextReadyAsync()
     {
         IsPrfSupported = await PrfService.IsPrfSupportedAsync();
-        IsConditionalMediationAvailable = await PrfService.IsConditionalMediationAvailableAsync();
 
         // Subscribe to key expiration events for reactive UI updates
         // Using Subscriptions ensures automatic disposal with the model
@@ -182,7 +183,9 @@ public partial class PrfModel : ObservableModel
             if (result is { Success: true, Value: not null })
             {
                 CredentialId = result.Value.Id;
+                DiscoverableCancelled = false;
                 SuccessMessage = "Passkey registered successfully!";
+                await SaveCredentialHintAsync(result.Value.Id);
             }
             else
             {
@@ -222,6 +225,7 @@ public partial class PrfModel : ObservableModel
                 PublicKey = result.Value;
                 // For Strategy.None, keys expire immediately - don't set HasKeys
                 HasKeys = CacheStrategy != KeyCacheStrategy.None;
+                DiscoverableCancelled = false;
                 SuccessMessage = CacheStrategy == KeyCacheStrategy.None
                     ? "Authentication successful! Keys will be derived on-demand."
                     : "Keys derived successfully!";
@@ -272,14 +276,20 @@ public partial class PrfModel : ObservableModel
                 PublicKey = result.Value.PublicKey;
                 // For Strategy.None, keys expire immediately - don't set HasKeys
                 HasKeys = CacheStrategy != KeyCacheStrategy.None;
+                DiscoverableCancelled = false;
                 SuccessMessage = CacheStrategy == KeyCacheStrategy.None
                     ? "Authentication successful! Keys will be derived on-demand."
                     : "Keys derived successfully!";
                 await SaveCredentialHintAsync(result.Value.CredentialId);
             }
-            else if (!result.Cancelled)
+            else if (result.Cancelled)
             {
-                // Only show error if not cancelled by user
+                // User cancelled discoverable flow - show register option
+                DiscoverableCancelled = true;
+            }
+            else
+            {
+                // Authentication failed
                 ErrorMessage = result.Error ?? "Key derivation failed";
                 HasKeys = false;
             }
@@ -411,5 +421,10 @@ public partial class PrfModel : ObservableModel
         KeyMetadata = null;
         SuccessMessage = null;
         ErrorMessage = null;
+    }
+
+    private void UpdateAuthenticationState()
+    {
+        StateProvider.UpdateAuthenticationState(this);
     }
 }

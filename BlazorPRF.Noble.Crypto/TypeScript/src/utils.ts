@@ -33,10 +33,22 @@ export function toBase64(data: Uint8Array): string {
 }
 
 /**
- * Convert Base64 string to Uint8Array
+ * Convert Base64 string to Uint8Array.
+ * Handles both standard Base64 and URL-safe Base64.
  */
 export function fromBase64(base64: string): Uint8Array {
-    const binary = atob(base64);
+    // Convert URL-safe Base64 to standard Base64
+    let standardBase64 = base64
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+
+    // Add padding if needed
+    const padding = standardBase64.length % 4;
+    if (padding > 0) {
+        standardBase64 += '='.repeat(4 - padding);
+    }
+
+    const binary = atob(standardBase64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
         bytes[i] = binary.charCodeAt(i);

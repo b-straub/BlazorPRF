@@ -1,7 +1,9 @@
 using System.Runtime.Versioning;
 using BlazorPRF.Shared.Crypto.Abstractions;
+using BlazorPRF.Shared.Crypto.Configuration;
 using BlazorPRF.Shared.Crypto.Models;
 using BlazorPRF.Shared.Crypto.Services;
+using Microsoft.Extensions.Options;
 
 namespace BlazorPRF.Noble.Crypto.Services;
 
@@ -13,11 +15,13 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
 {
     private readonly ISecureKeyCache _keyCache;
     private readonly ICryptoProvider _cryptoProvider;
+    private readonly EncryptionAlgorithm _defaultAlgorithm;
 
-    public SymmetricEncryptionService(ISecureKeyCache keyCache, ICryptoProvider cryptoProvider)
+    public SymmetricEncryptionService(ISecureKeyCache keyCache, ICryptoProvider cryptoProvider, IOptions<PrfOptions> options)
     {
         _keyCache = keyCache;
         _cryptoProvider = cryptoProvider;
+        _defaultAlgorithm = options.Value.DefaultAlgorithm;
     }
 
     /// <inheritdoc />
@@ -45,7 +49,7 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
             var domainKey = await DeriveDomainKeyAsync(prfSeed, domain);
             Array.Clear(prfSeed, 0, prfSeed.Length);
 
-            return await _cryptoProvider.EncryptSymmetricAsync(message, domainKey, EncryptionAlgorithm.AesGcm);
+            return await _cryptoProvider.EncryptSymmetricAsync(message, domainKey, _defaultAlgorithm);
         }
 
         // Backward compatible: use X25519 private key directly
@@ -56,7 +60,7 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
             return PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.KeyDerivationFailed);
         }
 
-        var result = await _cryptoProvider.EncryptSymmetricAsync(message, key, EncryptionAlgorithm.AesGcm);
+        var result = await _cryptoProvider.EncryptSymmetricAsync(message, key, _defaultAlgorithm);
         Array.Clear(key, 0, key.Length);
         return result;
     }
@@ -86,7 +90,7 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
             var domainKey = await DeriveDomainKeyAsync(prfSeed, domain);
             Array.Clear(prfSeed, 0, prfSeed.Length);
 
-            return await _cryptoProvider.DecryptSymmetricAsync(encrypted, domainKey, EncryptionAlgorithm.AesGcm);
+            return await _cryptoProvider.DecryptSymmetricAsync(encrypted, domainKey, encrypted.EffectiveAlgorithm);
         }
 
         // Backward compatible: use X25519 private key directly
@@ -97,7 +101,7 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
             return PrfResult<string>.Fail(PrfErrorCode.KeyDerivationFailed);
         }
 
-        var result = await _cryptoProvider.DecryptSymmetricAsync(encrypted, key, EncryptionAlgorithm.AesGcm);
+        var result = await _cryptoProvider.DecryptSymmetricAsync(encrypted, key, encrypted.EffectiveAlgorithm);
         Array.Clear(key, 0, key.Length);
         return result;
     }

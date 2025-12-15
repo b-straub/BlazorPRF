@@ -1,4 +1,5 @@
 using System.Text;
+using BlazorPRF.Shared.Crypto.Abstractions;
 using BlazorPRF.Shared.Crypto.Extensions;
 using BlazorPRF.Shared.Crypto.Models;
 using Org.BouncyCastle.Crypto.Agreement;
@@ -20,7 +21,8 @@ public static class CryptoOperations
 {
     private const int NonceLength = 12;
     private const int KeyLength = 32;
-    private static readonly byte[] HkdfInfo = "BlazorPRF-ECIES-v1"u8.ToArray();
+    // HKDF info must match Noble.js for interoperability (ChaCha20-Poly1305 variant)
+    private static readonly byte[] HkdfInfo = "ecies-xchacha20poly1305"u8.ToArray();
 
     /// <summary>
     /// Encrypts a message using ChaCha20-Poly1305 symmetric encryption.
@@ -39,10 +41,13 @@ public static class CryptoOperations
     }
 
     /// <summary>
-    /// Encrypts a message using ChaCha20-Poly1305 symmetric encryption.
+    /// Encrypts a message using symmetric encryption with specified algorithm.
     /// Preferred overload - avoids Base64 conversion and works directly with key bytes.
     /// </summary>
-    public static PrfResult<SymmetricEncryptedMessage> EncryptSymmetric(string plaintext, ReadOnlySpan<byte> key)
+    public static PrfResult<SymmetricEncryptedMessage> EncryptSymmetric(
+        string plaintext,
+        ReadOnlySpan<byte> key,
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.ChaCha20Poly1305)
     {
         try
         {
@@ -55,11 +60,14 @@ public static class CryptoOperations
             var nonce = new byte[NonceLength];
             new SecureRandom().NextBytes(nonce);
 
-            var ciphertext = EncryptChaCha20Poly1305(plaintextBytes, key, nonce);
+            var ciphertext = algorithm == EncryptionAlgorithm.AesGcm
+                ? EncryptAesGcm(plaintextBytes, key, nonce)
+                : EncryptChaCha20Poly1305(plaintextBytes, key, nonce);
 
             return PrfResult<SymmetricEncryptedMessage>.Ok(new SymmetricEncryptedMessage(
                 Ciphertext: Convert.ToBase64String(ciphertext),
-                Nonce: Convert.ToBase64String(nonce)
+                Nonce: Convert.ToBase64String(nonce),
+                Algorithm: algorithm
             ));
         }
         catch
@@ -85,7 +93,7 @@ public static class CryptoOperations
     }
 
     /// <summary>
-    /// Decrypts a message using ChaCha20-Poly1305 symmetric encryption.
+    /// Decrypts a message using the algorithm specified in the message.
     /// Preferred overload - avoids Base64 conversion and works directly with key bytes.
     /// </summary>
     public static PrfResult<string> DecryptSymmetric(SymmetricEncryptedMessage encrypted, ReadOnlySpan<byte> key)
@@ -105,7 +113,10 @@ public static class CryptoOperations
                 return PrfResult<string>.Fail(PrfErrorCode.InvalidData);
             }
 
-            var plaintext = DecryptChaCha20Poly1305(ciphertext, key, nonce);
+            var plaintext = encrypted.EffectiveAlgorithm == EncryptionAlgorithm.AesGcm
+                ? DecryptAesGcm(ciphertext, key, nonce)
+                : DecryptChaCha20Poly1305(ciphertext, key, nonce);
+
             if (plaintext is null)
             {
                 return PrfResult<string>.Fail(PrfErrorCode.AuthenticationTagMismatch);
@@ -256,21 +267,24 @@ public static class CryptoOperations
 
     /// <summary>
     /// Derives an encryption key from the shared secret using HKDF-SHA256.
-    /// Uses ephemeral public key as salt to match TypeScript implementation.
+    /// Uses null salt (= 32 zeros) to match Noble.js implementation.
     /// Uses BouncyCastle for WASM compatibility (System.Security.Cryptography.HKDF not supported in WASM).
     /// </summary>
     private static byte[] DeriveEncryptionKey(byte[] sharedSecret, byte[] ephemeralPublicKey)
     {
-        return HkdfDeriveKey(sharedSecret, ephemeralPublicKey, HkdfInfo, KeyLength);
+        // Note: ephemeralPublicKey is no longer used as salt - Noble.js uses undefined (32 zeros)
+        return HkdfDeriveKey(sharedSecret, null, HkdfInfo, KeyLength);
     }
 
     /// <summary>
     /// HKDF key derivation using BouncyCastle (WASM-compatible).
+    /// Per RFC 5869: if salt is null, uses HashLen zeros (32 bytes for SHA-256) to match Noble.js.
     /// </summary>
     private static byte[] HkdfDeriveKey(byte[] ikm, byte[]? salt, byte[]? info, int outputLength)
     {
         var hkdf = new HkdfBytesGenerator(new Sha256Digest());
-        var hkdfParams = new HkdfParameters(ikm, salt, info);
+        var effectiveSalt = salt ?? new byte[32];
+        var hkdfParams = new HkdfParameters(ikm, effectiveSalt, info);
         hkdf.Init(hkdfParams);
 
         var output = new byte[outputLength];

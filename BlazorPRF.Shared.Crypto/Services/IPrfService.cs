@@ -1,5 +1,6 @@
 using BlazorPRF.Shared.Crypto.Configuration;
 using BlazorPRF.Shared.Crypto.Models;
+using R3;
 
 namespace BlazorPRF.Shared.Crypto.Services;
 
@@ -23,13 +24,6 @@ public interface IPrfService
     /// Check if PRF extension is supported on this platform.
     /// </summary>
     ValueTask<bool> IsPrfSupportedAsync();
-
-    /// <summary>
-    /// Check if conditional mediation (passkey autofill) is available.
-    /// When true, the browser can show passkey suggestions in form autofill UI,
-    /// indicating that existing passkeys may be available for this RP.
-    /// </summary>
-    ValueTask<bool> IsConditionalMediationAvailableAsync();
 
     /// <summary>
     /// Register a new credential with PRF support.

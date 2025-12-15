@@ -1,5 +1,5 @@
 using Blazored.LocalStorage;
-using BlazorPRF.Noble.Crypto.Extensions;
+using BlazorPRF.Crypto.Extensions;
 using BlazorPRF.Persistence.Data;
 using BlazorPRF.Persistence.Extensions;
 using BlazorPRF.Sample;
