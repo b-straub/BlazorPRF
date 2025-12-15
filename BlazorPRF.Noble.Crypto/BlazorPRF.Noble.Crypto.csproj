@@ -22,6 +22,11 @@
     <None Include="../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
+  <!-- Exclude TypeScript source from package -->
+  <ItemGroup>
+    <Content Update="TypeScript/**" Pack="false" />
+  </ItemGroup>
+
   <ItemGroup>
     <SupportedPlatform Include="browser" />
   </ItemGroup>

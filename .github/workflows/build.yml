@@ -51,20 +51,6 @@ jobs:
       - name: Build Noble.Crypto
         run: dotnet build BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj --configuration Release --no-restore
 
-      - name: Verify JS file created (Noble.Crypto)
-        run: ls -la BlazorPRF.Noble.Crypto/wwwroot/
-
-      - name: Pack Noble.Crypto
-        run: dotnet pack BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj --configuration Release --no-build
-
-      - name: Verify package contains static web assets
-        run: |
-          cd .nuget
-          unzip -l BlazorPRF.Noble.Crypto.*.nupkg | grep -E "(staticwebassets|wwwroot)" || echo "No static web assets found in package"
-
-      - name: List local NuGet packages
-        run: ls -la .nuget/
-
       - name: Clear NuGet HTTP cache
         run: dotnet nuget locals http-cache --clear
 
@@ -83,9 +69,6 @@ jobs:
       - name: Build BC.Crypto
         run: dotnet build BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj --configuration Release
 
-      - name: Verify JS file exists (BC.Crypto)
-        run: ls -la BlazorPRF.BC.Crypto/wwwroot/
-
       # Build BaseCrypto packages
       - name: Install npm dependencies (Wasm.Crypto)
         working-directory: BaseCrypto/BlazorPRF.Wasm.Crypto/TypeScript
@@ -93,9 +76,6 @@ jobs:
 
       - name: Build Wasm.Crypto
         run: dotnet build BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj --configuration Release
-
-      - name: Verify JS file exists (Wasm.Crypto)
-        run: ls -la BaseCrypto/BlazorPRF.Wasm.Crypto/wwwroot/
 
       - name: Build Server.Crypto
         run: dotnet build BaseCrypto/BlazorPRF.Server.Crypto/BlazorPRF.Server.Crypto.csproj --configuration Release
@@ -113,22 +93,9 @@ jobs:
         run: |
           sed -i 's|<base href="/" />|<base href="/BlazorPRF/" />|g' BlazorPRF.Sample/wwwroot/index.html
 
-      - name: Restore Sample for publish
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        run: dotnet restore BlazorPRF.Sample/BlazorPRF.Sample.csproj -p:Configuration=Release --force
-
       - name: Publish Sample
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        run: dotnet publish BlazorPRF.Sample/BlazorPRF.Sample.csproj -c Release -o ./build --nologo --no-restore
-
-      - name: Verify static web assets in published output
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        run: |
-          echo "Contents of _content folder:"
-          ls -la build/wwwroot/_content/ || echo "No _content folder found"
-          echo "Looking for BlazorPRF packages:"
-          ls -la build/wwwroot/_content/BlazorPRF.Noble.Crypto/ || echo "No Noble.Crypto _content"
-          ls -la build/wwwroot/_content/BlazorPRF.UI/ || echo "No UI _content"
+        run: dotnet publish BlazorPRF.Sample/BlazorPRF.Sample.csproj -c Release -o ./build --nologo
 
       - name: Add .nojekyll and 404.html
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
