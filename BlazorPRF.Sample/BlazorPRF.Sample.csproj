@@ -6,8 +6,7 @@
     <OverrideHtmlAssetPlaceholders>false</OverrideHtmlAssetPlaceholders>
     <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
     <WasmFingerprintAssets>false</WasmFingerprintAssets>
-    <NoWarn>WASM0001</NoWarn>
-    <PublishTrimmed>false</PublishTrimmed>
+    <NoWarn>WASM0001;IL2037</NoWarn>
   </PropertyGroup>
   
   <ItemGroup>
