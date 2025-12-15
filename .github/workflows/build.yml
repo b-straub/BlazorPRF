@@ -24,15 +24,74 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Create local NuGet folder
+        run: mkdir -p .nuget
+
+      # Build packages in dependency order
+      - name: Restore Shared.Crypto
+        run: dotnet restore BlazorPRF.Shared.Crypto/BlazorPRF.Shared.Crypto.csproj
+
+      - name: Build Shared.Crypto
+        run: dotnet build BlazorPRF.Shared.Crypto/BlazorPRF.Shared.Crypto.csproj --configuration Release --no-restore
+
       - name: Install npm dependencies (Noble.Crypto)
         working-directory: BlazorPRF.Noble.Crypto/TypeScript
         run: npm install
 
+      - name: Restore Noble.Crypto
+        run: dotnet restore BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj
+
+      - name: Build Noble.Crypto
+        run: dotnet build BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj --configuration Release --no-restore
+
+      - name: Pack Noble.Crypto
+        run: dotnet pack BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj --configuration Release --no-build
+
+      - name: List local NuGet packages
+        run: ls -la .nuget/
+
+      - name: Clear NuGet HTTP cache
+        run: dotnet nuget locals http-cache --clear
+
+      # Build packages that depend on Noble.Crypto
+      - name: Restore UI
+        run: dotnet restore BlazorPRF.UI/BlazorPRF.UI.csproj
+
+      - name: Build UI
+        run: dotnet build BlazorPRF.UI/BlazorPRF.UI.csproj --configuration Release --no-restore
+
+      - name: Restore Persistence
+        run: dotnet restore BlazorPRF.Persistence/BlazorPRF.Persistence.csproj
+
+      - name: Build Persistence
+        run: dotnet build BlazorPRF.Persistence/BlazorPRF.Persistence.csproj --configuration Release --no-restore
+
+      # Build BC.Crypto (alternative crypto provider)
+      - name: Restore BC.Crypto
+        run: dotnet restore BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj
+
+      - name: Build BC.Crypto
+        run: dotnet build BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj --configuration Release --no-restore
+
+      # Build BaseCrypto packages
       - name: Install npm dependencies (Wasm.Crypto)
         working-directory: BaseCrypto/BlazorPRF.Wasm.Crypto/TypeScript
         run: npm install
 
-      - name: Restore .NET dependencies
+      - name: Restore BaseCrypto
+        run: dotnet restore BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj
+
+      - name: Build Wasm.Crypto
+        run: dotnet build BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj --configuration Release --no-restore
+
+      - name: Restore Server.Crypto
+        run: dotnet restore BaseCrypto/BlazorPRF.Server.Crypto/BlazorPRF.Server.Crypto.csproj
+
+      - name: Build Server.Crypto
+        run: dotnet build BaseCrypto/BlazorPRF.Server.Crypto/BlazorPRF.Server.Crypto.csproj --configuration Release --no-restore
+
+      # Build and test rest of solution
+      - name: Restore all dependencies
         run: dotnet restore
 
       - name: Build
