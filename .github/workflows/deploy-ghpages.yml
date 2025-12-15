@@ -23,6 +23,9 @@ jobs:
     - name: Install wasm-tools workload
       run: dotnet workload install wasm-tools
 
+    - name: Create local NuGet folder
+      run: mkdir -p .nuget
+
     - name: Set base path for GitHub Pages
       run: |
         sed -i 's|<base href="/" />|<base href="/BlazorPRF/" />|g' BlazorPRF.Sample/wwwroot/index.html
