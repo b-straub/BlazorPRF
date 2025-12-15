@@ -51,6 +51,9 @@ jobs:
       - name: Build Noble.Crypto
         run: dotnet build BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj --configuration Release --no-restore
 
+      - name: Verify JS file created (Noble.Crypto)
+        run: ls -la BlazorPRF.Noble.Crypto/wwwroot/
+
       - name: Pack Noble.Crypto
         run: dotnet pack BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj --configuration Release --no-build
 
@@ -68,8 +71,15 @@ jobs:
         run: dotnet build BlazorPRF.Persistence/BlazorPRF.Persistence.csproj --configuration Release
 
       # Build BC.Crypto (alternative crypto provider)
+      - name: Install npm dependencies (BC.Crypto)
+        working-directory: BlazorPRF.BC.Crypto/TypeScript
+        run: npm install
+
       - name: Build BC.Crypto
         run: dotnet build BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj --configuration Release
+
+      - name: Verify JS file exists (BC.Crypto)
+        run: ls -la BlazorPRF.BC.Crypto/wwwroot/
 
       # Build BaseCrypto packages
       - name: Install npm dependencies (Wasm.Crypto)
@@ -78,6 +88,9 @@ jobs:
 
       - name: Build Wasm.Crypto
         run: dotnet build BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj --configuration Release
+
+      - name: Verify JS file exists (Wasm.Crypto)
+        run: ls -la BaseCrypto/BlazorPRF.Wasm.Crypto/wwwroot/
 
       - name: Build Server.Crypto
         run: dotnet build BaseCrypto/BlazorPRF.Server.Crypto/BlazorPRF.Server.Crypto.csproj --configuration Release
