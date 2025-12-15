@@ -22,6 +22,8 @@ PRF-based deterministic encryption for Blazor WebAssembly using the WebAuthn PRF
 
 BlazorPRF enables client-side encryption in Blazor WebAssembly applications using biometric authentication. Keys are derived deterministically from the WebAuthn PRF (Pseudo-Random Function) extension output, meaning the same passkey always produces the same encryption keys.
 
+**[Live Demo](https://b-straub.github.io/BlazorPRF/)**
+
 ### Key Features
 
 - **Biometric Key Derivation**: Use your fingerprint, Face ID, or security key to derive encryption keys
