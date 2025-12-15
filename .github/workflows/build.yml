@@ -81,8 +81,8 @@ jobs:
       - name: List local NuGet packages
         run: ls -la .nuget/
 
-      - name: Clear NuGet HTTP cache
-        run: dotnet nuget locals http-cache --clear
+      - name: Clear all NuGet caches
+        run: dotnet nuget locals all --clear
 
       # Build packages that depend on Noble.Crypto package
       - name: Build UI
