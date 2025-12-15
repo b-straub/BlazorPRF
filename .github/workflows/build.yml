@@ -57,6 +57,11 @@ jobs:
       - name: Pack Noble.Crypto
         run: dotnet pack BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj --configuration Release --no-build
 
+      - name: Verify package contains static web assets
+        run: |
+          cd .nuget
+          unzip -l BlazorPRF.Noble.Crypto.*.nupkg | grep -E "(staticwebassets|wwwroot)" || echo "No static web assets found in package"
+
       - name: List local NuGet packages
         run: ls -la .nuget/
 
@@ -108,9 +113,22 @@ jobs:
         run: |
           sed -i 's|<base href="/" />|<base href="/BlazorPRF/" />|g' BlazorPRF.Sample/wwwroot/index.html
 
+      - name: Restore Sample for publish
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: dotnet restore BlazorPRF.Sample/BlazorPRF.Sample.csproj -p:Configuration=Release --force
+
       - name: Publish Sample
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        run: dotnet publish BlazorPRF.Sample/BlazorPRF.Sample.csproj -c Release -o ./build --nologo
+        run: dotnet publish BlazorPRF.Sample/BlazorPRF.Sample.csproj -c Release -o ./build --nologo --no-restore
+
+      - name: Verify static web assets in published output
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          echo "Contents of _content folder:"
+          ls -la build/wwwroot/_content/ || echo "No _content folder found"
+          echo "Looking for BlazorPRF packages:"
+          ls -la build/wwwroot/_content/BlazorPRF.Noble.Crypto/ || echo "No Noble.Crypto _content"
+          ls -la build/wwwroot/_content/BlazorPRF.UI/ || echo "No UI _content"
 
       - name: Add .nojekyll and 404.html
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
