@@ -48,7 +48,7 @@ builder.Services.InjectClipboard();
 builder.Services.AddBlazorPrfPersistence(options =>
 {
 #if DEBUG
-    var connection = new SqliteWasmConnection("Data Source=BlazorPrf.db", Microsoft.Extensions.Logging.LogLevel.Information);
+    var connection = new SqliteWasmConnection("Data Source=BlazorPrf.db", LogLevel.Information);
 #else
     var connection = new SqliteWasmConnection("Data Source=BlazorPrf.db", LogLevel.Error);
 #endif
@@ -77,7 +77,7 @@ try
     if (schemaResult == SchemaValidationResult.Recreated)
     {
         dbInitService.WasRecreated = true;
-        Console.WriteLine("[Startup] Database was recreated due to schema changes.");
+        dbInitService.ErrorMessage = "Database schema has changed!";
     }
 }
 catch (Exception ex)

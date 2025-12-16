@@ -29,7 +29,33 @@ public sealed class CombinedCredentialHintProvider : ICredentialHintProvider
 
     public async ValueTask<CredentialHint?> GetCredentialHintAsync()
     {
-        // 1. Try DB first - this is the authoritative source (the passkey that encrypted the data)
+        // 1. Try LocalStorage first - this is the user's most recent passkey
+        var localHint = GetFromLocalStorage();
+
+        if (localHint is not null)
+        {
+            // If LocalStorage has credential but lost the name, try to restore from DB
+            if (localHint.Metadata?.Name is null)
+            {
+                try
+                {
+                    var dbCredential = await _encryptionCredentialService.GetEncryptionCredentialAsync();
+                    if (dbCredential?.CredentialId == localHint.CredentialId && dbCredential?.Name is not null)
+                    {
+                        // Enrich with name from DB
+                        return localHint with { Metadata = new PublicKeyMetadata { Name = dbCredential.Name } };
+                    }
+                }
+                catch
+                {
+                    // DB not ready - return LocalStorage hint as-is
+                }
+            }
+
+            return localHint;
+        }
+
+        // 2. Fall back to DB (if LocalStorage is empty, e.g., was cleared)
         try
         {
             var dbCredential = await _encryptionCredentialService.GetEncryptionCredentialAsync();
@@ -43,17 +69,16 @@ public sealed class CombinedCredentialHintProvider : ICredentialHintProvider
         }
         catch
         {
-            // DB not ready or error - fall through to LocalStorage
+            // DB not ready
         }
 
-        // 2. Fall back to LocalStorage (for new users who haven't encrypted anything yet)
-        return GetFromLocalStorage();
+        return null;
     }
 
-    public async ValueTask SetCredentialHintAsync(string credentialId, PublicKeyMetadata? metadata = null)
+    public ValueTask SetCredentialHintAsync(string credentialId, PublicKeyMetadata? metadata = null)
     {
-        // Store in LocalStorage for immediate availability
-        // DB storage happens automatically when first data is encrypted (via TrustedContactService)
+        // Store in LocalStorage only - this is just a hint for which passkey to use
+        // DB encryption credential is set by TrustedContactService when data is actually encrypted
         var stored = new StoredCredentialHint
         {
             CredentialId = credentialId,
@@ -63,30 +88,17 @@ public sealed class CombinedCredentialHintProvider : ICredentialHintProvider
             Created = metadata?.Created
         };
         _localStorage.SetItem(LocalStorageKey, stored);
-
-        // Also update DB if it already has a credential stored (keeps them in sync)
-        try
-        {
-            var existing = await _encryptionCredentialService.GetEncryptionCredentialAsync();
-            if (existing is not null)
-            {
-                await _encryptionCredentialService.SetEncryptionCredentialAsync(credentialId, metadata?.Name);
-            }
-        }
-        catch
-        {
-            // DB not ready - LocalStorage is sufficient for now
-        }
+        return ValueTask.CompletedTask;
     }
 
-    public async ValueTask ClearCredentialHintAsync()
+    public ValueTask ClearCredentialHintAsync()
     {
-        _localStorage.RemoveItem(LocalStorageKey);
-
+        // Clear LocalStorage hint only
         // Note: We intentionally do NOT clear the DB encryption credential
         // That records which passkey encrypted the data and should persist
         // for error messages even after sign-out
-        await ValueTask.CompletedTask;
+        _localStorage.RemoveItem(LocalStorageKey);
+        return ValueTask.CompletedTask;
     }
 
     private CredentialHint? GetFromLocalStorage()
