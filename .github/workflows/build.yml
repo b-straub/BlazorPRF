@@ -65,12 +65,12 @@ jobs:
       - name: Clear all NuGet caches
         run: dotnet nuget locals all --clear
 
-      # Pack UI with both crypto engine flavors
-      - name: Pack UI (Noble)
-        run: dotnet pack BlazorPRF.UI/BlazorPRF.UI.csproj -c Release -p:BlazorPRFCryptoEngine=Noble
+      # Build UI with both crypto engine flavors (GeneratePackageOnBuild creates packages)
+      - name: Build UI (Noble)
+        run: dotnet build BlazorPRF.UI/BlazorPRF.UI.csproj -c Release -p:BlazorPRFCryptoEngine=Noble
 
-      - name: Pack UI (BC)
-        run: dotnet pack BlazorPRF.UI/BlazorPRF.UI.csproj -c Release -p:BlazorPRFCryptoEngine=BC
+      - name: Build UI (BC)
+        run: dotnet build BlazorPRF.UI/BlazorPRF.UI.csproj -c Release -p:BlazorPRFCryptoEngine=BC
 
       - name: List all NuGet packages
         run: ls -la .nuget/
