@@ -3,25 +3,30 @@
 @inherits ContactsModelComponent
 @using BlazorPRF.Sample.Models
 @using BlazorPRF.Shared.Crypto.Formatting
+@using BlazorPRF.Shared.Crypto.Models
+@using BlazorPRF.UI.Services
 @using TextCopy
 @inject PrfModel PrfModel
+@inject ICredentialHintProvider CredentialHintProvider
 
 <PageTitle>Contacts - BlazorPRF</PageTitle>
 
-<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
-    <div>
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="8">
         <MudText Typo="Typo.h4" GutterBottom="true">Trusted Contacts</MudText>
         <MudText Typo="Typo.body1">
             Manage your verified contacts. User data is encrypted with your PRF-derived key.
         </MudText>
-    </div>
-    <MudButton Color="Color.Primary"
-               Variant="Variant.Filled"
-               StartIcon="@Icons.Material.Filled.PersonAdd"
-               OnClick="OpenVerifyDialogAsync">
-        Add via Response
-    </MudButton>
-</MudStack>
+    </MudItem>
+    <MudItem xs="12" sm="4" Class="d-flex align-center justify-end">
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.PersonAdd"
+                   OnClick="OpenVerifyDialogAsync">
+            Add via Response
+        </MudButton>
+    </MudItem>
+</MudGrid>
 
 @if (_loading)
 {
@@ -159,7 +164,7 @@ else
         }
         else
         {
-            _errorMessage = result.Error ?? "Failed to load contacts. Please try again.";
+            _errorMessage = await GetEnhancedErrorMessageAsync(result);
             _contacts = [];
         }
 
@@ -237,5 +242,25 @@ else
     protected override void OnContactsVersionChanged()
     {
         _ = InvokeAsync(LoadContactsAsync);
+    }
+
+    private async Task<string> GetEnhancedErrorMessageAsync(
+        PrfResult<List<(TrustedContact Contact, ContactUserData UserData)>> result)
+    {
+        // If decryption failed, try to provide more context about expected passkey
+        if (result.ErrorCode == PrfErrorCode.DecryptionFailed)
+        {
+            var hint = await CredentialHintProvider.GetCredentialHintAsync();
+            if (hint?.Metadata?.Name is { } passkeyName)
+            {
+                return $"Decryption failed. Your data was encrypted with passkey '{passkeyName}'. " +
+                       "Please sign in with that passkey to access your contacts.";
+            }
+
+            return "Decryption failed. You may be signed in with a different passkey than " +
+                   "the one used to encrypt your data.";
+        }
+
+        return result.Error ?? "Failed to load contacts. Please try again.";
     }
 }
