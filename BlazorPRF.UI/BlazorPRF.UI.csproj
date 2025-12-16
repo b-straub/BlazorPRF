@@ -5,7 +5,7 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <PackageId>BlazorPRF.UI</PackageId>
+        <PackageId>BlazorPRF.$(BlazorPRFCryptoEngine).UI</PackageId>
         <Version>$(BlazorPRFVersion)</Version>
         <Authors>bernisoft</Authors>
         <Description>MudBlazor UI components for PRF-based deterministic encryption</Description>
