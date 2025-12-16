@@ -9,10 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pages: write
-      id-token: write
 
     steps:
       - name: Checkout
@@ -47,36 +43,21 @@ jobs:
         working-directory: BaseCrypto/BlazorPRF.Wasm.Crypto/TypeScript
         run: npm install
 
-      # Build base packages (no external package dependencies)
-      - name: Restore Shared.Crypto
-        run: dotnet restore BlazorPRF.Shared.Crypto/BlazorPRF.Shared.Crypto.csproj
-
+      # Build and pack base crypto packages
       - name: Build Shared.Crypto
-        run: dotnet build BlazorPRF.Shared.Crypto/BlazorPRF.Shared.Crypto.csproj --configuration Release --no-restore
-
-      - name: Restore Noble.Crypto
-        run: dotnet restore BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj
+        run: dotnet build BlazorPRF.Shared.Crypto/BlazorPRF.Shared.Crypto.csproj -c Release
 
       - name: Build Noble.Crypto
-        run: dotnet build BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj --configuration Release --no-restore
-
-      - name: Restore BC.Crypto
-        run: dotnet restore BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj
+        run: dotnet build BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj -c Release
 
       - name: Build BC.Crypto
-        run: dotnet build BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj --configuration Release --no-restore
-
-      - name: Restore Wasm.Crypto
-        run: dotnet restore BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj
+        run: dotnet build BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj -c Release
 
       - name: Build Wasm.Crypto
-        run: dotnet build BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj --configuration Release --no-restore
-
-      - name: Restore Server.Crypto
-        run: dotnet restore BaseCrypto/BlazorPRF.Server.Crypto/BlazorPRF.Server.Crypto.csproj
+        run: dotnet build BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj -c Release
 
       - name: Build Server.Crypto
-        run: dotnet build BaseCrypto/BlazorPRF.Server.Crypto/BlazorPRF.Server.Crypto.csproj --configuration Release --no-restore
+        run: dotnet build BaseCrypto/BlazorPRF.Server.Crypto/BlazorPRF.Server.Crypto.csproj -c Release
 
       - name: List local NuGet packages
         run: ls -la .nuget/
@@ -84,47 +65,22 @@ jobs:
       - name: Clear all NuGet caches
         run: dotnet nuget locals all --clear
 
-      # Build packages that depend on Noble.Crypto package
-      - name: Build UI
-        run: dotnet build BlazorPRF.UI/BlazorPRF.UI.csproj --configuration Release
+      # Pack UI with both crypto engine flavors
+      - name: Pack UI (Noble)
+        run: dotnet pack BlazorPRF.UI/BlazorPRF.UI.csproj -c Release -p:BlazorPRFCryptoEngine=Noble
 
-      - name: Build Persistence
-        run: dotnet build BlazorPRF.Persistence/BlazorPRF.Persistence.csproj --configuration Release
+      - name: Pack UI (BC)
+        run: dotnet pack BlazorPRF.UI/BlazorPRF.UI.csproj -c Release -p:BlazorPRFCryptoEngine=BC
 
-      # Restore and build entire solution
+      - name: List all NuGet packages
+        run: ls -la .nuget/
+
+      # Restore and build solution for tests
       - name: Restore solution
         run: dotnet restore BlazorPRF.slnx
 
       - name: Build solution
-        run: dotnet build BlazorPRF.slnx --configuration Release
+        run: dotnet build BlazorPRF.slnx -c Release
 
       - name: Test
-        run: dotnet test BlazorPRF.slnx --configuration Release --no-build --verbosity normal
-
-      # Deploy to GitHub Pages (only on push to master)
-      - name: Set base path for GitHub Pages
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        run: |
-          sed -i 's|<base href="/" />|<base href="/BlazorPRF/" />|g' BlazorPRF.Sample/wwwroot/index.html
-
-      - name: Publish Sample
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        run: dotnet publish BlazorPRF.Sample/BlazorPRF.Sample.csproj -c Release -o ./build --nologo
-
-      - name: Add .nojekyll and 404.html
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        run: |
-          cd build/wwwroot
-          touch .nojekyll
-          cp index.html 404.html
-
-      - name: Upload artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./build/wwwroot
-
-      - name: Deploy to GitHub Pages
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        id: deployment
-        uses: actions/deploy-pages@v4
+        run: dotnet test BlazorPRF.slnx -c Release --no-build --verbosity normal
