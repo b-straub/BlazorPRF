@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/)
-[![NuGet](https://img.shields.io/nuget/v/BlazorPRF)](https://www.nuget.org/packages/BlazorPRF)
+[![NuGet](https://img.shields.io/nuget/v/BlazorPRF.Noble.Crypto)](https://www.nuget.org/packages/BlazorPRF.Noble.Crypto)
 [![Build and Test](https://github.com/b-straub/BlazorPRF/actions/workflows/build.yml/badge.svg)](https://github.com/b-straub/BlazorPRF/actions/workflows/build.yml)
 [![GitHub Repo stars](https://img.shields.io/github/stars/b-straub/BlazorPRF)](https://github.com/b-straub/BlazorPRF/stargazers)
 
@@ -12,7 +12,7 @@ PRF-based deterministic encryption for Blazor WebAssembly using the WebAuthn PRF
 
 > **This is an experimental project and has NOT been audited for security vulnerabilities.**
 >
-> While BlazorPRF uses established, well-reviewed cryptographic libraries (BouncyCastle for server-side, Noble.js + browser-native SubtleCrypto for WASM), the integration and implementation have not undergone professional security review.
+> While BlazorPRF uses established, well-reviewed cryptographic libraries (Noble.js and BouncyCastle for WASM, browser-native SubtleCrypto), the integration and implementation have not undergone professional security review.
 >
 > **Do NOT use this in production systems handling sensitive data without a thorough security audit.**
 >
@@ -33,41 +33,41 @@ BlazorPRF enables client-side encryption in Blazor WebAssembly applications usin
 - **Asymmetric Encryption**: Share your public key; others can encrypt messages only you can decrypt (ECIES with X25519)
 - **Digital Signatures**: Sign and verify messages with Ed25519 for authentication and integrity
 - **Identity Verification**: Establish trust through dual-signed invites (like PGP "full trust")
-- **Secure Key Storage**: Keys cached in JS (WASM) or unmanaged memory (Server), cryptographically zeroed on disposal
+- **Secure Key Storage**: Keys cached in JS, cryptographically zeroed on disposal
 
 ## Packages
 
-### Core Libraries
+### Crypto Providers (choose one)
 
-| Package | Platform | Description |
-|---------|----------|-------------|
-| [BlazorPRF.UI](./BlazorPRF.UI/) | WASM | Core services (WebAuthn PRF, key derivation, encryption) + MudBlazor UI components |
-| [BlazorPRF.Shared.Crypto](./BlazorPRF.Shared.Crypto/) | Any | Shared crypto abstractions, models, and interfaces |
+| Package | Crypto Library | Description |
+|---------|----------------|-------------|
+| [BlazorPRF.Noble.Crypto](https://www.nuget.org/packages/BlazorPRF.Noble.Crypto) | Noble.js + SubtleCrypto | X25519, Ed25519, ChaCha20-Poly1305, AES-GCM. Keys cached in JS. |
+| [BlazorPRF.BC.Crypto](https://www.nuget.org/packages/BlazorPRF.BC.Crypto) | BouncyCastle | Full BouncyCastle crypto stack for WASM. |
 
-### Crypto Providers
+### UI Components (matches your crypto provider)
 
-Choose one based on your platform:
-
-| Package | Platform | Description |
-|---------|----------|-------------|
-| [BlazorPRF.Noble.Crypto](./BlazorPRF.Noble.Crypto/) | **WASM** | Noble.js + SubtleCrypto (X25519, Ed25519, ChaCha20-Poly1305, AES-GCM). Keys cached in JS for security. |
-| [BlazorPRF.BC.Crypto](./BlazorPRF.BC.Crypto/) | Server/.NET | BouncyCastle-based crypto. Full support for all algorithms. |
+| Package | Description |
+|---------|-------------|
+| [BlazorPRF.Noble.UI](https://www.nuget.org/packages/BlazorPRF.Noble.UI) | MudBlazor UI components + services for Noble.Crypto |
+| [BlazorPRF.BC.UI](https://www.nuget.org/packages/BlazorPRF.BC.UI) | MudBlazor UI components + services for BC.Crypto |
 
 ### Standalone Libraries
 
-| Package | Platform | Description |
-|---------|----------|-------------|
-| [BlazorPRF.Wasm.Crypto](./BaseCrypto/BlazorPRF.Wasm.Crypto/) | WASM | Simple WebAuthn PRF library. Keys never leave JS - salt-based lookup with AES-GCM and Ed25519. |
-| [BlazorPRF.Persistence](./BlazorPRF.Persistence/) | Any | SQLite persistence for credentials and trusted contacts |
+| Package | Description |
+|---------|-------------|
+| [BlazorPRF.Wasm.Crypto](https://www.nuget.org/packages/BlazorPRF.Wasm.Crypto) | Simple WebAuthn PRF library. Keys never leave JS - salt-based lookup with AES-GCM and Ed25519. |
+| [BlazorPRF.Server.Crypto](https://www.nuget.org/packages/BlazorPRF.Server.Crypto) | Server-side crypto using BouncyCastle for .NET backends. |
 
 ### Choosing a Crypto Provider
 
 ```
-WASM/Browser:
-  └─ Use BlazorPRF.Noble.Crypto (keys stay in JS, hardware-accelerated AES-GCM)
+Noble.Crypto (recommended):
+  └─ Uses Noble.js - audited, lightweight JavaScript crypto
+  └─ Hardware-accelerated AES-GCM via SubtleCrypto
 
-Server/.NET:
-  └─ Use BlazorPRF.BC.Crypto (BouncyCastle, full .NET support)
+BC.Crypto (alternative):
+  └─ Uses BouncyCastle - full-featured .NET crypto library
+  └─ All crypto runs in WASM (no JS interop for crypto ops)
 
 Simple use case (just encrypt/sign):
   └─ Use BlazorPRF.Wasm.Crypto (standalone, minimal dependencies)
@@ -78,8 +78,13 @@ Simple use case (just encrypt/sign):
 ### 1. Install the packages
 
 ```bash
-dotnet add package BlazorPRF.UI            # Core services + MudBlazor components
-dotnet add package BlazorPRF.Noble.Crypto  # For WASM (or BlazorPRF.BC.Crypto for server)
+# Noble flavor (recommended)
+dotnet add package BlazorPRF.Noble.UI
+dotnet add package BlazorPRF.Noble.Crypto
+
+# OR BC flavor
+dotnet add package BlazorPRF.BC.UI
+dotnet add package BlazorPRF.BC.Crypto
 ```
 
 ### 2. Configure services
@@ -88,9 +93,9 @@ dotnet add package BlazorPRF.Noble.Crypto  # For WASM (or BlazorPRF.BC.Crypto fo
 // Program.cs
 builder.Services.AddBlazorPrfUI(builder.Configuration);
 
-// Add crypto provider (choose one)
-builder.Services.AddNobleCrypto();     // For WASM
-// builder.Services.AddBcCrypto();     // For Server/.NET
+// Add crypto provider (matches your UI package)
+builder.Services.AddNobleCrypto();     // For Noble flavor
+// builder.Services.AddBcCrypto();     // For BC flavor
 ```
 
 ### 3. Add configuration
@@ -124,9 +129,7 @@ builder.Services.AddNobleCrypto();     // For WASM
 - **Symmetric Encryption**: ChaCha20-Poly1305 or AES-256-GCM (AEAD)
 - **Asymmetric Encryption**: X25519 ECDH + symmetric cipher (ECIES)
 - **Digital Signatures**: Ed25519 (sign/verify)
-- **Key Storage**:
-  - Noble.Crypto: Keys cached in JS as non-extractable CryptoKey objects
-  - BC.Crypto: Unmanaged memory with cryptographic zeroing
+- **Key Storage**: Keys cached in JS as non-extractable CryptoKey objects with cryptographic zeroing
 
 ## Dual Key Derivation
 
@@ -180,7 +183,7 @@ Requires browsers supporting the WebAuthn PRF extension:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        BlazorPRF.UI                             │
+│                    BlazorPRF.*.UI                               │
 │  (WebAuthn PRF, Key Derivation, Services, MudBlazor Components) │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -193,11 +196,10 @@ Requires browsers supporting the WebAuthn PRF extension:
             │                                   │
 ┌───────────────────────┐           ┌───────────────────────┐
 │ BlazorPRF.Noble.Crypto│           │  BlazorPRF.BC.Crypto  │
-│    (WASM/Browser)     │           │   (Server/.NET)       │
 │                       │           │                       │
 │  - Noble.js           │           │  - BouncyCastle       │
-│  - SubtleCrypto       │           │  - Full .NET support  │
-│  - Keys stay in JS    │           │  - Unmanaged memory   │
+│  - SubtleCrypto       │           │  - Pure .NET crypto   │
+│  - Keys stay in JS    │           │  - Keys stay in JS    │
 └───────────────────────┘           └───────────────────────┘
 ```
 
