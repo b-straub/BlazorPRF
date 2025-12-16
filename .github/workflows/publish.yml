@@ -80,15 +80,12 @@ jobs:
       - name: List all NuGet packages
         run: ls -la .nuget/
 
-      # Build and test solution
-      - name: Restore solution
-        run: dotnet restore BlazorPRF.slnx
-
+      # Build and test solution (without regenerating packages)
       - name: Build solution
-        run: dotnet build BlazorPRF.slnx -c Release -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
+        run: dotnet build BlazorPRF.slnx -c Release -p:GeneratePackageOnBuild=false -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
 
       - name: Test
-        run: dotnet test BlazorPRF.slnx -c Release --no-build --verbosity normal
+        run: dotnet test BlazorPRF.slnx -c Release -p:GeneratePackageOnBuild=false -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }} --no-build --verbosity normal
 
       # Copy packages to ./nupkg for publishing
       - name: Copy packages

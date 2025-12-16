@@ -75,12 +75,9 @@ jobs:
       - name: List all NuGet packages
         run: ls -la .nuget/
 
-      # Restore and build solution for tests
-      - name: Restore solution
-        run: dotnet restore BlazorPRF.slnx
-
+      # Build and test solution (without regenerating packages)
       - name: Build solution
-        run: dotnet build BlazorPRF.slnx -c Release
+        run: dotnet build BlazorPRF.slnx -c Release -p:GeneratePackageOnBuild=false
 
       - name: Test
-        run: dotnet test BlazorPRF.slnx -c Release --no-build --verbosity normal
+        run: dotnet test BlazorPRF.slnx -c Release -p:GeneratePackageOnBuild=false --no-build --verbosity normal
