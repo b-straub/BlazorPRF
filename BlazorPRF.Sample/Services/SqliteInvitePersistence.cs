@@ -15,15 +15,18 @@ public sealed class SqliteInvitePersistence : IInvitePersistence
     private readonly IInvitationService _invitationService;
     private readonly ITrustedContactService _contactService;
     private readonly ContactsModel _contactsModel;
+    private readonly ICredentialHintProvider _credentialHintProvider;
 
     public SqliteInvitePersistence(
         IInvitationService invitationService,
         ITrustedContactService contactService,
-        ContactsModel contactsModel)
+        ContactsModel contactsModel,
+        ICredentialHintProvider credentialHintProvider)
     {
         _invitationService = invitationService;
         _contactService = contactService;
         _contactsModel = contactsModel;
+        _credentialHintProvider = credentialHintProvider;
     }
 
     /// <inheritdoc />
@@ -64,12 +67,17 @@ public sealed class SqliteInvitePersistence : IInvitePersistence
             Comment = "Verified via signed invite"
         };
 
+        // Get current credential info for tracking which passkey encrypted the data
+        var credentialHint = await _credentialHintProvider.GetCredentialHintAsync();
+
         var result = await _contactService.CreateAsync(
             userData,
             args.X25519PublicKey,
             args.Ed25519PublicKey,
             TrustLevel.Full,
-            TrustDirection.Sent);
+            TrustDirection.Sent,
+            credentialHint?.CredentialId,
+            credentialHint?.Metadata?.Name);
 
         if (result is { Success: true, Value: not null })
         {

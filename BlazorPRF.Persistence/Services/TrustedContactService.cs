@@ -16,6 +16,7 @@ public sealed class TrustedContactService : ITrustedContactService
 {
     private readonly IDbContextFactory<PrfDbContext> _dbContextFactory;
     private readonly ISymmetricEncryption _symmetricEncryption;
+    private readonly IEncryptionCredentialService _encryptionCredentialService;
 
     /// <summary>
     /// Key identifier for symmetric encryption of contact user data.
@@ -26,10 +27,12 @@ public sealed class TrustedContactService : ITrustedContactService
 
     public TrustedContactService(
         IDbContextFactory<PrfDbContext> dbContextFactory,
-        ISymmetricEncryption symmetricEncryption)
+        ISymmetricEncryption symmetricEncryption,
+        IEncryptionCredentialService encryptionCredentialService)
     {
         _dbContextFactory = dbContextFactory;
         _symmetricEncryption = symmetricEncryption;
+        _encryptionCredentialService = encryptionCredentialService;
     }
 
     /// <inheritdoc />
@@ -93,7 +96,9 @@ public sealed class TrustedContactService : ITrustedContactService
         string x25519PublicKey,
         string ed25519PublicKey,
         TrustLevel trustLevel,
-        TrustDirection direction)
+        TrustDirection direction,
+        string? encryptingCredentialId = null,
+        string? encryptingCredentialName = null)
     {
         var encryptedResult = await EncryptUserDataAsync(userData);
         if (!encryptedResult.Success || encryptedResult.Value is null)
@@ -117,6 +122,17 @@ public sealed class TrustedContactService : ITrustedContactService
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         await db.TrustedContacts.AddAsync(contact);
         await db.SaveChangesAsync();
+
+        // Track which credential encrypted the data (if not already tracked)
+        if (!string.IsNullOrWhiteSpace(encryptingCredentialId))
+        {
+            var existingCredential = await _encryptionCredentialService.GetEncryptionCredentialAsync();
+            if (existingCredential is null)
+            {
+                await _encryptionCredentialService.SetEncryptionCredentialAsync(
+                    encryptingCredentialId, encryptingCredentialName);
+            }
+        }
 
         return PrfResult<TrustedContact>.Ok(contact);
     }

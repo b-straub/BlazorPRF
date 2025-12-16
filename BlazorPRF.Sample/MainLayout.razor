@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@using BlazorPRF.Sample.Components
 
 <MudThemeProvider @bind-IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -55,6 +56,7 @@
 
     <MudMainContent>
         <MudContainer MaxWidth="MaxWidth.Large" Class="my-4">
+            <DatabaseErrorAlert />
             @Body
         </MudContainer>
     </MudMainContent>

@@ -4,10 +4,18 @@
 @using BlazorPRF.Sample.Models
 @using BlazorPRF.Shared.Crypto.Formatting
 @using BlazorPRF.Shared.Crypto.Models
+@using BlazorPRF.Persistence.Data
+@using BlazorPRF.Persistence.Services
+@using BlazorPRF.Sample.Services
 @using BlazorPRF.UI.Services
+@using Microsoft.EntityFrameworkCore
+@using SqliteWasmBlazor
 @using TextCopy
 @inject PrfModel PrfModel
 @inject ICredentialHintProvider CredentialHintProvider
+@inject IEncryptionCredentialService EncryptionCredentialService
+@inject IDbContextFactory<PrfDbContext> DbContextFactory
+@inject NavigationManager NavigationManager
 
 <PageTitle>Contacts - BlazorPRF</PageTitle>
 
@@ -39,9 +47,34 @@ else if (_errorMessage is not null)
 {
     <MudAlert Severity="Severity.Warning" Class="mb-4" Variant="Variant.Outlined">
         @_errorMessage
-        <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="LoadContactsAsync" Class="ml-2">
-            Retry
-        </MudButton>
+        <MudStack Row="true" Class="mt-2">
+            @if (_isDecryptionError)
+            {
+                <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="SignOut">
+                    Sign Out
+                </MudButton>
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Error"
+                           OnClick="ResetDatabaseAsync"
+                           Disabled="_isResetting">
+                    @if (_isResetting)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Resetting...</span>
+                    }
+                    else
+                    {
+                        <span>Reset Database</span>
+                    }
+                </MudButton>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="LoadContactsAsync">
+                    Retry
+                </MudButton>
+            }
+        </MudStack>
     </MudAlert>
 }
 else if (_contacts.Count == 0)
@@ -132,6 +165,8 @@ else
     private List<(TrustedContact Contact, ContactUserData UserData)> _contacts = [];
     private bool _loading = true;
     private string? _errorMessage;
+    private bool _isDecryptionError;
+    private bool _isResetting;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -145,6 +180,7 @@ else
     {
         _loading = true;
         _errorMessage = null;
+        _isDecryptionError = false;
         StateHasChanged();
 
         // Ensure user is authenticated to decrypt contact data
@@ -164,12 +200,46 @@ else
         }
         else
         {
+            _isDecryptionError = result.ErrorCode == PrfErrorCode.DecryptionFailed;
             _errorMessage = await GetEnhancedErrorMessageAsync(result);
             _contacts = [];
         }
 
         _loading = false;
         StateHasChanged();
+    }
+
+    private void SignOut()
+    {
+        PrfModel.ClearKeys.Execute();
+        NavigationManager.NavigateTo("./");
+    }
+
+    private async Task ResetDatabaseAsync()
+    {
+        _isResetting = true;
+        StateHasChanged();
+
+        try
+        {
+            // Delete the database file from OPFS SAHPool
+            await SqliteWasmWorkerBridge.Instance.DeleteDatabaseAsync("BlazorPrf.db");
+
+            // Recreate database schema
+            await using var context = await DbContextFactory.CreateDbContextAsync();
+            await context.Database.EnsureCreatedAsync();
+
+            // Clear auth state and navigate home
+            PrfModel.ClearKeys.Execute();
+            Snackbar.Add("Database reset successfully!", Severity.Success);
+            NavigationManager.NavigateTo("./");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Database reset failed: {ex.Message}", Severity.Error);
+            _isResetting = false;
+            StateHasChanged();
+        }
     }
 
     private async Task DeleteContactAsync(Guid id)
@@ -247,14 +317,30 @@ else
     private async Task<string> GetEnhancedErrorMessageAsync(
         PrfResult<List<(TrustedContact Contact, ContactUserData UserData)>> result)
     {
-        // If decryption failed, try to provide more context about expected passkey
+        // If decryption failed, try to provide more context
         if (result.ErrorCode == PrfErrorCode.DecryptionFailed)
         {
-            var hint = await CredentialHintProvider.GetCredentialHintAsync();
-            if (hint?.Metadata?.Name is { } passkeyName)
+            var currentHint = await CredentialHintProvider.GetCredentialHintAsync();
+            var encryptingCredential = await EncryptionCredentialService.GetEncryptionCredentialAsync();
+
+            var currentPasskeyName = currentHint?.Metadata?.Name;
+            var encryptingPasskeyName = encryptingCredential?.Name;
+
+            // Build detailed error message
+            if (currentPasskeyName is not null && encryptingPasskeyName is not null)
             {
-                return $"Decryption failed. Your data was encrypted with passkey '{passkeyName}'. " +
-                       "Please sign in with that passkey to access your contacts.";
+                return $"Decryption failed. You are signed in with passkey '{currentPasskeyName}', " +
+                       $"but your data was encrypted with passkey '{encryptingPasskeyName}'.";
+            }
+            else if (currentPasskeyName is not null)
+            {
+                return $"Decryption failed. You are signed in with passkey '{currentPasskeyName}', " +
+                       "but your data was encrypted with a different passkey.";
+            }
+            else if (encryptingPasskeyName is not null)
+            {
+                return $"Decryption failed. Your data was encrypted with passkey '{encryptingPasskeyName}', " +
+                       "but you are signed in with a different passkey.";
             }
 
             return "Decryption failed. You may be signed in with a different passkey than " +

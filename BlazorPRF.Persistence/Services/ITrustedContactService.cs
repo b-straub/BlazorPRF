@@ -28,12 +28,21 @@ public interface ITrustedContactService
     /// <summary>
     /// Create a new trusted contact with encrypted user data.
     /// </summary>
+    /// <param name="userData">User data to encrypt.</param>
+    /// <param name="x25519PublicKey">Contact's X25519 public key.</param>
+    /// <param name="ed25519PublicKey">Contact's Ed25519 public key.</param>
+    /// <param name="trustLevel">Trust level for this contact.</param>
+    /// <param name="direction">Direction of trust establishment.</param>
+    /// <param name="encryptingCredentialId">Optional: ID of the credential used for encryption (for tracking).</param>
+    /// <param name="encryptingCredentialName">Optional: Name of the credential used for encryption.</param>
     Task<PrfResult<TrustedContact>> CreateAsync(
         ContactUserData userData,
         string x25519PublicKey,
         string ed25519PublicKey,
         TrustLevel trustLevel,
-        TrustDirection direction);
+        TrustDirection direction,
+        string? encryptingCredentialId = null,
+        string? encryptingCredentialName = null);
 
     /// <summary>
     /// Update an existing contact's user data (re-encrypts).

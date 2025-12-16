@@ -1,14 +1,13 @@
 using Blazored.LocalStorage;
 using BlazorPRF.Crypto.Extensions;
-using BlazorPRF.Persistence.Data;
 using BlazorPRF.Persistence.Extensions;
+using BlazorPRF.Persistence.Services;
 using BlazorPRF.Sample;
 using BlazorPRF.Sample.Services;
 using BlazorPRF.UI.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 using SqliteWasmBlazor;
 using TextCopy;
@@ -20,9 +19,11 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 // Add MudBlazor
 builder.Services.AddMudServices();
 
-// Add Blazored LocalStorage for credential hint persistence (as singleton for WASM)
+// Add Blazored LocalStorage (still needed as fallback for new users)
 builder.Services.AddBlazoredLocalStorageAsSingleton();
-builder.Services.AddSingleton<ICredentialHintProvider, LocalStorageCredentialHintProvider>();
+
+// Credential hint provider: checks DB first (authoritative), then LocalStorage (fallback)
+builder.Services.AddSingleton<ICredentialHintProvider, CombinedCredentialHintProvider>();
 
 // Add BlazorPRF with configuration
 #pragma warning disable CA1416
@@ -58,15 +59,31 @@ builder.Services.AddBlazorPrfPersistence(options =>
 builder.Services.AddSingleton<IInvitePersistence, SqliteInvitePersistence>();
 builder.Services.AddSingleton<InviteService>();
 
+// Add database initialization service for error tracking
+builder.Services.AddSingleton<IPrfDbInitializationService, PrfDbInitializationService>();
+
 var host = builder.Build();
 
-// Initialize SqliteWasm and ensure database is created
+// Initialize SqliteWasm and validate/migrate database schema
 await host.Services.InitializeSqliteWasmAsync();
-await using (var scope = host.Services.CreateAsyncScope())
+
+var dbInitService = host.Services.GetRequiredService<IPrfDbInitializationService>();
+var schemaService = host.Services.GetRequiredService<ISchemaVersionService>();
+
+try
 {
-    var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<PrfDbContext>>();
-    await using var db = await factory.CreateDbContextAsync();
-    await db.Database.EnsureCreatedAsync();
+    var schemaResult = await schemaService.ValidateAndMigrateAsync();
+
+    if (schemaResult == SchemaValidationResult.Recreated)
+    {
+        dbInitService.WasRecreated = true;
+        Console.WriteLine("[Startup] Database was recreated due to schema changes.");
+    }
+}
+catch (Exception ex)
+{
+    dbInitService.ErrorMessage = $"Database initialization failed: {ex.Message}";
+    Console.WriteLine($"[Startup] Database error: {ex.Message}");
 }
 
 await host.RunAsync();

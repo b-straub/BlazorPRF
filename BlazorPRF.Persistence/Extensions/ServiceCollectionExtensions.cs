@@ -28,6 +28,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ITrustedContactService, TrustedContactService>();
         services.AddSingleton<IInvitationService, InvitationService>();
         services.AddSingleton<ISettingsService, SettingsService>();
+        services.AddSingleton<IEncryptionCredentialService, EncryptionCredentialService>();
+        services.AddSingleton<ISchemaVersionService, SchemaVersionService>();
 
         return services;
     }

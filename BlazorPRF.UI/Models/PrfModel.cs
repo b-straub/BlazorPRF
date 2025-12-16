@@ -185,6 +185,11 @@ public partial class PrfModel : ObservableModel
                 CredentialId = result.Value.Id;
                 DiscoverableCancelled = false;
                 SuccessMessage = "Passkey registered successfully!";
+                // Store passkey name in metadata for better error messages
+                if (!string.IsNullOrWhiteSpace(displayName))
+                {
+                    KeyMetadata = new PublicKeyMetadata { Name = displayName };
+                }
                 await SaveCredentialHintAsync(result.Value.Id);
             }
             else
@@ -303,7 +308,17 @@ public partial class PrfModel : ObservableModel
 
     private async Task SaveCredentialHintAsync(string credentialId)
     {
-        await CredentialHintProvider.SetCredentialHintAsync(credentialId, KeyMetadata);
+        // Preserve existing metadata if KeyMetadata is null (e.g., during authentication)
+        var metadataToSave = KeyMetadata;
+        if (metadataToSave is null)
+        {
+            var existingHint = await CredentialHintProvider.GetCredentialHintAsync();
+            if (existingHint?.CredentialId == credentialId)
+            {
+                metadataToSave = existingHint.Metadata;
+            }
+        }
+        await CredentialHintProvider.SetCredentialHintAsync(credentialId, metadataToSave);
     }
 
     private async Task ClearCredentialHintAsync()
