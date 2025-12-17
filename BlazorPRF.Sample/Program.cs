@@ -76,14 +76,21 @@ try
 {
     var schemaResult = await schemaService.ValidateAndMigrateAsync();
 
-    if (schemaResult == SchemaValidationResult.RECREATED)
+    switch (schemaResult)
     {
-        dbInitModel.WasRecreated = true;
-        dbInitModel.ErrorMessage = "Database schema has changed!";
+        case SchemaValidationResult.RECREATED:
+            dbInitModel.WasRecreated = true;
+            dbInitModel.ErrorMessage = "Database schema has changed!";
+            break;
+        case SchemaValidationResult.MISMATCH:
+            dbInitModel.HasSchemaMismatch = true;
+            dbInitModel.ErrorMessage = "Database schema mismatch. Please clear browser data to reset.";
+            break;
     }
 }
 catch (Exception ex)
 {
+    dbInitModel.HasInitError = true;
     dbInitModel.ErrorMessage = $"Database initialization failed: {ex.Message}";
     Console.WriteLine($"[Startup] Database error: {ex.Message}");
 }

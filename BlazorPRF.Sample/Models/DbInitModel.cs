@@ -30,6 +30,16 @@ public partial class DbInitModel : ObservableModel
     public partial bool WasRecreated { get; set; }
 
     /// <summary>
+    /// Whether there's a schema mismatch (Release mode).
+    /// </summary>
+    public partial bool HasSchemaMismatch { get; set; }
+
+    /// <summary>
+    /// Whether database initialization failed.
+    /// </summary>
+    public partial bool HasInitError { get; set; }
+
+    /// <summary>
     /// Whether a reset operation is in progress.
     /// </summary>
     public partial bool IsResetting { get; set; }
