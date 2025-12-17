@@ -16,9 +16,14 @@ public enum SchemaValidationResult
     CREATED,
 
     /// <summary>
-    /// Schema mismatch detected and database was recreated.
+    /// Schema mismatch detected and database was recreated (Debug mode).
     /// </summary>
-    RECREATED
+    RECREATED,
+
+    /// <summary>
+    /// Schema mismatch detected but not modified (Release mode).
+    /// </summary>
+    MISMATCH
 }
 
 /// <summary>

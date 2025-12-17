@@ -84,7 +84,7 @@ public sealed class SchemaVersionService : ISchemaVersionService
         // In Release mode, log warning but don't modify
         Console.WriteLine($"[SchemaVersionService] WARNING: Schema mismatch detected. Stored: {storedVersion}, Current: {CurrentSchemaVersion}");
         Console.WriteLine("[SchemaVersionService] Consider updating the database or incrementing the schema version.");
-        return SchemaValidationResult.Valid;
+        return SchemaValidationResult.MISMATCH;
 #endif
     }
 
