@@ -48,24 +48,43 @@ jobs:
         working-directory: BaseCrypto/BlazorPRF.Wasm.Crypto/TypeScript
         run: npm install
 
-      # Build and pack base crypto packages
+      # Build all projects first (without packing) to ensure TypeScript is compiled
       - name: Build Shared.Crypto
-        run: dotnet build BlazorPRF.Shared.Crypto/BlazorPRF.Shared.Crypto.csproj -c Release -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
+        run: dotnet build BlazorPRF.Shared.Crypto/BlazorPRF.Shared.Crypto.csproj -c Release -p:GeneratePackageOnBuild=false -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
 
-      - name: Build Noble.Crypto
-        run: dotnet build BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj -c Release -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
+      - name: Build Noble.Crypto (no pack)
+        run: dotnet build BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj -c Release -p:GeneratePackageOnBuild=false -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
+
+      - name: Verify Noble.Crypto wwwroot exists
+        run: ls -la BlazorPRF.Noble.Crypto/wwwroot/
+
+      - name: Build BC.Crypto (no pack)
+        run: dotnet build BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj -c Release -p:GeneratePackageOnBuild=false -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
+
+      - name: Verify BC.Crypto wwwroot exists
+        run: ls -la BlazorPRF.BC.Crypto/wwwroot/
+
+      - name: Build Wasm.Crypto (no pack)
+        run: dotnet build BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj -c Release -p:GeneratePackageOnBuild=false -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
+
+      - name: Build Server.Crypto (no pack)
+        run: dotnet build BaseCrypto/BlazorPRF.Server.Crypto/BlazorPRF.Server.Crypto.csproj -c Release -p:GeneratePackageOnBuild=false -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
+
+      # Now pack the crypto packages (static web assets should be discovered)
+      - name: Pack Noble.Crypto
+        run: dotnet pack BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj -c Release --no-build -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
 
       - name: Verify Noble.Crypto package contents
         run: unzip -l .nuget/BlazorPRF.Noble.Crypto.${{ steps.version.outputs.VERSION }}.nupkg
 
-      - name: Build BC.Crypto
-        run: dotnet build BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj -c Release -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
+      - name: Pack BC.Crypto
+        run: dotnet pack BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj -c Release --no-build -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
 
-      - name: Build Wasm.Crypto
-        run: dotnet build BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj -c Release -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
+      - name: Pack Wasm.Crypto
+        run: dotnet pack BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj -c Release --no-build -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
 
-      - name: Build Server.Crypto
-        run: dotnet build BaseCrypto/BlazorPRF.Server.Crypto/BlazorPRF.Server.Crypto.csproj -c Release -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
+      - name: Pack Server.Crypto
+        run: dotnet pack BaseCrypto/BlazorPRF.Server.Crypto/BlazorPRF.Server.Crypto.csproj -c Release --no-build -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
 
       - name: List local NuGet packages
         run: ls -la .nuget/
@@ -73,12 +92,18 @@ jobs:
       - name: Clear all NuGet caches
         run: dotnet nuget locals all --clear
 
-      # Build UI with both crypto engine flavors (GeneratePackageOnBuild creates packages)
-      - name: Build UI (Noble)
-        run: dotnet build BlazorPRF.UI/BlazorPRF.UI.csproj -c Release -p:BlazorPRFCryptoEngine=Noble -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
+      # Build UI with both crypto engine flavors (no pack first)
+      - name: Build UI (Noble, no pack)
+        run: dotnet build BlazorPRF.UI/BlazorPRF.UI.csproj -c Release -p:GeneratePackageOnBuild=false -p:BlazorPRFCryptoEngine=Noble -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
 
-      - name: Build UI (BC)
-        run: dotnet build BlazorPRF.UI/BlazorPRF.UI.csproj -c Release -p:BlazorPRFCryptoEngine=BC -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
+      - name: Pack UI (Noble)
+        run: dotnet pack BlazorPRF.UI/BlazorPRF.UI.csproj -c Release --no-build -p:BlazorPRFCryptoEngine=Noble -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
+
+      - name: Build UI (BC, no pack)
+        run: dotnet build BlazorPRF.UI/BlazorPRF.UI.csproj -c Release -p:GeneratePackageOnBuild=false -p:BlazorPRFCryptoEngine=BC -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
+
+      - name: Pack UI (BC)
+        run: dotnet pack BlazorPRF.UI/BlazorPRF.UI.csproj -c Release --no-build -p:BlazorPRFCryptoEngine=BC -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
 
       - name: List all NuGet packages
         run: ls -la .nuget/
