@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
     <!-- Reusable persistence layer for PRF-based WebAssembly apps -->
@@ -10,7 +10,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components" Version="10.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.1" />
+    <PackageReference Include="RxBlazorV2.MudBlazor" Version="1.0.6" />
     <PackageReference Include="SqliteWasmBlazor" Version="0.7.0-pre" />
     <PackageReference Include="BlazorPRF.$(BlazorPRFCryptoEngine).Crypto" Version="$(BlazorPRFVersion)" Condition="'$(Configuration)' == 'Release'"/>
   </ItemGroup>

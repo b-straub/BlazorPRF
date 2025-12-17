@@ -4,6 +4,7 @@ using BlazorPRF.Persistence.Extensions;
 using BlazorPRF.Persistence.Services;
 using BlazorPRF.Sample;
 using BlazorPRF.Sample.Services;
+using BlazorPRF.Persistence.Models;
 using BlazorPRF.UI.Models;
 using BlazorPRF.UI.Services;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -30,6 +31,9 @@ builder.Services.AddSingleton<ICredentialHintProvider, CombinedCredentialHintPro
 #pragma warning disable CA1416
 builder.Services.AddBlazorPrf(builder.Configuration);
 #pragma warning restore CA1416
+
+// Add BlazorPRF.Persistence observable models (DbInitModel)
+BlazorPRF.Persistence.ObservableModels.Initialize(builder.Services);
 
 // Add BlazorPRF.UI observable models
 BlazorPRF.UI.ObservableModels.Initialize(builder.Services);

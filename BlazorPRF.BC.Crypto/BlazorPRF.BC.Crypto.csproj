@@ -58,16 +58,16 @@
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
   </ItemGroup>
 
-  <!-- TypeScript Build Integration -->
+  <!-- TypeScript Build Integration - must run before static web assets are discovered -->
   <Target Name="NpmInstall" BeforeTargets="BuildTypeScriptDebug;BuildTypeScriptRelease">
     <Exec WorkingDirectory="TypeScript" Command="npm install" Condition="Exists('TypeScript/package.json') And !Exists('TypeScript/node_modules')" />
   </Target>
 
-  <Target Name="BuildTypeScriptDebug" BeforeTargets="BeforeCompile;ResolveStaticWebAssetsInputs" Condition="'$(Configuration)' == 'Debug'">
+  <Target Name="BuildTypeScriptDebug" BeforeTargets="PrepareForBuild;ResolveStaticWebAssetsConfiguration" Condition="'$(Configuration)' == 'Debug'">
     <Exec WorkingDirectory="TypeScript" Command="npm run build" Condition="Exists('TypeScript/package.json')" />
   </Target>
 
-  <Target Name="BuildTypeScriptRelease" BeforeTargets="BeforeCompile;ResolveStaticWebAssetsInputs" Condition="'$(Configuration)' == 'Release'">
+  <Target Name="BuildTypeScriptRelease" BeforeTargets="PrepareForBuild;ResolveStaticWebAssetsConfiguration" Condition="'$(Configuration)' == 'Release'">
     <Exec WorkingDirectory="TypeScript" Command="npm run build:release" Condition="Exists('TypeScript/package.json')" />
   </Target>
 
