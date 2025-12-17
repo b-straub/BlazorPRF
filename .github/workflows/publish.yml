@@ -48,29 +48,30 @@ jobs:
         working-directory: BaseCrypto/BlazorPRF.Wasm.Crypto/TypeScript
         run: npm install
 
-      # Build all projects first (without packing) to ensure TypeScript is compiled
+      # Build TypeScript BEFORE any dotnet commands (MSBuild discovers static web assets at evaluation time)
+      - name: Build TypeScript (Noble.Crypto)
+        working-directory: BlazorPRF.Noble.Crypto/TypeScript
+        run: npm run build:release
+
+      - name: Build TypeScript (BC.Crypto)
+        working-directory: BlazorPRF.BC.Crypto/TypeScript
+        run: npm run build:release
+
+      - name: Build TypeScript (Wasm.Crypto)
+        working-directory: BaseCrypto/BlazorPRF.Wasm.Crypto/TypeScript
+        run: npm run build:release
+
+      - name: Verify wwwroot folders exist
+        run: |
+          ls -la BlazorPRF.Noble.Crypto/wwwroot/
+          ls -la BlazorPRF.BC.Crypto/wwwroot/
+          ls -la BaseCrypto/BlazorPRF.Wasm.Crypto/wwwroot/
+
+      # Build Shared.Crypto first (dependency for other packages)
       - name: Build Shared.Crypto
         run: dotnet build BlazorPRF.Shared.Crypto/BlazorPRF.Shared.Crypto.csproj -c Release -p:GeneratePackageOnBuild=false -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
 
-      - name: Build Noble.Crypto (no pack)
-        run: dotnet build BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj -c Release -p:GeneratePackageOnBuild=false -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
-
-      - name: Verify Noble.Crypto wwwroot exists
-        run: ls -la BlazorPRF.Noble.Crypto/wwwroot/
-
-      - name: Build BC.Crypto (no pack)
-        run: dotnet build BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj -c Release -p:GeneratePackageOnBuild=false -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
-
-      - name: Verify BC.Crypto wwwroot exists
-        run: ls -la BlazorPRF.BC.Crypto/wwwroot/
-
-      - name: Build Wasm.Crypto (no pack)
-        run: dotnet build BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj -c Release -p:GeneratePackageOnBuild=false -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
-
-      - name: Build Server.Crypto (no pack)
-        run: dotnet build BaseCrypto/BlazorPRF.Server.Crypto/BlazorPRF.Server.Crypto.csproj -c Release -p:GeneratePackageOnBuild=false -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
-
-      # Now pack the crypto packages (pack needs to run build targets for static web assets)
+      # Pack crypto packages (wwwroot already exists, static web assets will be discovered)
       - name: Pack Noble.Crypto
         run: dotnet pack BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj -c Release -p:BlazorPRFVersion=${{ steps.version.outputs.VERSION }}
 
