@@ -27,8 +27,7 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
         _defaultAlgorithm = options.Value.DefaultAlgorithm;
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<EncryptedMessage>> EncryptAsync(string message, string recipientPublicKey)
+       public async ValueTask<PrfResult<EncryptedMessage>> EncryptAsync(string message, string recipientPublicKey)
     {
         ArgumentException.ThrowIfNullOrEmpty(message);
         ArgumentException.ThrowIfNullOrEmpty(recipientPublicKey);
@@ -37,8 +36,7 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
         return await _cryptoProvider.EncryptAsymmetricAsync(message, recipientPublicKey, _defaultAlgorithm);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<string>> DecryptAsync(EncryptedMessage encrypted, string salt)
+       public async ValueTask<PrfResult<string>> DecryptAsync(EncryptedMessage encrypted, string salt)
     {
         ArgumentNullException.ThrowIfNull(encrypted);
         ArgumentException.ThrowIfNullOrEmpty(salt);
@@ -47,7 +45,7 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
         var privateKey = _keyCache.TryGet(cacheKey);
         if (privateKey is null)
         {
-            return PrfResult<string>.Fail(PrfErrorCode.KeyDerivationFailed);
+            return PrfResult<string>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED);
         }
 
         // Use algorithm from message if available, otherwise use default

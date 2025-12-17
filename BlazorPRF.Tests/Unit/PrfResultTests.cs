@@ -21,12 +21,12 @@ public class PrfResultTests
     public void Fail_CreatesFailedResult()
     {
         // Act
-        var result = PrfResult<string>.Fail(PrfErrorCode.DecryptionFailed);
+        var result = PrfResult<string>.Fail(PrfErrorCode.DECRYPTION_FAILED);
 
         // Assert
         Assert.False(result.Success);
         Assert.Null(result.Value);
-        Assert.Equal(PrfErrorCode.DecryptionFailed, result.ErrorCode);
+        Assert.Equal(PrfErrorCode.DECRYPTION_FAILED, result.ErrorCode);
         Assert.NotNull(result.Error);
         Assert.Contains("Decryption failed", result.Error);
     }
@@ -62,13 +62,13 @@ public class PrfResultTests
     }
 
     [Theory]
-    [InlineData(PrfErrorCode.Unknown, "unknown error")]
-    [InlineData(PrfErrorCode.PrfNotSupported, "PRF extension")]
-    [InlineData(PrfErrorCode.AuthenticationTagMismatch, "wrong key")]
-    [InlineData(PrfErrorCode.KeyDerivationFailed, "Key derivation failed")]
-    [InlineData(PrfErrorCode.EncryptionFailed, "Encryption failed")]
-    [InlineData(PrfErrorCode.DecryptionFailed, "Decryption failed")]
-    [InlineData(PrfErrorCode.RegistrationFailed, "registration failed")]
+    [InlineData(PrfErrorCode.UNKNOWN, "unknown error")]
+    [InlineData(PrfErrorCode.PRF_NOT_SUPPORTED, "PRF extension")]
+    [InlineData(PrfErrorCode.AUTHENTICATION_TAG_MISMATCH, "wrong key")]
+    [InlineData(PrfErrorCode.KEY_DERIVATION_FAILED, "Key derivation failed")]
+    [InlineData(PrfErrorCode.ENCRYPTION_FAILED, "Encryption failed")]
+    [InlineData(PrfErrorCode.DECRYPTION_FAILED, "Decryption failed")]
+    [InlineData(PrfErrorCode.REGISTRATION_FAILED, "registration failed")]
     public void ErrorMessages_ContainExpectedText(PrfErrorCode errorCode, string expectedSubstring)
     {
         // Act

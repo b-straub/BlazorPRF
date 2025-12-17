@@ -227,7 +227,7 @@
             }
 
             // Parse the JSON response
-            var response = System.Text.Json.JsonSerializer.Deserialize<InviteAcceptanceResponse>(json);
+            var response = System.Text.Json.JsonSerializer.Deserialize(json, InviteJsonContext.Default.InviteAcceptanceResponse);
 
             if (response is null)
             {
@@ -236,18 +236,18 @@
             }
 
             // Validate required fields
-            if (response.signedInvite is null ||
-                string.IsNullOrEmpty(response.signedInvite.inviteCode) ||
-                string.IsNullOrEmpty(response.signedInvite.inviterSignature) ||
-                string.IsNullOrEmpty(response.signedInvite.inviterEd25519PublicKey))
+            if (response.SignedInvite is null ||
+                string.IsNullOrEmpty(response.SignedInvite.InviteCode) ||
+                string.IsNullOrEmpty(response.SignedInvite.InviterSignature) ||
+                string.IsNullOrEmpty(response.SignedInvite.InviterEd25519PublicKey))
             {
                 _errorMessage = "Missing signed invite data";
                 return;
             }
 
-            if (string.IsNullOrEmpty(response.message) ||
-                string.IsNullOrEmpty(response.signature) ||
-                string.IsNullOrEmpty(response.ed25519PublicKey))
+            if (string.IsNullOrEmpty(response.Message) ||
+                string.IsNullOrEmpty(response.Signature) ||
+                string.IsNullOrEmpty(response.Ed25519PublicKey))
             {
                 _errorMessage = "Missing required fields: message, signature, or ed25519PublicKey";
                 return;
@@ -255,26 +255,26 @@
 
             // Step 1: Verify the INVITER's signature (proves this is YOUR invite)
             _inviterSignatureValid = await SigningService.VerifyAsync(
-                response.signedInvite.inviteCode,
-                response.signedInvite.inviterSignature,
-                response.signedInvite.inviterEd25519PublicKey);
+                response.SignedInvite.InviteCode,
+                response.SignedInvite.InviterSignature,
+                response.SignedInvite.InviterEd25519PublicKey);
 
             // Step 2: Verify the ACCEPTER's signature (proves they control their keys)
             _accepterSignatureValid = await SigningService.VerifyAsync(
-                response.message,
-                response.signature,
-                response.ed25519PublicKey);
+                response.Message,
+                response.Signature,
+                response.Ed25519PublicKey);
 
             _verificationComplete = true;
 
             // Only extract user info if both signatures are valid
             if (_inviterSignatureValid && _accepterSignatureValid)
             {
-                _verifiedInviteCode = response.signedInvite.inviteCode;
-                _verifiedUsername = response.username;
-                _verifiedEmail = response.email;
-                _verifiedX25519PublicKey = response.x25519PublicKey;
-                _verifiedEd25519PublicKey = response.ed25519PublicKey;
+                _verifiedInviteCode = response.SignedInvite.InviteCode;
+                _verifiedUsername = response.Username;
+                _verifiedEmail = response.Email;
+                _verifiedX25519PublicKey = response.X25519PublicKey;
+                _verifiedEd25519PublicKey = response.Ed25519PublicKey;
             }
         }
         catch (System.Text.Json.JsonException)
@@ -325,22 +325,4 @@
         _verifiedEd25519PublicKey = null;
     }
 
-    private sealed class SignedInvite
-    {
-        public string? inviteCode { get; set; }
-        public string? inviterSignature { get; set; }
-        public string? inviterEd25519PublicKey { get; set; }
-    }
-
-    private sealed class InviteAcceptanceResponse
-    {
-        public SignedInvite? signedInvite { get; set; }
-        public string? username { get; set; }
-        public string? email { get; set; }
-        public string? x25519PublicKey { get; set; }
-        public string? ed25519PublicKey { get; set; }
-        public long timestamp { get; set; }
-        public string? message { get; set; }
-        public string? signature { get; set; }
-    }
 }

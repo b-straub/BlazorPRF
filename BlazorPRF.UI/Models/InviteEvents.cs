@@ -42,6 +42,21 @@ public sealed class InviteAcceptedEventArgs
     public required string InviterEd25519PublicKey { get; init; }
 
     /// <summary>
+    /// The inviter's X25519 public key (for encryption).
+    /// </summary>
+    public required string InviterX25519PublicKey { get; init; }
+
+    /// <summary>
+    /// The inviter's display name.
+    /// </summary>
+    public required string InviterUsername { get; init; }
+
+    /// <summary>
+    /// The inviter's email address.
+    /// </summary>
+    public required string InviterEmail { get; init; }
+
+    /// <summary>
     /// The accepter's username.
     /// </summary>
     public required string Username { get; init; }

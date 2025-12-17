@@ -19,16 +19,14 @@ public sealed class SecureKeyCache : ISecureKeyCache
     private readonly Subject<string> _keyExpiredSubject = new();
     private bool _disposed;
 
-    /// <inheritdoc />
-    public Observable<string> KeyExpired => _keyExpiredSubject;
+       public Observable<string> KeyExpired => _keyExpiredSubject;
 
     public SecureKeyCache(IOptions<KeyCacheOptions> options)
     {
         _options = options.Value;
     }
 
-    /// <inheritdoc />
-    public void Store(string keyId, byte[] key)
+       public void Store(string keyId, byte[] key)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrEmpty(keyId);
@@ -44,9 +42,9 @@ public sealed class SecureKeyCache : ISecureKeyCache
         // For Strategy.None: no TTL timer - key is removed immediately after use
         TimeSpan? ttl = _options.Strategy switch
         {
-            KeyCacheStrategy.None => null, // No timer - removed after single use
-            KeyCacheStrategy.Session => null, // No expiration (until page refresh)
-            KeyCacheStrategy.Timed => TimeSpan.FromMinutes(_options.TtlMinutes),
+            KeyCacheStrategy.NONE => null, // No timer - removed after single use
+            KeyCacheStrategy.SESSION => null, // No expiration (until page refresh)
+            KeyCacheStrategy.TIMED => TimeSpan.FromMinutes(_options.TtlMinutes),
             _ => TimeSpan.FromMinutes(15) // Default
         };
 
@@ -62,8 +60,7 @@ public sealed class SecureKeyCache : ISecureKeyCache
         _cache[keyId] = entry;
     }
 
-    /// <inheritdoc />
-    public byte[]? TryGet(string keyId)
+       public byte[]? TryGet(string keyId)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -94,8 +91,7 @@ public sealed class SecureKeyCache : ISecureKeyCache
         }
     }
 
-    /// <inheritdoc />
-    public bool UseKey(string keyId, ReadOnlySpanAction<byte> action)
+       public bool UseKey(string keyId, ReadOnlySpanAction<byte> action)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(action);
@@ -121,7 +117,7 @@ public sealed class SecureKeyCache : ISecureKeyCache
             entry.UseKey(action);
 
             // For Strategy.None: remove key immediately after single use (no event)
-            if (_options.Strategy == KeyCacheStrategy.None)
+            if (_options.Strategy == KeyCacheStrategy.NONE)
             {
                 Remove(keyId);
             }
@@ -135,8 +131,7 @@ public sealed class SecureKeyCache : ISecureKeyCache
         }
     }
 
-    /// <inheritdoc />
-    public bool UseKey<TResult>(string keyId, ReadOnlySpanFunc<byte, TResult> func, out TResult? result)
+       public bool UseKey<TResult>(string keyId, ReadOnlySpanFunc<byte, TResult> func, out TResult? result)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(func);
@@ -166,7 +161,7 @@ public sealed class SecureKeyCache : ISecureKeyCache
             result = capturedResult;
 
             // For Strategy.None: remove key immediately after single use (no event)
-            if (_options.Strategy == KeyCacheStrategy.None)
+            if (_options.Strategy == KeyCacheStrategy.NONE)
             {
                 Remove(keyId);
             }
@@ -180,8 +175,7 @@ public sealed class SecureKeyCache : ISecureKeyCache
         }
     }
 
-    /// <inheritdoc />
-    public bool Contains(string keyId)
+       public bool Contains(string keyId)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -204,7 +198,10 @@ public sealed class SecureKeyCache : ISecureKeyCache
         return true;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Remove a specific key from the cache and zero its memory.
+    /// </summary>
+    /// <param name="keyId">The key identifier to remove</param>
     public void Remove(string keyId)
     {
         if (string.IsNullOrEmpty(keyId))
@@ -218,8 +215,7 @@ public sealed class SecureKeyCache : ISecureKeyCache
         }
     }
 
-    /// <inheritdoc />
-    public void Clear()
+       public void Clear()
     {
         foreach (var keyId in _cache.Keys.ToList())
         {
@@ -230,7 +226,9 @@ public sealed class SecureKeyCache : ISecureKeyCache
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Remove all expired keys from the cache.
+    /// </summary>
     public void CleanupExpired()
     {
         if (_disposed)
@@ -261,7 +259,9 @@ public sealed class SecureKeyCache : ISecureKeyCache
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Dispose the cache and securely zero all stored keys.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed)

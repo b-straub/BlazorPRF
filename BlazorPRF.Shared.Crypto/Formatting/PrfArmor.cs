@@ -337,7 +337,9 @@ public static partial class PrfArmor
         public string? Created { get; init; }
     }
 
-    [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonSourceGenerationOptions(
+        JsonSerializerDefaults.Web,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonSerializable(typeof(PublicKeyPayload))]
     private partial class PayloadJsonContext : JsonSerializerContext;
 }

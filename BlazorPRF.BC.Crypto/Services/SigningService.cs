@@ -21,8 +21,7 @@ public sealed class SigningService : ISigningService
         _publicKeyProvider = publicKeyProvider;
     }
 
-    /// <inheritdoc />
-    public ValueTask<PrfResult<string>> SignAsync(string message, string keyIdentifier)
+       public ValueTask<PrfResult<string>> SignAsync(string message, string keyIdentifier)
     {
         ArgumentException.ThrowIfNullOrEmpty(message);
         ArgumentException.ThrowIfNullOrEmpty(keyIdentifier);
@@ -32,14 +31,13 @@ public sealed class SigningService : ISigningService
         // Use the Ed25519 private key directly from unmanaged memory
         if (!_keyCache.UseKey(cacheKey, key => CryptoOperations.Sign(message, key), out var result))
         {
-            return ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.KeyDerivationFailed));
+            return ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED));
         }
 
-        return ValueTask.FromResult(result ?? PrfResult<string>.Fail(PrfErrorCode.SigningFailed));
+        return ValueTask.FromResult(result ?? PrfResult<string>.Fail(PrfErrorCode.SIGNING_FAILED));
     }
 
-    /// <inheritdoc />
-    public ValueTask<bool> VerifyAsync(string message, string signature, string publicKey)
+       public ValueTask<bool> VerifyAsync(string message, string signature, string publicKey)
     {
         ArgumentException.ThrowIfNullOrEmpty(message);
         ArgumentException.ThrowIfNullOrEmpty(signature);
@@ -50,8 +48,7 @@ public sealed class SigningService : ISigningService
         return ValueTask.FromResult(isValid);
     }
 
-    /// <inheritdoc />
-    public ValueTask<PrfResult<SignedMessage>> CreateSignedMessageAsync(string message, string keyIdentifier)
+       public ValueTask<PrfResult<SignedMessage>> CreateSignedMessageAsync(string message, string keyIdentifier)
     {
         ArgumentException.ThrowIfNullOrEmpty(message);
         ArgumentException.ThrowIfNullOrEmpty(keyIdentifier);
@@ -60,7 +57,7 @@ public sealed class SigningService : ISigningService
         var publicKey = _publicKeyProvider.GetEd25519PublicKey(keyIdentifier);
         if (publicKey is null)
         {
-            return ValueTask.FromResult(PrfResult<SignedMessage>.Fail(PrfErrorCode.KeyDerivationFailed));
+            return ValueTask.FromResult(PrfResult<SignedMessage>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED));
         }
 
         var cacheKey = GetCacheKey(keyIdentifier);
@@ -68,14 +65,13 @@ public sealed class SigningService : ISigningService
         // Use the Ed25519 private key directly from unmanaged memory
         if (!_keyCache.UseKey(cacheKey, key => CryptoOperations.CreateSignedMessage(message, key, publicKey), out var result))
         {
-            return ValueTask.FromResult(PrfResult<SignedMessage>.Fail(PrfErrorCode.KeyDerivationFailed));
+            return ValueTask.FromResult(PrfResult<SignedMessage>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED));
         }
 
-        return ValueTask.FromResult(result ?? PrfResult<SignedMessage>.Fail(PrfErrorCode.SigningFailed));
+        return ValueTask.FromResult(result ?? PrfResult<SignedMessage>.Fail(PrfErrorCode.SIGNING_FAILED));
     }
 
-    /// <inheritdoc />
-    public ValueTask<bool> VerifySignedMessageAsync(SignedMessage signedMessage, int maxAgeSeconds = 300)
+       public ValueTask<bool> VerifySignedMessageAsync(SignedMessage signedMessage, int maxAgeSeconds = 300)
     {
         ArgumentNullException.ThrowIfNull(signedMessage);
 

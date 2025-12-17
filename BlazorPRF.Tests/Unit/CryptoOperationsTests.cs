@@ -72,12 +72,13 @@ public class CryptoOperationsTests
         // Act
         var encryptResult = CryptoOperations.EncryptSymmetric(plaintext, keyPair1.PrivateKeyBase64);
         Assert.True(encryptResult.Success);
+        Assert.NotNull(encryptResult.Value);
 
-        var decryptResult = CryptoOperations.DecryptSymmetric(encryptResult.Value!, keyPair2.PrivateKeyBase64);
+        var decryptResult = CryptoOperations.DecryptSymmetric(encryptResult.Value, keyPair2.PrivateKeyBase64);
 
         // Assert
         Assert.False(decryptResult.Success);
-        Assert.Equal(PrfErrorCode.AuthenticationTagMismatch, decryptResult.ErrorCode);
+        Assert.Equal(PrfErrorCode.AUTHENTICATION_TAG_MISMATCH, decryptResult.ErrorCode);
     }
 
     [Fact]
@@ -115,12 +116,13 @@ public class CryptoOperationsTests
         // Act
         var encryptResult = CryptoOperations.EncryptAsymmetric(plaintext, recipientKeyPair.PublicKeyBase64);
         Assert.True(encryptResult.Success);
+        Assert.NotNull(encryptResult.Value);
 
-        var decryptResult = CryptoOperations.DecryptAsymmetric(encryptResult.Value!, wrongKeyPair.PrivateKeyBase64);
+        var decryptResult = CryptoOperations.DecryptAsymmetric(encryptResult.Value, wrongKeyPair.PrivateKeyBase64);
 
         // Assert
         Assert.False(decryptResult.Success);
-        Assert.Equal(PrfErrorCode.AuthenticationTagMismatch, decryptResult.ErrorCode);
+        Assert.Equal(PrfErrorCode.AUTHENTICATION_TAG_MISMATCH, decryptResult.ErrorCode);
     }
 
     [Fact]
@@ -134,7 +136,8 @@ public class CryptoOperationsTests
 
         // Assert
         Assert.True(encryptResult.Success);
-        var msg = encryptResult.Value!;
+        Assert.NotNull(encryptResult.Value);
+        var msg = encryptResult.Value;
 
         // All fields should be valid base64
         Assert.NotNull(Convert.FromBase64String(msg.EphemeralPublicKey));
@@ -239,8 +242,9 @@ public class CryptoOperationsTests
         // Act
         var signResult = CryptoOperations.Sign(message, keyPair.PrivateKeyBase64);
         Assert.True(signResult.Success);
+        Assert.NotNull(signResult.Value);
 
-        var isValid = CryptoOperations.Verify(message, signResult.Value!, keyPair.PublicKeyBase64);
+        var isValid = CryptoOperations.Verify(message, signResult.Value, keyPair.PublicKeyBase64);
 
         // Assert
         Assert.True(isValid);
@@ -257,8 +261,9 @@ public class CryptoOperationsTests
         // Act
         var signResult = CryptoOperations.Sign(originalMessage, keyPair.PrivateKeyBase64);
         Assert.True(signResult.Success);
+        Assert.NotNull(signResult.Value);
 
-        var isValid = CryptoOperations.Verify(tamperedMessage, signResult.Value!, keyPair.PublicKeyBase64);
+        var isValid = CryptoOperations.Verify(tamperedMessage, signResult.Value, keyPair.PublicKeyBase64);
 
         // Assert
         Assert.False(isValid);
@@ -275,8 +280,9 @@ public class CryptoOperationsTests
         // Act
         var signResult = CryptoOperations.Sign(message, keyPair1.PrivateKeyBase64);
         Assert.True(signResult.Success);
+        Assert.NotNull(signResult.Value);
 
-        var isValid = CryptoOperations.Verify(message, signResult.Value!, keyPair2.PublicKeyBase64);
+        var isValid = CryptoOperations.Verify(message, signResult.Value, keyPair2.PublicKeyBase64);
 
         // Assert
         Assert.False(isValid);
@@ -333,16 +339,18 @@ public class CryptoOperationsTests
         // Act & Assert - X25519 encryption works
         var encryptResult = CryptoOperations.EncryptAsymmetric(message, dualKeys.X25519PublicKey);
         Assert.True(encryptResult.Success);
+        Assert.NotNull(encryptResult.Value);
 
-        var decryptResult = CryptoOperations.DecryptAsymmetric(encryptResult.Value!, dualKeys.X25519PrivateKey);
+        var decryptResult = CryptoOperations.DecryptAsymmetric(encryptResult.Value, dualKeys.X25519PrivateKey);
         Assert.True(decryptResult.Success);
         Assert.Equal(message, decryptResult.Value);
 
         // Act & Assert - Ed25519 signing works
         var signResult = CryptoOperations.Sign(message, dualKeys.Ed25519PrivateKey);
         Assert.True(signResult.Success);
+        Assert.NotNull(signResult.Value);
 
-        var isValid = CryptoOperations.Verify(message, signResult.Value!, dualKeys.Ed25519PublicKey);
+        var isValid = CryptoOperations.Verify(message, signResult.Value, dualKeys.Ed25519PublicKey);
         Assert.True(isValid);
     }
 
@@ -374,7 +382,8 @@ public class CryptoOperationsTests
 
         // Assert
         Assert.True(result.Success);
-        Assert.Equal(message, result.Value!.Message);
+        Assert.NotNull(result.Value);
+        Assert.Equal(message, result.Value.Message);
         Assert.NotNull(result.Value.Signature);
         Assert.Equal(keyPair.PublicKeyBase64, result.Value.PublicKey);
         Assert.True(result.Value.TimestampUnix <= (long)(DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds);
@@ -388,9 +397,10 @@ public class CryptoOperationsTests
         const string message = "Token data";
         var signedMessage = CryptoOperations.CreateSignedMessage(message, keyPair.PrivateKeyBase64, keyPair.PublicKeyBase64);
         Assert.True(signedMessage.Success);
+        Assert.NotNull(signedMessage.Value);
 
         // Act
-        var isValid = CryptoOperations.VerifySignedMessage(signedMessage.Value!);
+        var isValid = CryptoOperations.VerifySignedMessage(signedMessage.Value);
 
         // Assert
         Assert.True(isValid);
@@ -404,9 +414,10 @@ public class CryptoOperationsTests
         const string message = "Token data";
         var signedMessage = CryptoOperations.CreateSignedMessage(message, keyPair.PrivateKeyBase64, keyPair.PublicKeyBase64);
         Assert.True(signedMessage.Success);
+        Assert.NotNull(signedMessage.Value);
 
         // Tamper with the message
-        var tamperedMessage = signedMessage.Value! with { Message = "Tampered data" };
+        var tamperedMessage = signedMessage.Value with { Message = "Tampered data" };
 
         // Act
         var isValid = CryptoOperations.VerifySignedMessage(tamperedMessage);

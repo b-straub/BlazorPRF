@@ -37,7 +37,7 @@ public interface ICryptoProvider
     ValueTask<PrfResult<SymmetricEncryptedMessage>> EncryptSymmetricAsync(
         string plaintext,
         ReadOnlyMemory<byte> key,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AesGcm);
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM);
 
     /// <summary>
     /// Decrypts a message using symmetric encryption.
@@ -49,7 +49,7 @@ public interface ICryptoProvider
     ValueTask<PrfResult<string>> DecryptSymmetricAsync(
         SymmetricEncryptedMessage encrypted,
         ReadOnlyMemory<byte> key,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AesGcm);
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM);
 
     // ============================================================
     // ASYMMETRIC ENCRYPTION (ECIES: X25519 + symmetric cipher)
@@ -65,7 +65,7 @@ public interface ICryptoProvider
     ValueTask<PrfResult<EncryptedMessage>> EncryptAsymmetricAsync(
         string plaintext,
         string recipientPublicKeyBase64,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AesGcm);
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM);
 
     /// <summary>
     /// Decrypts a message using ECIES (X25519 key agreement + symmetric cipher).
@@ -77,7 +77,7 @@ public interface ICryptoProvider
     ValueTask<PrfResult<string>> DecryptAsymmetricAsync(
         EncryptedMessage encrypted,
         ReadOnlyMemory<byte> privateKey,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AesGcm);
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM);
 
     // ============================================================
     // ED25519 DIGITAL SIGNATURES
@@ -157,14 +157,14 @@ public interface ICryptoProvider
     /// <param name="ttlMs">Time-to-live in milliseconds, null for no expiration</param>
     /// <returns>Public keys (X25519 and Ed25519)</returns>
     ValueTask<PrfResult<DualKeyPair>> StoreKeysAsync(string keyId, ReadOnlyMemory<byte> prfSeed, int? ttlMs) =>
-        ValueTask.FromResult(PrfResult<DualKeyPair>.Fail(PrfErrorCode.NotSupported));
+        ValueTask.FromResult(PrfResult<DualKeyPair>.Fail(PrfErrorCode.NOT_SUPPORTED));
 
     /// <summary>
     /// Gets the public keys for a cached key set.
     /// Only available when <see cref="SupportsKeyIdOperations"/> is true.
     /// </summary>
     ValueTask<PrfResult<DualKeyPair>> GetPublicKeysAsync(string keyId) =>
-        ValueTask.FromResult(PrfResult<DualKeyPair>.Fail(PrfErrorCode.NotSupported));
+        ValueTask.FromResult(PrfResult<DualKeyPair>.Fail(PrfErrorCode.NOT_SUPPORTED));
 
     /// <summary>
     /// Checks if keys are cached for the given keyId.
@@ -183,7 +183,7 @@ public interface ICryptoProvider
     /// Only available when <see cref="SupportsKeyIdOperations"/> is true.
     /// </summary>
     ValueTask<PrfResult<string>> SignWithKeyIdAsync(string message, string keyId) =>
-        ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.NotSupported));
+        ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.NOT_SUPPORTED));
 
     /// <summary>
     /// Encrypts using cached symmetric key.
@@ -192,8 +192,8 @@ public interface ICryptoProvider
     ValueTask<PrfResult<SymmetricEncryptedMessage>> EncryptSymmetricWithKeyIdAsync(
         string plaintext,
         string keyId,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AesGcm) =>
-        ValueTask.FromResult(PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.NotSupported));
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM) =>
+        ValueTask.FromResult(PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.NOT_SUPPORTED));
 
     /// <summary>
     /// Decrypts using cached symmetric key.
@@ -202,8 +202,8 @@ public interface ICryptoProvider
     ValueTask<PrfResult<string>> DecryptSymmetricWithKeyIdAsync(
         SymmetricEncryptedMessage encrypted,
         string keyId,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AesGcm) =>
-        ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.NotSupported));
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM) =>
+        ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.NOT_SUPPORTED));
 
     /// <summary>
     /// Decrypts asymmetrically using cached X25519 private key.
@@ -212,6 +212,6 @@ public interface ICryptoProvider
     ValueTask<PrfResult<string>> DecryptAsymmetricWithKeyIdAsync(
         EncryptedMessage encrypted,
         string keyId,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AesGcm) =>
-        ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.NotSupported));
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM) =>
+        ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.NOT_SUPPORTED));
 }

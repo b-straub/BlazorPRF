@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace BlazorPRF.Persistence.Data.Models;
 
 /// <summary>
@@ -15,18 +17,21 @@ public sealed class TrustedContact
     /// Encrypted JSON containing username, email, and comment.
     /// Encrypted with PRF-derived symmetric key to demonstrate app-level encryption.
     /// </summary>
+    [MaxLength(4096)]
     public required string EncryptedUserData { get; set; }
 
     /// <summary>
     /// X25519 public key (Base64) for asymmetric encryption.
     /// Not sensitive - can be stored in plaintext.
     /// </summary>
+    [MaxLength(64)]
     public required string X25519PublicKey { get; set; }
 
     /// <summary>
     /// Ed25519 public key (Base64) for signature verification.
     /// Not sensitive - can be stored in plaintext.
     /// </summary>
+    [MaxLength(64)]
     public required string Ed25519PublicKey { get; set; }
 
     /// <summary>

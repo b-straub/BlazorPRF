@@ -25,8 +25,7 @@ public sealed class SigningService : ISigningService
         _cryptoProvider = cryptoProvider;
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<string>> SignAsync(string message, string keyIdentifier)
+       public async ValueTask<PrfResult<string>> SignAsync(string message, string keyIdentifier)
     {
         ArgumentException.ThrowIfNullOrEmpty(message);
         ArgumentException.ThrowIfNullOrEmpty(keyIdentifier);
@@ -35,7 +34,7 @@ public sealed class SigningService : ISigningService
         var privateKey = _keyCache.TryGet(cacheKey);
         if (privateKey is null)
         {
-            return PrfResult<string>.Fail(PrfErrorCode.KeyDerivationFailed);
+            return PrfResult<string>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED);
         }
 
         var result = await _cryptoProvider.SignAsync(message, privateKey);
@@ -43,8 +42,7 @@ public sealed class SigningService : ISigningService
         return result;
     }
 
-    /// <inheritdoc />
-    public async ValueTask<bool> VerifyAsync(string message, string signature, string publicKey)
+       public async ValueTask<bool> VerifyAsync(string message, string signature, string publicKey)
     {
         ArgumentException.ThrowIfNullOrEmpty(message);
         ArgumentException.ThrowIfNullOrEmpty(signature);
@@ -53,8 +51,7 @@ public sealed class SigningService : ISigningService
         return await _cryptoProvider.VerifyAsync(message, signature, publicKey);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<SignedMessage>> CreateSignedMessageAsync(string message, string keyIdentifier)
+       public async ValueTask<PrfResult<SignedMessage>> CreateSignedMessageAsync(string message, string keyIdentifier)
     {
         ArgumentException.ThrowIfNullOrEmpty(message);
         ArgumentException.ThrowIfNullOrEmpty(keyIdentifier);
@@ -63,14 +60,14 @@ public sealed class SigningService : ISigningService
         var publicKey = _publicKeyProvider.GetEd25519PublicKey(keyIdentifier);
         if (publicKey is null)
         {
-            return PrfResult<SignedMessage>.Fail(PrfErrorCode.KeyDerivationFailed);
+            return PrfResult<SignedMessage>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED);
         }
 
         var cacheKey = GetCacheKey(keyIdentifier);
         var privateKey = _keyCache.TryGet(cacheKey);
         if (privateKey is null)
         {
-            return PrfResult<SignedMessage>.Fail(PrfErrorCode.KeyDerivationFailed);
+            return PrfResult<SignedMessage>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED);
         }
 
         // Create timestamped message (Unix timestamp in seconds)
@@ -82,7 +79,7 @@ public sealed class SigningService : ISigningService
 
         if (!signResult.Success || signResult.Value is null)
         {
-            return PrfResult<SignedMessage>.Fail(signResult.ErrorCode ?? PrfErrorCode.SigningFailed);
+            return PrfResult<SignedMessage>.Fail(signResult.ErrorCode ?? PrfErrorCode.SIGNING_FAILED);
         }
 
         var signedMessage = new SignedMessage(message, signResult.Value, publicKey, timestampUnix);
@@ -90,8 +87,7 @@ public sealed class SigningService : ISigningService
         return PrfResult<SignedMessage>.Ok(signedMessage);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<bool> VerifySignedMessageAsync(SignedMessage signedMessage, int maxAgeSeconds = 300)
+       public async ValueTask<bool> VerifySignedMessageAsync(SignedMessage signedMessage, int maxAgeSeconds = 300)
     {
         ArgumentNullException.ThrowIfNull(signedMessage);
 

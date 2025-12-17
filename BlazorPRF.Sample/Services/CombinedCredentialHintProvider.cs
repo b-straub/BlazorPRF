@@ -40,7 +40,7 @@ public sealed class CombinedCredentialHintProvider : ICredentialHintProvider
                 try
                 {
                     var dbCredential = await _encryptionCredentialService.GetEncryptionCredentialAsync();
-                    if (dbCredential?.CredentialId == localHint.CredentialId && dbCredential?.Name is not null)
+                    if (dbCredential?.CredentialId == localHint.CredentialId && dbCredential.Name is not null)
                     {
                         // Enrich with name from DB
                         return localHint with { Metadata = new PublicKeyMetadata { Name = dbCredential.Name } };

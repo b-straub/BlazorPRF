@@ -18,8 +18,7 @@ public sealed class SettingsService : ISettingsService
         _dbContextFactory = dbContextFactory;
     }
 
-    /// <inheritdoc />
-    public async Task<T?> GetAsync<T>(string key, T? defaultValue = default)
+       public async Task<T?> GetAsync<T>(string key, T? defaultValue = default)
     {
         var value = await GetStringAsync(key);
 
@@ -38,23 +37,20 @@ public sealed class SettingsService : ISettingsService
         }
     }
 
-    /// <inheritdoc />
-    public async Task<string?> GetStringAsync(string key)
+       public async Task<string?> GetStringAsync(string key)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var setting = await db.AppSettings.FindAsync(key);
         return setting?.Value;
     }
 
-    /// <inheritdoc />
-    public async Task SetAsync<T>(string key, T value)
+       public async Task SetAsync<T>(string key, T value)
     {
         var json = JsonSerializer.Serialize(value);
         await SetStringAsync(key, json);
     }
 
-    /// <inheritdoc />
-    public async Task SetStringAsync(string key, string value)
+       public async Task SetStringAsync(string key, string value)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var setting = await db.AppSettings.FindAsync(key);
@@ -78,8 +74,7 @@ public sealed class SettingsService : ISettingsService
         await db.SaveChangesAsync();
     }
 
-    /// <inheritdoc />
-    public async Task<bool> DeleteAsync(string key)
+       public async Task<bool> DeleteAsync(string key)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var setting = await db.AppSettings.FindAsync(key);
@@ -95,15 +90,13 @@ public sealed class SettingsService : ISettingsService
         return true;
     }
 
-    /// <inheritdoc />
-    public async Task<bool> ExistsAsync(string key)
+       public async Task<bool> ExistsAsync(string key)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         return await db.AppSettings.AnyAsync(s => s.Key == key);
     }
 
-    /// <inheritdoc />
-    public async Task<Dictionary<string, string>> GetAllAsync()
+       public async Task<Dictionary<string, string>> GetAllAsync()
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         return await db.AppSettings

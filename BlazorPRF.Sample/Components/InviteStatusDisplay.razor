@@ -14,9 +14,9 @@
 
         var severity = Model.Status.Severity switch
         {
-            StatusSeverity.Success => Severity.Success,
-            StatusSeverity.Warning => Severity.Warning,
-            StatusSeverity.Error => Severity.Error,
+            StatusSeverity.SUCCESS => Severity.Success,
+            StatusSeverity.WARNING => Severity.Warning,
+            StatusSeverity.ERROR => Severity.Error,
             _ => Severity.Info
         };
 

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using BlazorPRF.Persistence.Data;
 using BlazorPRF.Persistence.Data.Models;
+using BlazorPRF.Persistence.Json;
 using BlazorPRF.Shared.Crypto.Configuration;
 using BlazorPRF.Shared.Crypto.Models;
 using BlazorPRF.Shared.Crypto.Services;
@@ -34,8 +35,7 @@ public sealed class InvitationService : IInvitationService
 
     // Sent invitations
 
-    /// <inheritdoc />
-    public async Task<PrfResult<List<(SentInvitation Invitation, string? Email)>>> GetSentInvitationsAsync()
+       public async Task<PrfResult<List<(SentInvitation Invitation, string? Email)>>> GetSentInvitationsAsync()
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var invitations = await db.SentInvitations
@@ -55,8 +55,7 @@ public sealed class InvitationService : IInvitationService
         return PrfResult<List<(SentInvitation, string?)>>.Ok(results);
     }
 
-    /// <inheritdoc />
-    public async Task<PrfResult<SentInvitation>> CreateSentInvitationAsync(
+       public async Task<PrfResult<SentInvitation>> CreateSentInvitationAsync(
         string inviteCode,
         string email,
         string armoredInvite)
@@ -65,7 +64,7 @@ public sealed class InvitationService : IInvitationService
         if (!encryptedEmailResult.Success || encryptedEmailResult.Value is null)
         {
             return PrfResult<SentInvitation>.Fail(
-                encryptedEmailResult.ErrorCode ?? PrfErrorCode.EncryptionFailed);
+                encryptedEmailResult.ErrorCode ?? PrfErrorCode.ENCRYPTION_FAILED);
         }
 
         var invitation = new SentInvitation
@@ -74,7 +73,7 @@ public sealed class InvitationService : IInvitationService
             InviteCode = inviteCode,
             EncryptedEmail = encryptedEmailResult.Value,
             ArmoredInvite = armoredInvite,
-            Status = InviteStatus.Pending,
+            Status = InviteStatus.PENDING,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -85,8 +84,7 @@ public sealed class InvitationService : IInvitationService
         return PrfResult<SentInvitation>.Ok(invitation);
     }
 
-    /// <inheritdoc />
-    public async Task<bool> MarkSentInvitationAcceptedAsync(string inviteCode, Guid trustedContactId)
+       public async Task<bool> MarkSentInvitationAcceptedAsync(string inviteCode, Guid trustedContactId)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var invitation = await db.SentInvitations
@@ -97,7 +95,7 @@ public sealed class InvitationService : IInvitationService
             return false;
         }
 
-        invitation.Status = InviteStatus.Accepted;
+        invitation.Status = InviteStatus.ACCEPTED;
         invitation.AcceptedAt = DateTime.UtcNow;
         invitation.TrustedContactId = trustedContactId;
         await db.SaveChangesAsync();
@@ -105,8 +103,7 @@ public sealed class InvitationService : IInvitationService
         return true;
     }
 
-    /// <inheritdoc />
-    public async Task<bool> UpdateSentInvitationStatusAsync(Guid id, InviteStatus status)
+       public async Task<bool> UpdateSentInvitationStatusAsync(Guid id, InviteStatus status)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var invitation = await db.SentInvitations.FindAsync(id);
@@ -122,8 +119,7 @@ public sealed class InvitationService : IInvitationService
         return true;
     }
 
-    /// <inheritdoc />
-    public async Task<bool> DeleteSentInvitationAsync(Guid id)
+       public async Task<bool> DeleteSentInvitationAsync(Guid id)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var invitation = await db.SentInvitations.FindAsync(id);
@@ -139,8 +135,7 @@ public sealed class InvitationService : IInvitationService
         return true;
     }
 
-    /// <inheritdoc />
-    public async Task<SentInvitation?> GetSentInvitationByCodeAsync(string inviteCode)
+       public async Task<SentInvitation?> GetSentInvitationByCodeAsync(string inviteCode)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         return await db.SentInvitations
@@ -150,8 +145,7 @@ public sealed class InvitationService : IInvitationService
 
     // Received invitations
 
-    /// <inheritdoc />
-    public async Task<List<ReceivedInvitation>> GetReceivedInvitationsAsync()
+       public async Task<List<ReceivedInvitation>> GetReceivedInvitationsAsync()
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         return await db.ReceivedInvitations
@@ -160,8 +154,7 @@ public sealed class InvitationService : IInvitationService
             .ToListAsync();
     }
 
-    /// <inheritdoc />
-    public async Task<ReceivedInvitation> CreateReceivedInvitationAsync(
+       public async Task<ReceivedInvitation> CreateReceivedInvitationAsync(
         string inviteCode,
         string inviterEd25519PublicKey,
         Guid? trustedContactId = null)
@@ -182,8 +175,7 @@ public sealed class InvitationService : IInvitationService
         return invitation;
     }
 
-    /// <inheritdoc />
-    public async Task<bool> LinkReceivedInvitationToContactAsync(Guid invitationId, Guid trustedContactId)
+       public async Task<bool> LinkReceivedInvitationToContactAsync(Guid invitationId, Guid trustedContactId)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var invitation = await db.ReceivedInvitations.FindAsync(invitationId);
@@ -199,8 +191,7 @@ public sealed class InvitationService : IInvitationService
         return true;
     }
 
-    /// <inheritdoc />
-    public async Task<bool> ReceivedInvitationExistsAsync(string inviteCode)
+       public async Task<bool> ReceivedInvitationExistsAsync(string inviteCode)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         return await db.ReceivedInvitations
@@ -216,10 +207,10 @@ public sealed class InvitationService : IInvitationService
 
         if (!encryptedResult.Success || encryptedResult.Value is null)
         {
-            return PrfResult<string>.Fail(encryptedResult.ErrorCode ?? PrfErrorCode.EncryptionFailed);
+            return PrfResult<string>.Fail(encryptedResult.ErrorCode ?? PrfErrorCode.ENCRYPTION_FAILED);
         }
 
-        var encryptedJson = JsonSerializer.Serialize(encryptedResult.Value);
+        var encryptedJson = JsonSerializer.Serialize(encryptedResult.Value, PersistenceJsonContext.Default.SymmetricEncryptedMessage);
         return PrfResult<string>.Ok(encryptedJson);
     }
 
@@ -231,16 +222,16 @@ public sealed class InvitationService : IInvitationService
         SymmetricEncryptedMessage? encrypted;
         try
         {
-            encrypted = JsonSerializer.Deserialize<SymmetricEncryptedMessage>(encryptedEmail);
+            encrypted = JsonSerializer.Deserialize(encryptedEmail, PersistenceJsonContext.Default.SymmetricEncryptedMessage);
         }
         catch (JsonException)
         {
-            return PrfResult<string>.Fail(PrfErrorCode.DecryptionFailed);
+            return PrfResult<string>.Fail(PrfErrorCode.DECRYPTION_FAILED);
         }
 
         if (encrypted is null)
         {
-            return PrfResult<string>.Fail(PrfErrorCode.DecryptionFailed);
+            return PrfResult<string>.Fail(PrfErrorCode.DECRYPTION_FAILED);
         }
 
         return await _symmetricEncryption.DecryptAsync(encrypted, InvitationEncryptionKey);

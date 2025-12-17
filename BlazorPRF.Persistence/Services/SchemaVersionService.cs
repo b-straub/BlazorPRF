@@ -50,7 +50,7 @@ public sealed class SchemaVersionService : ISchemaVersionService
             // Create new database
             await db.Database.EnsureCreatedAsync();
             await SetSchemaVersionAsync(db);
-            return SchemaValidationResult.Created;
+            return SchemaValidationResult.CREATED;
         }
 
         // Check stored schema version
@@ -60,12 +60,12 @@ public sealed class SchemaVersionService : ISchemaVersionService
         {
             // Version not set yet - set it now (existing DB from before versioning)
             await SetSchemaVersionAsync(db);
-            return SchemaValidationResult.Valid;
+            return SchemaValidationResult.VALID;
         }
 
         if (storedVersion == CurrentSchemaVersion)
         {
-            return SchemaValidationResult.Valid;
+            return SchemaValidationResult.VALID;
         }
 
         // Schema mismatch detected
@@ -79,7 +79,7 @@ public sealed class SchemaVersionService : ISchemaVersionService
         await SetSchemaVersionAsync(db);
 
         Console.WriteLine("[SchemaVersionService] Database recreated successfully.");
-        return SchemaValidationResult.Recreated;
+        return SchemaValidationResult.RECREATED;
 #else
         // In Release mode, log warning but don't modify
         Console.WriteLine($"[SchemaVersionService] WARNING: Schema mismatch detected. Stored: {storedVersion}, Current: {CurrentSchemaVersion}");

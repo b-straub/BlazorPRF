@@ -24,8 +24,7 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
         _defaultAlgorithm = options.Value.DefaultAlgorithm;
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<SymmetricEncryptedMessage>> EncryptAsync(string message, string keyIdentifier)
+       public async ValueTask<PrfResult<SymmetricEncryptedMessage>> EncryptAsync(string message, string keyIdentifier)
     {
         ArgumentException.ThrowIfNullOrEmpty(message);
         ArgumentException.ThrowIfNullOrEmpty(keyIdentifier);
@@ -42,7 +41,7 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
             var prfSeed = _keyCache.TryGet(prfSeedCacheKey);
             if (prfSeed is null)
             {
-                return PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.KeyDerivationFailed);
+                return PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED);
             }
 
             // Derive domain-specific key using HKDF
@@ -57,7 +56,7 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
         var key = _keyCache.TryGet(cacheKey);
         if (key is null)
         {
-            return PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.KeyDerivationFailed);
+            return PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED);
         }
 
         var result = await _cryptoProvider.EncryptSymmetricAsync(message, key, _defaultAlgorithm);
@@ -65,8 +64,7 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
         return result;
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<string>> DecryptAsync(SymmetricEncryptedMessage encrypted, string keyIdentifier)
+       public async ValueTask<PrfResult<string>> DecryptAsync(SymmetricEncryptedMessage encrypted, string keyIdentifier)
     {
         ArgumentNullException.ThrowIfNull(encrypted);
         ArgumentException.ThrowIfNullOrEmpty(keyIdentifier);
@@ -83,7 +81,7 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
             var prfSeed = _keyCache.TryGet(prfSeedCacheKey);
             if (prfSeed is null)
             {
-                return PrfResult<string>.Fail(PrfErrorCode.KeyDerivationFailed);
+                return PrfResult<string>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED);
             }
 
             // Derive domain-specific key using HKDF
@@ -98,7 +96,7 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
         var key = _keyCache.TryGet(cacheKey);
         if (key is null)
         {
-            return PrfResult<string>.Fail(PrfErrorCode.KeyDerivationFailed);
+            return PrfResult<string>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED);
         }
 
         var result = await _cryptoProvider.DecryptSymmetricAsync(encrypted, key, encrypted.EffectiveAlgorithm);

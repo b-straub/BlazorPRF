@@ -48,7 +48,7 @@
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="CancelDialog">Cancel</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveMetadata">Save</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveMetadataAsync">Save</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -110,7 +110,7 @@
         _dialogVisible = false;
     }
 
-    private async Task SaveMetadata()
+    private async Task SaveMetadataAsync()
     {
         var hasData = !string.IsNullOrWhiteSpace(_editName) ||
                       !string.IsNullOrWhiteSpace(_editEmail) ||

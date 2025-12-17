@@ -9,11 +9,11 @@ public enum EncryptionAlgorithm
     /// ChaCha20-Poly1305 - Fast software implementation, not available in Web Crypto API.
     /// Supported by: BlazorPRF.Crypto (BouncyCastle)
     /// </summary>
-    ChaCha20Poly1305,
+    CHA_CHA20_POLY1305,
 
     /// <summary>
     /// AES-256-GCM - Hardware accelerated via Web Crypto API.
     /// Supported by: BlazorPRF.Crypto (BouncyCastle), BlazorPRF.WebCrypto (SubtleCrypto)
     /// </summary>
-    AesGcm
+    AES_GCM
 }

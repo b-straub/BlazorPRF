@@ -26,11 +26,9 @@ public sealed partial class PrfService : IPrfService, IEd25519PublicKeyProvider,
     private readonly Dictionary<string, string> _publicKeyCache = new();
     private readonly Dictionary<string, string> _ed25519PublicKeyCache = new();
 
-    /// <inheritdoc />
-    public KeyCacheStrategy CacheStrategy => _cacheOptions.Strategy;
+       public KeyCacheStrategy CacheStrategy => _cacheOptions.Strategy;
 
-    /// <inheritdoc />
-    public Observable<string> KeyExpired => _keyCache.KeyExpired;
+       public Observable<string> KeyExpired => _keyCache.KeyExpired;
 
     public PrfService(
         IOptions<PrfOptions> options,
@@ -84,9 +82,9 @@ public sealed partial class PrfService : IPrfService, IEd25519PublicKeyProvider,
     {
         var attachment = _options.AuthenticatorAttachment switch
         {
-            AuthenticatorAttachment.Platform => "platform",
-            AuthenticatorAttachment.CrossPlatform => "cross-platform",
-            AuthenticatorAttachment.Any => "any",
+            AuthenticatorAttachment.PLATFORM => "platform",
+            AuthenticatorAttachment.CROSS_PLATFORM => "cross-platform",
+            AuthenticatorAttachment.ANY => "any",
             _ => "platform"
         };
 
@@ -100,26 +98,23 @@ public sealed partial class PrfService : IPrfService, IEd25519PublicKeyProvider,
         return JsonSerializer.Serialize(jsOptions, PrfJsonContext.Default.JsPrfOptions);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<bool> IsPrfSupportedAsync()
+       public async ValueTask<bool> IsPrfSupportedAsync()
     {
         await EnsureInitializedAsync();
         return await JsInterop.IsPrfSupported();
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<PrfCredential>> RegisterAsync(string? displayName = null)
+       public async ValueTask<PrfResult<PrfCredential>> RegisterAsync(string? displayName = null)
     {
         await EnsureInitializedAsync();
 
         var resultJson = await JsInterop.Register(displayName, GetJsOptions());
         var result = JsonSerializer.Deserialize(resultJson, PrfJsonContext.Default.PrfResultPrfCredential);
 
-        return result ?? PrfResult<PrfCredential>.Fail(PrfErrorCode.RegistrationFailed);
+        return result ?? PrfResult<PrfCredential>.Fail(PrfErrorCode.REGISTRATION_FAILED);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<string>> DeriveKeysAsync(string credentialId, string salt)
+       public async ValueTask<PrfResult<string>> DeriveKeysAsync(string credentialId, string salt)
     {
         ArgumentException.ThrowIfNullOrEmpty(credentialId);
         ArgumentException.ThrowIfNullOrEmpty(salt);
@@ -139,7 +134,7 @@ public sealed partial class PrfService : IPrfService, IEd25519PublicKeyProvider,
 
         if (result is null)
         {
-            return PrfResult<string>.Fail(PrfErrorCode.KeyDerivationFailed);
+            return PrfResult<string>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED);
         }
 
         if (!result.Success || result.Value is null)
@@ -149,7 +144,7 @@ public sealed partial class PrfService : IPrfService, IEd25519PublicKeyProvider,
                 return PrfResult<string>.UserCancelled();
             }
 
-            return PrfResult<string>.Fail(result.ErrorCode ?? PrfErrorCode.KeyDerivationFailed);
+            return PrfResult<string>.Fail(result.ErrorCode ?? PrfErrorCode.KEY_DERIVATION_FAILED);
         }
 
         // Store the raw PRF seed for domain-specific key derivation
@@ -181,8 +176,7 @@ public sealed partial class PrfService : IPrfService, IEd25519PublicKeyProvider,
         return PrfResult<string>.Ok(dualKeys.X25519PublicKey);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<(string CredentialId, string PublicKey)>> DeriveKeysDiscoverableAsync(string salt)
+       public async ValueTask<PrfResult<(string CredentialId, string PublicKey)>> DeriveKeysDiscoverableAsync(string salt)
     {
         ArgumentException.ThrowIfNullOrEmpty(salt);
 
@@ -194,7 +188,7 @@ public sealed partial class PrfService : IPrfService, IEd25519PublicKeyProvider,
 
         if (result is null)
         {
-            return PrfResult<(string, string)>.Fail(PrfErrorCode.KeyDerivationFailed);
+            return PrfResult<(string, string)>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED);
         }
 
         if (!result.Success || result.Value is null)
@@ -204,7 +198,7 @@ public sealed partial class PrfService : IPrfService, IEd25519PublicKeyProvider,
                 return PrfResult<(string, string)>.UserCancelled();
             }
 
-            return PrfResult<(string, string)>.Fail(result.ErrorCode ?? PrfErrorCode.KeyDerivationFailed);
+            return PrfResult<(string, string)>.Fail(result.ErrorCode ?? PrfErrorCode.KEY_DERIVATION_FAILED);
         }
 
         // Store the raw PRF seed for domain-specific key derivation
@@ -237,8 +231,7 @@ public sealed partial class PrfService : IPrfService, IEd25519PublicKeyProvider,
         return PrfResult<(string, string)>.Ok((result.Value.CredentialId, dualKeys.X25519PublicKey));
     }
 
-    /// <inheritdoc />
-    public string? GetCachedPublicKey(string salt)
+       public string? GetCachedPublicKey(string salt)
     {
         if (string.IsNullOrEmpty(salt))
         {
@@ -254,8 +247,7 @@ public sealed partial class PrfService : IPrfService, IEd25519PublicKeyProvider,
         return _publicKeyCache.GetValueOrDefault(salt);
     }
 
-    /// <inheritdoc />
-    public bool HasCachedKeys(string salt)
+       public bool HasCachedKeys(string salt)
     {
         if (string.IsNullOrEmpty(salt))
         {
@@ -265,16 +257,14 @@ public sealed partial class PrfService : IPrfService, IEd25519PublicKeyProvider,
         return _keyCache.Contains(GetCacheKey(salt));
     }
 
-    /// <inheritdoc />
-    public void ClearKeys()
+       public void ClearKeys()
     {
         _keyCache.Clear();
         _publicKeyCache.Clear();
         _ed25519PublicKeyCache.Clear();
     }
 
-    /// <inheritdoc />
-    public string? GetEd25519PublicKey(string keyIdentifier)
+       public string? GetEd25519PublicKey(string keyIdentifier)
     {
         if (string.IsNullOrEmpty(keyIdentifier))
         {

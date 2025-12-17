@@ -1,12 +1,6 @@
-@using BlazorPRF.Persistence.Data
-@using BlazorPRF.Sample.Services
-@using Microsoft.EntityFrameworkCore
-@using SqliteWasmBlazor
-@inject IPrfDbInitializationService DbInitService
-@inject IDbContextFactory<PrfDbContext> DbContextFactory
-@inject NavigationManager NavigationManager
+@inject DbInitModel Model
 
-@if (DbInitService.ErrorMessage is not null)
+@if (Model.ErrorMessage is not null)
 {
     <MudOverlay Visible="true" DarkBackground="true" ZIndex="9999">
         <MudPaper Class="pa-6" Style="max-width: 500px;" Elevation="4">
@@ -16,15 +10,15 @@
                     <MudText Typo="Typo.h5">Database Error</MudText>
                 </MudStack>
                 <MudText Typo="Typo.body1" Style="white-space: pre-line;">
-                    @DbInitService.ErrorMessage
+                    @Model.ErrorMessage
                 </MudText>
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Warning"
-                           OnClick="ResetDatabaseAsync"
+                           OnClick="@(() => Model.ResetDatabase.ExecuteAsync())"
                            StartIcon="@Icons.Material.Filled.RestartAlt"
-                           Disabled="_isResetting"
+                           Disabled="Model.IsResetting"
                            FullWidth="true">
-                    @if (_isResetting)
+                    @if (Model.IsResetting)
                     {
                         <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
                         <span>Resetting...</span>
@@ -38,46 +32,12 @@
         </MudPaper>
     </MudOverlay>
 }
-else if (DbInitService.WasRecreated)
+else if (Model.WasRecreated)
 {
-    <MudAlert Severity="Severity.Info" Class="mb-4" Variant="Variant.Outlined" ShowCloseIcon="true" CloseIconClicked="DismissRecreatedNotice">
+    <MudAlert Severity="Severity.Info" Class="mb-4" Variant="Variant.Outlined"
+              ShowCloseIcon="true" CloseIconClicked="@(() => Model.DismissRecreated.Execute())">
         <MudText Typo="Typo.body1">
             Database was recreated due to schema changes. Previous data has been cleared.
         </MudText>
     </MudAlert>
-}
-
-@code {
-    private bool _isResetting;
-
-    private async Task ResetDatabaseAsync()
-    {
-        _isResetting = true;
-        StateHasChanged();
-
-        try
-        {
-            // Delete the database file from OPFS SAHPool
-            await SqliteWasmWorkerBridge.Instance.DeleteDatabaseAsync("BlazorPrf.db");
-
-            // Recreate database schema
-            await using var context = await DbContextFactory.CreateDbContextAsync();
-            await context.Database.EnsureCreatedAsync();
-
-            // Clear error and reload - forceLoad ensures clean app restart
-            DbInitService.ClearError();
-            NavigationManager.NavigateTo("./", forceLoad: true);
-        }
-        catch (Exception ex)
-        {
-            DbInitService.ErrorMessage += $"\n\nReset failed: {ex.Message}";
-            _isResetting = false;
-            StateHasChanged();
-        }
-    }
-
-    private void DismissRecreatedNotice()
-    {
-        DbInitService.WasRecreated = false;
-    }
 }

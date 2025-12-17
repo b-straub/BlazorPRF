@@ -6,7 +6,7 @@ namespace BlazorPRF.Tests.Unit;
 
 public class SecureKeyCacheTests
 {
-    private static SecureKeyCache CreateCache(KeyCacheStrategy strategy = KeyCacheStrategy.Timed, int ttlMinutes = 15)
+    private static SecureKeyCache CreateCache(KeyCacheStrategy strategy = KeyCacheStrategy.TIMED, int ttlMinutes = 15)
     {
         var options = Options.Create(new KeyCacheOptions
         {

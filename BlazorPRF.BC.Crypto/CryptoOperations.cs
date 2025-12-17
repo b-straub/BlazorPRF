@@ -47,20 +47,20 @@ public static class CryptoOperations
     public static PrfResult<SymmetricEncryptedMessage> EncryptSymmetric(
         string plaintext,
         ReadOnlySpan<byte> key,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.ChaCha20Poly1305)
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.CHA_CHA20_POLY1305)
     {
         try
         {
             if (key.Length != KeyLength)
             {
-                return PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.InvalidData);
+                return PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.INVALID_DATA);
             }
 
             var plaintextBytes = Encoding.UTF8.GetBytes(plaintext);
             var nonce = new byte[NonceLength];
             new SecureRandom().NextBytes(nonce);
 
-            var ciphertext = algorithm == EncryptionAlgorithm.AesGcm
+            var ciphertext = algorithm == EncryptionAlgorithm.AES_GCM
                 ? EncryptAesGcm(plaintextBytes, key, nonce)
                 : EncryptChaCha20Poly1305(plaintextBytes, key, nonce);
 
@@ -72,7 +72,7 @@ public static class CryptoOperations
         }
         catch
         {
-            return PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.EncryptionFailed);
+            return PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.ENCRYPTION_FAILED);
         }
     }
 
@@ -102,7 +102,7 @@ public static class CryptoOperations
         {
             if (key.Length != KeyLength)
             {
-                return PrfResult<string>.Fail(PrfErrorCode.InvalidData);
+                return PrfResult<string>.Fail(PrfErrorCode.INVALID_DATA);
             }
 
             var ciphertext = Convert.FromBase64String(encrypted.Ciphertext);
@@ -110,23 +110,23 @@ public static class CryptoOperations
 
             if (nonce.Length != NonceLength)
             {
-                return PrfResult<string>.Fail(PrfErrorCode.InvalidData);
+                return PrfResult<string>.Fail(PrfErrorCode.INVALID_DATA);
             }
 
-            var plaintext = encrypted.EffectiveAlgorithm == EncryptionAlgorithm.AesGcm
+            var plaintext = encrypted.EffectiveAlgorithm == EncryptionAlgorithm.AES_GCM
                 ? DecryptAesGcm(ciphertext, key, nonce)
                 : DecryptChaCha20Poly1305(ciphertext, key, nonce);
 
             if (plaintext is null)
             {
-                return PrfResult<string>.Fail(PrfErrorCode.AuthenticationTagMismatch);
+                return PrfResult<string>.Fail(PrfErrorCode.AUTHENTICATION_TAG_MISMATCH);
             }
 
             return PrfResult<string>.Ok(Encoding.UTF8.GetString(plaintext));
         }
         catch
         {
-            return PrfResult<string>.Fail(PrfErrorCode.DecryptionFailed);
+            return PrfResult<string>.Fail(PrfErrorCode.DECRYPTION_FAILED);
         }
     }
 
@@ -140,7 +140,7 @@ public static class CryptoOperations
             var recipientPublicKeyBytes = Convert.FromBase64String(recipientPublicKeyBase64);
             if (recipientPublicKeyBytes.Length != KeyLength)
             {
-                return PrfResult<EncryptedMessage>.Fail(PrfErrorCode.InvalidPublicKey);
+                return PrfResult<EncryptedMessage>.Fail(PrfErrorCode.INVALID_PUBLIC_KEY);
             }
 
             var recipientPublicKey = new X25519PublicKeyParameters(recipientPublicKeyBytes, 0);
@@ -165,7 +165,7 @@ public static class CryptoOperations
             ephemeralPublicKey.Encode(ephemeralPublicKeyBytes, 0);
 
             // Derive encryption key using HKDF (ephemeral public key as salt)
-            var encryptionKey = DeriveEncryptionKey(sharedSecret, ephemeralPublicKeyBytes);
+            var encryptionKey = DeriveEncryptionKey(sharedSecret);
 
             // Encrypt with ChaCha20-Poly1305
             var plaintextBytes = Encoding.UTF8.GetBytes(plaintext);
@@ -186,7 +186,7 @@ public static class CryptoOperations
         }
         catch
         {
-            return PrfResult<EncryptedMessage>.Fail(PrfErrorCode.EncryptionFailed);
+            return PrfResult<EncryptedMessage>.Fail(PrfErrorCode.ENCRYPTION_FAILED);
         }
     }
 
@@ -216,13 +216,13 @@ public static class CryptoOperations
         {
             if (privateKey.Length != KeyLength)
             {
-                return PrfResult<string>.Fail(PrfErrorCode.InvalidPrivateKey);
+                return PrfResult<string>.Fail(PrfErrorCode.INVALID_PRIVATE_KEY);
             }
 
             var ephemeralPublicKeyBytes = Convert.FromBase64String(encrypted.EphemeralPublicKey);
             if (ephemeralPublicKeyBytes.Length != KeyLength)
             {
-                return PrfResult<string>.Fail(PrfErrorCode.InvalidData);
+                return PrfResult<string>.Fail(PrfErrorCode.INVALID_DATA);
             }
 
             var ciphertext = Convert.FromBase64String(encrypted.Ciphertext);
@@ -230,7 +230,7 @@ public static class CryptoOperations
 
             if (nonce.Length != NonceLength)
             {
-                return PrfResult<string>.Fail(PrfErrorCode.InvalidData);
+                return PrfResult<string>.Fail(PrfErrorCode.INVALID_DATA);
             }
 
             var privateKeyParam = new X25519PrivateKeyParameters(privateKey.ToArray(), 0);
@@ -243,7 +243,7 @@ public static class CryptoOperations
             agreement.CalculateAgreement(ephemeralPublicKey, sharedSecret, 0);
 
             // Derive encryption key using HKDF (ephemeral public key as salt)
-            var encryptionKey = DeriveEncryptionKey(sharedSecret, ephemeralPublicKeyBytes);
+            var encryptionKey = DeriveEncryptionKey(sharedSecret);
 
             // Decrypt with ChaCha20-Poly1305
             var plaintext = DecryptChaCha20Poly1305(ciphertext, encryptionKey, nonce);
@@ -254,14 +254,14 @@ public static class CryptoOperations
 
             if (plaintext is null)
             {
-                return PrfResult<string>.Fail(PrfErrorCode.AuthenticationTagMismatch);
+                return PrfResult<string>.Fail(PrfErrorCode.AUTHENTICATION_TAG_MISMATCH);
             }
 
             return PrfResult<string>.Ok(Encoding.UTF8.GetString(plaintext));
         }
         catch
         {
-            return PrfResult<string>.Fail(PrfErrorCode.DecryptionFailed);
+            return PrfResult<string>.Fail(PrfErrorCode.DECRYPTION_FAILED);
         }
     }
 
@@ -270,7 +270,7 @@ public static class CryptoOperations
     /// Uses null salt (= 32 zeros) to match Noble.js implementation.
     /// Uses BouncyCastle for WASM compatibility (System.Security.Cryptography.HKDF not supported in WASM).
     /// </summary>
-    private static byte[] DeriveEncryptionKey(byte[] sharedSecret, byte[] ephemeralPublicKey)
+    private static byte[] DeriveEncryptionKey(byte[] sharedSecret)
     {
         // Note: ephemeralPublicKey is no longer used as salt - Noble.js uses undefined (32 zeros)
         return HkdfDeriveKey(sharedSecret, null, HkdfInfo, KeyLength);
@@ -395,7 +395,7 @@ public static class CryptoOperations
             var privateKeyBytes = Convert.FromBase64String(privateKeyBase64);
             if (privateKeyBytes.Length != KeyLength)
             {
-                return PrfResult<string>.Fail(PrfErrorCode.InvalidPrivateKey);
+                return PrfResult<string>.Fail(PrfErrorCode.INVALID_PRIVATE_KEY);
             }
 
             var messageBytes = Encoding.UTF8.GetBytes(message);
@@ -405,7 +405,7 @@ public static class CryptoOperations
         }
         catch
         {
-            return PrfResult<string>.Fail(PrfErrorCode.SigningFailed);
+            return PrfResult<string>.Fail(PrfErrorCode.SIGNING_FAILED);
         }
     }
 
@@ -422,7 +422,7 @@ public static class CryptoOperations
         {
             if (privateKey.Length != KeyLength)
             {
-                return PrfResult<string>.Fail(PrfErrorCode.InvalidPrivateKey);
+                return PrfResult<string>.Fail(PrfErrorCode.INVALID_PRIVATE_KEY);
             }
 
             var messageBytes = Encoding.UTF8.GetBytes(message);
@@ -432,7 +432,7 @@ public static class CryptoOperations
         }
         catch
         {
-            return PrfResult<string>.Fail(PrfErrorCode.SigningFailed);
+            return PrfResult<string>.Fail(PrfErrorCode.SIGNING_FAILED);
         }
     }
 
@@ -532,14 +532,14 @@ public static class CryptoOperations
         var messageWithTimestamp = $"{message}|{timestampUnix}";
 
         var signResult = Sign(messageWithTimestamp, privateKeyBase64);
-        if (!signResult.Success)
+        if (!signResult.Success || signResult.Value is null)
         {
-            return PrfResult<SignedMessage>.Fail(signResult.ErrorCode ?? PrfErrorCode.SigningFailed);
+            return PrfResult<SignedMessage>.Fail(signResult.ErrorCode ?? PrfErrorCode.SIGNING_FAILED);
         }
 
         return PrfResult<SignedMessage>.Ok(new SignedMessage(
             Message: message,
-            Signature: signResult.Value!,
+            Signature: signResult.Value,
             PublicKey: publicKeyBase64,
             TimestampUnix: timestampUnix
         ));
@@ -562,14 +562,14 @@ public static class CryptoOperations
         var messageWithTimestamp = $"{message}|{timestampUnix}";
 
         var signResult = Sign(messageWithTimestamp, privateKey);
-        if (!signResult.Success)
+        if (!signResult.Success || signResult.Value is null)
         {
-            return PrfResult<SignedMessage>.Fail(signResult.ErrorCode ?? PrfErrorCode.SigningFailed);
+            return PrfResult<SignedMessage>.Fail(signResult.ErrorCode ?? PrfErrorCode.SIGNING_FAILED);
         }
 
         return PrfResult<SignedMessage>.Ok(new SignedMessage(
             Message: message,
-            Signature: signResult.Value!,
+            Signature: signResult.Value,
             PublicKey: publicKeyBase64,
             TimestampUnix: timestampUnix
         ));

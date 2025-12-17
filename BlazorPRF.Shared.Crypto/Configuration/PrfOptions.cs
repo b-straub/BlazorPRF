@@ -32,14 +32,14 @@ public sealed class PrfOptions
     /// Platform = built-in biometrics (Touch ID, Windows Hello)
     /// CrossPlatform = USB/NFC security keys (few support PRF)
     /// </summary>
-    public AuthenticatorAttachment AuthenticatorAttachment { get; set; } = AuthenticatorAttachment.Platform;
+    public AuthenticatorAttachment AuthenticatorAttachment { get; set; } = AuthenticatorAttachment.PLATFORM;
 
     /// <summary>
     /// Default encryption algorithm for symmetric and asymmetric encryption.
     /// AesGcm is recommended for broad compatibility.
     /// ChaCha20Poly1305 is faster on devices without AES hardware acceleration.
     /// </summary>
-    public EncryptionAlgorithm DefaultAlgorithm { get; set; } = EncryptionAlgorithm.AesGcm;
+    public EncryptionAlgorithm DefaultAlgorithm { get; set; } = EncryptionAlgorithm.AES_GCM;
 }
 
 /// <summary>
@@ -51,17 +51,17 @@ public enum AuthenticatorAttachment
     /// Platform authenticator (Touch ID, Windows Hello, Face ID).
     /// This is the recommended default as most hardware keys don't support PRF.
     /// </summary>
-    Platform,
+    PLATFORM,
 
     /// <summary>
     /// Cross-platform authenticator (USB/NFC security keys).
     /// Many modern hardware keys (YubiKey 5+, SoloKeys v2) support the PRF extension.
     /// </summary>
-    CrossPlatform,
+    CROSS_PLATFORM,
 
     /// <summary>
     /// Allow both platform and cross-platform authenticators.
     /// The browser will show all available options to the user.
     /// </summary>
-    Any
+    ANY
 }

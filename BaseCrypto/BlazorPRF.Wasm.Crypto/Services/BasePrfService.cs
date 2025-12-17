@@ -15,11 +15,9 @@ public sealed class BasePrfService : IBasePrfService
 {
     private bool _callbackRegistered;
 
-    /// <inheritdoc />
-    public event Action<string>? KeyExpired;
+       public event Action<string>? KeyExpired;
 
-    /// <inheritdoc />
-    public bool IsInitialized => BasePrfInterop.IsInitialized;
+       public bool IsInitialized => BasePrfInterop.IsInitialized;
 
     public bool IsPrfSupported()
     {
@@ -231,38 +229,38 @@ public sealed class BasePrfService : IBasePrfService
     // Internal types for JSON deserialization
     private sealed class JsResult
     {
-        public bool Success { get; set; }
-        public string? Error { get; set; }
-        public string? CredentialId { get; set; }
+        public bool Success { get; init; }
+        public string? Error { get; init; }
+        public string? CredentialId { get; init; }
     }
 
     private sealed class JsAuthResult
     {
-        public bool Success { get; set; }
-        public string? Error { get; set; }
-        public string? CredentialId { get; set; }
-        public string? PublicKey { get; set; }
+        public bool Success { get; init; }
+        public string? Error { get; init; }
+        public string? CredentialId { get; init; }
+        public string? PublicKey { get; init; }
     }
 
     private sealed class JsEncryptResult
     {
-        public bool Success { get; set; }
-        public string? Error { get; set; }
-        public string? Ciphertext { get; set; }
-        public string? Nonce { get; set; }
+        public bool Success { get; init; }
+        public string? Error { get; init; }
+        public string? Ciphertext { get; init; }
+        public string? Nonce { get; init; }
     }
 
     private sealed class JsDecryptResult
     {
-        public bool Success { get; set; }
-        public string? Error { get; set; }
-        public string? Plaintext { get; set; }
+        public bool Success { get; init; }
+        public string? Error { get; init; }
+        public string? Plaintext { get; init; }
     }
 
     private sealed class JsSignResult
     {
-        public bool Success { get; set; }
-        public string? Error { get; set; }
-        public string? Signature { get; set; }
+        public bool Success { get; init; }
+        public string? Error { get; init; }
+        public string? Signature { get; init; }
     }
 }

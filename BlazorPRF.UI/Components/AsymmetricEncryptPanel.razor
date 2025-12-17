@@ -138,6 +138,7 @@
         }
     }
 
+    // ReSharper disable once UnusedMember.Local - getter used by @bind-Value
     private string RecipientPublicKey
     {
         get => _recipientPublicKeyInput;
@@ -212,7 +213,7 @@
 
             if (result is { Success: true, Value: not null })
             {
-                var json = System.Text.Json.JsonSerializer.Serialize(result.Value);
+                var json = System.Text.Json.JsonSerializer.Serialize(result.Value, SharedJsonContext.Default.EncryptedMessage);
                 _armoredMessage = PrfArmor.ArmorMessage(json);
             }
             else

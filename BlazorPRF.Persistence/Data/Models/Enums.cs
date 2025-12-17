@@ -6,13 +6,13 @@ namespace BlazorPRF.Persistence.Data.Models;
 public enum TrustLevel
 {
     /// <summary>No trust assigned.</summary>
-    None = 0,
+    NONE = 0,
 
     /// <summary>Marginal trust - partially verified.</summary>
-    Marginal = 1,
+    MARGINAL = 1,
 
     /// <summary>Full trust - identity verified via signed invitation.</summary>
-    Full = 2
+    FULL = 2
 }
 
 /// <summary>
@@ -21,10 +21,10 @@ public enum TrustLevel
 public enum TrustDirection
 {
     /// <summary>I created the invitation (I invited them).</summary>
-    Sent = 0,
+    SENT = 0,
 
     /// <summary>I accepted their invitation (they invited me).</summary>
-    Received = 1
+    RECEIVED = 1
 }
 
 /// <summary>
@@ -33,14 +33,14 @@ public enum TrustDirection
 public enum InviteStatus
 {
     /// <summary>Invitation sent, awaiting response.</summary>
-    Pending = 0,
+    PENDING = 0,
 
     /// <summary>Invitation accepted and verified.</summary>
-    Accepted = 1,
+    ACCEPTED = 1,
 
     /// <summary>Invitation expired (time-based).</summary>
-    Expired = 2,
+    EXPIRED = 2,
 
     /// <summary>Invitation revoked by sender.</summary>
-    Revoked = 3
+    REVOKED = 3
 }

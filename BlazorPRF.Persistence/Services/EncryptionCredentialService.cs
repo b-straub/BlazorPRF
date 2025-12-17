@@ -1,6 +1,7 @@
 using System.Text.Json;
 using BlazorPRF.Persistence.Data;
 using BlazorPRF.Persistence.Data.Models;
+using BlazorPRF.Persistence.Json;
 using Microsoft.EntityFrameworkCore;
 
 namespace BlazorPRF.Persistence.Services;
@@ -31,7 +32,7 @@ public sealed class EncryptionCredentialService : IEncryptionCredentialService
 
         try
         {
-            return JsonSerializer.Deserialize<EncryptionCredentialInfo>(setting.Value);
+            return JsonSerializer.Deserialize(setting.Value, PersistenceJsonContext.Default.EncryptionCredentialInfo);
         }
         catch (JsonException)
         {
@@ -42,7 +43,7 @@ public sealed class EncryptionCredentialService : IEncryptionCredentialService
     public async Task SetEncryptionCredentialAsync(string credentialId, string? name = null)
     {
         var info = new EncryptionCredentialInfo(credentialId, name);
-        var json = JsonSerializer.Serialize(info);
+        var json = JsonSerializer.Serialize(info, PersistenceJsonContext.Default.EncryptionCredentialInfo);
 
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var setting = await db.AppSettings.FindAsync(SettingKey);

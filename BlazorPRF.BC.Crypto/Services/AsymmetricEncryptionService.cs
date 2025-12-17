@@ -29,8 +29,7 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
         _defaultAlgorithm = options.Value.DefaultAlgorithm;
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<EncryptedMessage>> EncryptAsync(string message, string recipientPublicKey)
+       public async ValueTask<PrfResult<EncryptedMessage>> EncryptAsync(string message, string recipientPublicKey)
     {
         ArgumentException.ThrowIfNullOrEmpty(message);
         ArgumentException.ThrowIfNullOrEmpty(recipientPublicKey);
@@ -39,8 +38,7 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
         return await _cryptoProvider.EncryptAsymmetricAsync(message, recipientPublicKey, _defaultAlgorithm);
     }
 
-    /// <inheritdoc />
-    public ValueTask<PrfResult<string>> DecryptAsync(EncryptedMessage encrypted, string salt)
+       public ValueTask<PrfResult<string>> DecryptAsync(EncryptedMessage encrypted, string salt)
     {
         ArgumentNullException.ThrowIfNull(encrypted);
         ArgumentException.ThrowIfNullOrEmpty(salt);
@@ -57,10 +55,10 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
             return DecryptWithAlgorithm(encrypted, key, effectiveAlgorithm);
         }, out var result))
         {
-            return ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.KeyDerivationFailed));
+            return ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED));
         }
 
-        return ValueTask.FromResult(result ?? PrfResult<string>.Fail(PrfErrorCode.DecryptionFailed));
+        return ValueTask.FromResult(result ?? PrfResult<string>.Fail(PrfErrorCode.DECRYPTION_FAILED));
     }
 
     private PrfResult<string> DecryptWithAlgorithm(

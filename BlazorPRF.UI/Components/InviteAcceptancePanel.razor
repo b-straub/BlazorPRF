@@ -1,6 +1,4 @@
-@using BlazorPRF.Shared.Crypto.Extensions
-@inherits PrfModelComponent
-@inject ISigningService SigningService
+@inherits InviteAcceptanceModelComponent
 @inject IClipboard Clipboard
 @inject ISnackbar Snackbar
 
@@ -16,17 +14,16 @@
     </MudCardHeader>
 
     <MudCardContent>
-        @if (Model is { HasKeys: false, RequiresOnDemandAuth: false })
+        @if (Model.PrfModel is { HasKeys: false, RequiresOnDemandAuth: false })
         {
             <MudAlert Severity="Severity.Warning" Class="mb-4">
                 Please authenticate first using the main page.
             </MudAlert>
         }
 
-        @if (_signedResponse is null)
+        @if (Model.SignedResponse is null)
         {
-            <MudTextField Value="_signedInviteInput"
-                          ValueChanged="@((string v) => OnSignedInviteChanged(v))"
+            <MudTextField @bind-Value="Model.SignedInviteInput"
                           Label="Signed Invite"
                           Variant="Variant.Outlined"
                           Lines="5"
@@ -34,39 +31,39 @@
                           Placeholder="Paste the signed invite you received"
                           Style="font-family: monospace;"
                           Immediate="true"
-                          Disabled="@_isProcessing" />
+                          Disabled="@Model.IsProcessing" />
 
-            @if (_inviteValid == true && _parsedEmail is not null)
+            @if (Model.InviteValid == true && Model.ParsedEmail is not null)
             {
                 <MudAlert Severity="Severity.Success" Class="mb-2" Variant="Variant.Outlined" Dense="true">
                     <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
                         <MudIcon Icon="@Icons.Material.Filled.Verified" Size="Size.Small" />
-                        <MudText Typo="Typo.body2">Valid invite for: <strong>@_parsedEmail</strong></MudText>
+                        <MudText Typo="Typo.body2">Valid invite for: <strong>@Model.ParsedEmail</strong></MudText>
                     </MudStack>
                 </MudAlert>
             }
-            else if (_inviteValid == false)
+            else if (Model.InviteValid == false)
             {
                 <MudAlert Severity="Severity.Error" Class="mb-2" Variant="Variant.Outlined" Dense="true">
                     <MudText Typo="Typo.body2">Invalid invite signature - do not trust this invite!</MudText>
                 </MudAlert>
             }
 
-            <MudTextField @bind-Value="_username"
+            <MudTextField @bind-Value="Model.Username"
                           Label="Your Name"
                           Variant="Variant.Outlined"
                           Class="mb-4"
                           Placeholder="Bob Smith"
                           HelperText="Choose a display name for your public key"
                           Immediate="true"
-                          Disabled="@_isProcessing" />
+                          Disabled="@Model.IsProcessing" />
 
             <MudButton Color="Color.Secondary"
                        Variant="Variant.Filled"
                        StartIcon="@Icons.Material.Filled.Create"
-                       OnClick="SignAcceptanceAsync"
-                       Disabled="@(!CanSign)">
-                @if (_isProcessing)
+                       OnClick="@(() => Model.SignAcceptance.ExecuteAsync())"
+                       Disabled="@(!Model.CanSign)">
+                @if (Model.IsProcessing)
                 {
                     <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
                     <span>Signing...</span>
@@ -77,17 +74,17 @@
                 }
             </MudButton>
 
-            @if (_errorMessage is not null)
+            @if (Model.ErrorMessage is not null)
             {
                 <MudAlert Severity="Severity.Error" Class="mt-4" Variant="Variant.Outlined">
-                    @_errorMessage
+                    @Model.ErrorMessage
                 </MudAlert>
             }
         }
         else
         {
             <MudAlert Severity="Severity.Success" Class="mb-4" Icon="@Icons.Material.Filled.Check">
-                Acceptance signed as @_username
+                Acceptance signed as @Model.Username
             </MudAlert>
 
             <MudText Typo="Typo.subtitle2" Class="mb-2">Next Steps:</MudText>
@@ -105,7 +102,7 @@
                     <div Style="flex: 1; overflow: hidden;">
                         <MudText Typo="Typo.caption" Class="mud-text-secondary">Signed Response</MudText>
                         <MudText Typo="Typo.body2" Style="font-family: monospace; word-break: break-all; white-space: pre-wrap; font-size: 0.7rem; max-height: 120px; overflow-y: auto;">
-                            @_signedResponse
+                            @Model.SignedResponse
                         </MudText>
                     </div>
                     <MudTooltip Text="Copy to clipboard">
@@ -119,7 +116,7 @@
             <MudButton Color="Color.Default"
                        Variant="Variant.Text"
                        StartIcon="@Icons.Material.Filled.Refresh"
-                       OnClick="Reset"
+                       OnClick="@(() => Model.Reset.Execute())"
                        Class="mt-4">
                 Accept Another Invite
             </MudButton>
@@ -128,221 +125,21 @@
 </MudCard>
 
 @code {
-    private string _signedInviteInput = string.Empty;
-    private string _username = string.Empty;
-    private string? _parsedEmail;
-    private string? _parsedInviteCode;
-    private string? _inviterSignature;
-    private string? _inviterEd25519PublicKey;
-    private bool? _inviteValid;
-    private bool _isProcessing;
-    private string? _errorMessage;
-    private string? _signedResponse;
-
-    private bool CanSign => (Model.HasKeys || Model.RequiresOnDemandAuth)
-                            && !_isProcessing
-                            && _inviteValid == true
-                            && _parsedEmail is not null;
-
-    private async void OnSignedInviteChanged(string value)
-    {
-        _signedInviteInput = value;
-        _parsedEmail = null;
-        _parsedInviteCode = null;
-        _inviterSignature = null;
-        _inviterEd25519PublicKey = null;
-        _inviteValid = null;
-        _errorMessage = null;
-
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            StateHasChanged();
-            return;
-        }
-
-        try
-        {
-            // UnArmor if armored, otherwise try as raw JSON
-            var json = PrfArmor.IsArmoredSignedInvite(value)
-                ? PrfArmor.UnArmorSignedInvite(value)
-                : value;
-
-            if (json is null)
-            {
-                _inviteValid = false;
-                StateHasChanged();
-                return;
-            }
-
-            // Parse the signed invite JSON
-            var signedInvite = System.Text.Json.JsonSerializer.Deserialize<SignedInvite>(json);
-
-            if (signedInvite is null ||
-                string.IsNullOrEmpty(signedInvite.inviteCode) ||
-                string.IsNullOrEmpty(signedInvite.inviterSignature) ||
-                string.IsNullOrEmpty(signedInvite.inviterEd25519PublicKey))
-            {
-                _inviteValid = false;
-                StateHasChanged();
-                return;
-            }
-
-            _parsedInviteCode = signedInvite.inviteCode;
-            _inviterSignature = signedInvite.inviterSignature;
-            _inviterEd25519PublicKey = signedInvite.inviterEd25519PublicKey;
-
-            // Extract email from invite code
-            var parts = signedInvite.inviteCode.Split('|');
-            if (parts.Length == 3 && parts[0].StartsWith("INV-"))
-            {
-                _parsedEmail = parts[1];
-            }
-            else
-            {
-                _inviteValid = false;
-                StateHasChanged();
-                return;
-            }
-
-            // Verify the inviter's signature
-            _inviteValid = await SigningService.VerifyAsync(
-                signedInvite.inviteCode,
-                signedInvite.inviterSignature,
-                signedInvite.inviterEd25519PublicKey);
-
-            StateHasChanged();
-        }
-        catch
-        {
-            _inviteValid = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task SignAcceptanceAsync()
-    {
-        if (!CanSign || _parsedEmail is null || _parsedInviteCode is null)
-        {
-            return;
-        }
-
-        _isProcessing = true;
-        _errorMessage = null;
-        _signedResponse = null;
-
-        try
-        {
-            // Ensure keys are available (triggers WebAuthn if needed)
-            if (!await Model.EnsureKeysAsync())
-            {
-                _errorMessage = "Authentication cancelled or failed";
-                return;
-            }
-
-            var timestamp = DateTimeExtensions.GetUnixSecondsNow();
-            var x25519PublicKey = Model.PublicKey;
-            var ed25519PublicKey = Model.Ed25519PublicKey;
-
-            if (string.IsNullOrEmpty(x25519PublicKey) || string.IsNullOrEmpty(ed25519PublicKey))
-            {
-                _errorMessage = "Keys not available. Please authenticate.";
-                return;
-            }
-
-            // Build message to sign - include the original signed invite JSON for verification
-            var messageToSign = $"{_signedInviteInput}|{x25519PublicKey}|{ed25519PublicKey}|{_username}|{_parsedEmail}|{timestamp}";
-
-            // Sign the message
-            var signResult = await SigningService.SignAsync(messageToSign, Model.Salt);
-
-            if (signResult is { Success: true, Value: not null })
-            {
-                // Build JSON response - include the original signed invite
-                var response = new
-                {
-                    signedInvite = new
-                    {
-                        inviteCode = _parsedInviteCode,
-                        inviterSignature = _inviterSignature,
-                        inviterEd25519PublicKey = _inviterEd25519PublicKey
-                    },
-                    username = _username,
-                    email = _parsedEmail,
-                    x25519PublicKey,
-                    ed25519PublicKey,
-                    timestamp,
-                    message = messageToSign,
-                    signature = signResult.Value
-                };
-
-                var json = System.Text.Json.JsonSerializer.Serialize(response);
-                _signedResponse = PrfArmor.ArmorSignedResponse(json);
-
-                // Notify via reactive model - just set the property
-                Model.InviteModel.LastInviteAccepted = new InviteAcceptedEventArgs
-                {
-                    InviteCode = _parsedInviteCode,
-                    InviterEd25519PublicKey = _inviterEd25519PublicKey!,
-                    Username = _username,
-                    Email = _parsedEmail,
-                    ArmoredResponse = _signedResponse
-                };
-            }
-            else if (signResult.ErrorCode == PrfErrorCode.KeyDerivationFailed)
-            {
-                Model.OnKeyDerivationFailed();
-                _errorMessage = "Keys expired. Please try again.";
-            }
-            else
-            {
-                _errorMessage = signResult.Error ?? "Signing failed";
-            }
-        }
-        catch (Exception ex)
-        {
-            _errorMessage = $"Error: {ex.Message}";
-        }
-        finally
-        {
-            _isProcessing = false;
-        }
-    }
-
     private async Task CopyResponseAsync()
     {
-        if (string.IsNullOrEmpty(_signedResponse))
+        if (string.IsNullOrEmpty(Model.SignedResponse))
         {
             return;
         }
 
         try
         {
-            await Clipboard.SetTextAsync(_signedResponse);
+            await Clipboard.SetTextAsync(Model.SignedResponse);
             Snackbar.Add("Response copied!", Severity.Success);
         }
         catch
         {
             Snackbar.Add("Failed to copy", Severity.Error);
         }
-    }
-
-    private void Reset()
-    {
-        _signedInviteInput = string.Empty;
-        _username = string.Empty;
-        _parsedEmail = null;
-        _parsedInviteCode = null;
-        _inviterSignature = null;
-        _inviterEd25519PublicKey = null;
-        _inviteValid = null;
-        _errorMessage = null;
-        _signedResponse = null;
-    }
-
-    private sealed class SignedInvite
-    {
-        public string? inviteCode { get; set; }
-        public string? inviterSignature { get; set; }
-        public string? inviterEd25519PublicKey { get; set; }
     }
 }

@@ -1,8 +1,7 @@
 @page "/asymmetric"
 @attribute [Authorize]
+@inherits ContactsModelComponent
 @using BlazorPRF.Shared.Crypto.Formatting
-@inject ITrustedContactService ContactService
-@inject PrfModel PrfModel
 @inject NavigationManager NavigationManager
 
 <PageTitle>Asymmetric Encryption - BlazorPRF</PageTitle>
@@ -14,7 +13,7 @@
 
 <MudGrid>
     <MudItem xs="12" md="6">
-        @if (_contactsLoaded && _contacts.Count > 0)
+        @if (!Model.Loading && Model.Contacts.Count > 0)
         {
             <MudCard Class="mb-4">
                 <MudCardContent>
@@ -23,14 +22,14 @@
                         Select from Trusted Contacts
                     </MudText>
                     <MudSelect T="Guid?"
-                               Value="_selectedContactId"
-                               ValueChanged="OnContactSelected"
+                               Value="Model.SelectedContactId"
+                               ValueChanged="Model.SelectContact"
                                Label="Recipient"
                                Variant="Variant.Outlined"
                                Placeholder="Choose a contact..."
                                Clearable="true"
                                Dense="true">
-                        @foreach (var (contact, userData) in _contacts)
+                        @foreach (var (contact, userData) in Model.Contacts)
                         {
                             <MudSelectItem Value="@((Guid?)contact.Id)">
                                 @userData.Username (@userData.Email)
@@ -41,7 +40,7 @@
             </MudCard>
         }
 
-        <AsymmetricEncryptPanel InitialPublicKey="@_selectedPublicKey" />
+        <AsymmetricEncryptPanel InitialPublicKey="@Model.SelectedPublicKey" />
     </MudItem>
 
     <MudItem xs="12">
@@ -50,90 +49,51 @@
 </MudGrid>
 
 @code {
-    private List<(TrustedContact Contact, ContactUserData UserData)> _contacts = [];
-    private bool _contactsLoaded;
-    private Guid? _selectedContactId;
-    private string? _selectedPublicKey;
+    private bool _queryStringProcessed;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await LoadContactsAsync();
-
-            // Check for public key in query string (from Contacts page)
-            var uri = new Uri(NavigationManager.Uri);
-            var queryParams = System.Web.HttpUtility.ParseQueryString(uri.Query);
-            var keyParam = queryParams["key"];
-            if (!string.IsNullOrWhiteSpace(keyParam))
+            // Trigger contact loading if not already loaded
+            if (Model.Contacts.Count == 0 && !Model.Loading)
             {
-                // Try to match with a contact's public key
-                var matchedContact = _contacts.FirstOrDefault(c => c.Contact.X25519PublicKey == keyParam);
-                if (matchedContact.Contact is not null)
-                {
-                    // Found a matching contact - select it in the dropdown
-                    _selectedContactId = matchedContact.Contact.Id;
-
-                    // Create armored public key with metadata
-                    var metadata = new PublicKeyMetadata
-                    {
-                        Name = matchedContact.UserData.Username,
-                        Email = matchedContact.UserData.Email,
-                        Comment = matchedContact.UserData.Comment
-                    };
-                    _selectedPublicKey = PrfArmor.ArmorPublicKey(keyParam, metadata);
-                }
-                else
-                {
-                    // No matching contact - use raw key
-                    _selectedPublicKey = keyParam;
-                }
+                await Model.LoadContacts.ExecuteAsync();
             }
-
-            StateHasChanged();
         }
+
+        // Process query string after contacts are loaded
+        if (!_queryStringProcessed && !Model.Loading && Model.Contacts.Count > 0)
+        {
+            _queryStringProcessed = true;
+            ProcessQueryString();
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
     }
 
-    private async Task LoadContactsAsync()
+    private void ProcessQueryString()
     {
-        // Ensure keys for decrypting contact data
-        if (!await PrfModel.EnsureKeysAsync())
+        var uri = new Uri(NavigationManager.Uri);
+        var queryParams = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var keyParam = queryParams["key"];
+
+        if (string.IsNullOrWhiteSpace(keyParam))
         {
-            _contactsLoaded = true;
             return;
         }
 
-        var result = await ContactService.GetAllAsync();
-        if (result is { Success: true, Value: not null })
+        // Try to match with a contact's public key
+        var matchedContact = Model.Contacts.FirstOrDefault(c => c.Contact.X25519PublicKey == keyParam);
+        if (matchedContact.Contact is not null)
         {
-            _contacts = result.Value;
+            // Found a matching contact - select it
+            Model.SelectContact(matchedContact.Contact.Id);
         }
-
-        _contactsLoaded = true;
-    }
-
-    private void OnContactSelected(Guid? contactId)
-    {
-        _selectedContactId = contactId;
-
-        if (contactId is null)
+        else
         {
-            _selectedPublicKey = null;
-            return;
-        }
-
-        var selected = _contacts.FirstOrDefault(c => c.Contact.Id == contactId.Value);
-        if (selected.Contact is not null && selected.UserData is not null)
-        {
-            // Create armored public key with metadata
-            var metadata = new PublicKeyMetadata
-            {
-                Name = selected.UserData.Username,
-                Email = selected.UserData.Email,
-                Comment = selected.UserData.Comment
-            };
-
-            _selectedPublicKey = PrfArmor.ArmorPublicKey(selected.Contact.X25519PublicKey, metadata);
+            // No matching contact - use raw key directly
+            Model.SelectedPublicKey = keyParam;
         }
     }
 }

@@ -150,10 +150,10 @@
 
             if (result is { Success: true, Value: not null })
             {
-                var json = System.Text.Json.JsonSerializer.Serialize(result.Value);
+                var json = System.Text.Json.JsonSerializer.Serialize(result.Value, SharedJsonContext.Default.SymmetricEncryptedMessage);
                 _armoredMessage = PrfArmor.ArmorMessage(json);
             }
-            else if (result.ErrorCode == PrfErrorCode.KeyDerivationFailed)
+            else if (result.ErrorCode == PrfErrorCode.KEY_DERIVATION_FAILED)
             {
                 // Keys expired between EnsureKeysAsync and operation - notify model
                 Model.OnKeyDerivationFailed();
@@ -203,7 +203,7 @@
                 json = _encryptedInput;
             }
 
-            var encrypted = System.Text.Json.JsonSerializer.Deserialize<SymmetricEncryptedMessage>(json);
+            var encrypted = System.Text.Json.JsonSerializer.Deserialize(json, SharedJsonContext.Default.SymmetricEncryptedMessage);
             if (encrypted is null)
             {
                 _errorMessage = "Invalid encrypted message format";
@@ -223,7 +223,7 @@
             {
                 _decryptedResult = result.Value;
             }
-            else if (result.ErrorCode == PrfErrorCode.KeyDerivationFailed)
+            else if (result.ErrorCode == PrfErrorCode.KEY_DERIVATION_FAILED)
             {
                 // Keys expired between EnsureKeysAsync and operation - notify model
                 Model.OnKeyDerivationFailed();

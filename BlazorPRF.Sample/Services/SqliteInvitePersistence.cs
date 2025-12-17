@@ -1,6 +1,5 @@
 using BlazorPRF.Persistence.Data.Models;
 using BlazorPRF.Persistence.Services;
-using BlazorPRF.Sample.Models;
 using BlazorPRF.UI.Models;
 using BlazorPRF.UI.Services;
 
@@ -9,28 +8,25 @@ namespace BlazorPRF.Sample.Services;
 /// <summary>
 /// SQLite implementation of IInvitePersistence.
 /// Persists invitation events to the local database.
+/// Contact modification notifications are handled reactively via InviteModel.ContactsModifiedVersion.
 /// </summary>
 public sealed class SqliteInvitePersistence : IInvitePersistence
 {
     private readonly IInvitationService _invitationService;
     private readonly ITrustedContactService _contactService;
-    private readonly ContactsModel _contactsModel;
     private readonly ICredentialHintProvider _credentialHintProvider;
 
     public SqliteInvitePersistence(
         IInvitationService invitationService,
         ITrustedContactService contactService,
-        ContactsModel contactsModel,
         ICredentialHintProvider credentialHintProvider)
     {
         _invitationService = invitationService;
         _contactService = contactService;
-        _contactsModel = contactsModel;
         _credentialHintProvider = credentialHintProvider;
     }
 
-    /// <inheritdoc />
-    public async Task<bool> SaveCreatedInviteAsync(InviteCreatedEventArgs args, CancellationToken ct)
+       public async Task<bool> SaveCreatedInviteAsync(InviteCreatedEventArgs args, CancellationToken ct)
     {
         var result = await _invitationService.CreateSentInvitationAsync(
             args.InviteCode,
@@ -40,18 +36,50 @@ public sealed class SqliteInvitePersistence : IInvitePersistence
         return result.Success;
     }
 
-    /// <inheritdoc />
-    public async Task<bool> SaveAcceptedInviteAsync(InviteAcceptedEventArgs args, CancellationToken ct)
+       public async Task<bool> SaveAcceptedInviteAsync(InviteAcceptedEventArgs args, CancellationToken ct)
     {
-        await _invitationService.CreateReceivedInvitationAsync(
+        // Create received invitation record
+        var receivedInvitation = await _invitationService.CreateReceivedInvitationAsync(
             args.InviteCode,
             args.InviterEd25519PublicKey);
+
+        // Check if inviter is already a contact
+        if (await _contactService.ExistsByEd25519PublicKeyAsync(args.InviterEd25519PublicKey))
+        {
+            return true; // Inviter already in contacts
+        }
+
+        // Create TrustedContact for the inviter (bidirectional trust)
+        var userData = new ContactUserData
+        {
+            Username = args.InviterUsername,
+            Email = args.InviterEmail,
+            Comment = $"Accepted invite: {args.InviteCode}"
+        };
+
+        var credentialHint = await _credentialHintProvider.GetCredentialHintAsync();
+
+        var result = await _contactService.CreateAsync(
+            userData,
+            args.InviterX25519PublicKey,
+            args.InviterEd25519PublicKey,
+            TrustLevel.FULL,
+            TrustDirection.RECEIVED,
+            credentialHint?.CredentialId,
+            credentialHint?.Metadata?.Name);
+
+        // Link received invitation to the contact
+        if (result is { Success: true, Value: not null })
+        {
+            await _invitationService.LinkReceivedInvitationToContactAsync(
+                receivedInvitation.Id,
+                result.Value.Id);
+        }
 
         return true;
     }
 
-    /// <inheritdoc />
-    public async Task<bool> SaveVerifiedContactAsync(InviteVerifiedEventArgs args, CancellationToken ct)
+       public async Task<bool> SaveVerifiedContactAsync(InviteVerifiedEventArgs args, CancellationToken ct)
     {
         // Check if contact already exists
         if (await _contactService.ExistsByEd25519PublicKeyAsync(args.Ed25519PublicKey))
@@ -74,8 +102,8 @@ public sealed class SqliteInvitePersistence : IInvitePersistence
             userData,
             args.X25519PublicKey,
             args.Ed25519PublicKey,
-            TrustLevel.Full,
-            TrustDirection.Sent,
+            TrustLevel.FULL,
+            TrustDirection.SENT,
             credentialHint?.CredentialId,
             credentialHint?.Metadata?.Name);
 
@@ -84,9 +112,8 @@ public sealed class SqliteInvitePersistence : IInvitePersistence
             // Link the sent invitation to the contact
             await _invitationService.MarkSentInvitationAcceptedAsync(args.InviteCode, result.Value.Id);
 
-            // Notify that contacts have changed so UI can refresh
-            _contactsModel.NotifyContactsChanged();
-
+            // Note: Contact modification notification is handled reactively via InviteModel.Status
+            // which ContactsModel observes to reload contacts when Status.Severity is SUCCESS
             return true;
         }
 

@@ -69,7 +69,7 @@ public partial class PrfModel : ObservableModel
     /// Whether keys need to be derived before each crypto operation.
     /// True when Strategy is None.
     /// </summary>
-    public bool RequiresOnDemandAuth => CacheStrategy == KeyCacheStrategy.None;
+    public bool RequiresOnDemandAuth => CacheStrategy == KeyCacheStrategy.NONE;
 
     /// <summary>
     /// Whether any async command is currently executing.
@@ -115,8 +115,10 @@ public partial class PrfModel : ObservableModel
     public partial IObservableCommand ClearKeys { get; }
 
     [SuppressMessage("RxBlazorGenerator", "RXBG050:Partial constructor parameter type may not be registered in DI", Justification = "Services registered externally")]
+    // ReSharper disable UnusedParameter.Local
     public partial PrfModel(InviteModel inviteModel, IPrfService prfService, ICredentialHintProvider credentialHintProvider, PrfAuthenticationStateProvider stateProvider);
-
+    // ReSharper restore UnusedParameter.Local
+    
     protected override async Task OnContextReadyAsync()
     {
         IsPrfSupported = await PrfService.IsPrfSupportedAsync();
@@ -229,9 +231,9 @@ public partial class PrfModel : ObservableModel
             {
                 PublicKey = result.Value;
                 // For Strategy.None, keys expire immediately - don't set HasKeys
-                HasKeys = CacheStrategy != KeyCacheStrategy.None;
+                HasKeys = CacheStrategy != KeyCacheStrategy.NONE;
                 DiscoverableCancelled = false;
-                SuccessMessage = CacheStrategy == KeyCacheStrategy.None
+                SuccessMessage = CacheStrategy == KeyCacheStrategy.NONE
                     ? "Authentication successful! Keys will be derived on-demand."
                     : "Keys derived successfully!";
                 await SaveCredentialHintAsync(CredentialId);
@@ -280,9 +282,9 @@ public partial class PrfModel : ObservableModel
                 CredentialId = result.Value.CredentialId;
                 PublicKey = result.Value.PublicKey;
                 // For Strategy.None, keys expire immediately - don't set HasKeys
-                HasKeys = CacheStrategy != KeyCacheStrategy.None;
+                HasKeys = CacheStrategy != KeyCacheStrategy.NONE;
                 DiscoverableCancelled = false;
-                SuccessMessage = CacheStrategy == KeyCacheStrategy.None
+                SuccessMessage = CacheStrategy == KeyCacheStrategy.NONE
                     ? "Authentication successful! Keys will be derived on-demand."
                     : "Keys derived successfully!";
                 await SaveCredentialHintAsync(result.Value.CredentialId);
@@ -349,7 +351,7 @@ public partial class PrfModel : ObservableModel
     public async Task<bool> EnsureKeysAsync()
     {
         // For Strategy.None, always re-derive
-        if (CacheStrategy == KeyCacheStrategy.None)
+        if (CacheStrategy == KeyCacheStrategy.NONE)
         {
             return await DeriveKeysInternalAsync();
         }
@@ -377,7 +379,7 @@ public partial class PrfModel : ObservableModel
             {
                 PublicKey = result.Value;
                 // Don't update HasKeys for Strategy.None
-                if (CacheStrategy != KeyCacheStrategy.None)
+                if (CacheStrategy != KeyCacheStrategy.NONE)
                 {
                     HasKeys = true;
                 }
@@ -407,7 +409,7 @@ public partial class PrfModel : ObservableModel
             CredentialId = result.Value.CredentialId;
             PublicKey = result.Value.PublicKey;
             // Don't update HasKeys for Strategy.None
-            if (CacheStrategy != KeyCacheStrategy.None)
+            if (CacheStrategy != KeyCacheStrategy.NONE)
             {
                 HasKeys = true;
             }

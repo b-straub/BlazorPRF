@@ -30,8 +30,7 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
         _defaultAlgorithm = options.Value.DefaultAlgorithm;
     }
 
-    /// <inheritdoc />
-    public ValueTask<PrfResult<SymmetricEncryptedMessage>> EncryptAsync(string message, string keyIdentifier)
+       public ValueTask<PrfResult<SymmetricEncryptedMessage>> EncryptAsync(string message, string keyIdentifier)
     {
         ArgumentException.ThrowIfNullOrEmpty(message);
         ArgumentException.ThrowIfNullOrEmpty(keyIdentifier);
@@ -51,24 +50,23 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
                 return CryptoOperations.EncryptSymmetric(message, domainKey, _defaultAlgorithm);
             }, out var domainResult))
             {
-                return ValueTask.FromResult(PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.KeyDerivationFailed));
+                return ValueTask.FromResult(PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED));
             }
 
-            return ValueTask.FromResult(domainResult ?? PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.EncryptionFailed));
+            return ValueTask.FromResult(domainResult ?? PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.ENCRYPTION_FAILED));
         }
 
         // Backward compatible: use X25519 private key directly
         var cacheKey = GetCacheKey(keyIdentifier);
         if (!_keyCache.UseKey(cacheKey, key => CryptoOperations.EncryptSymmetric(message, key, _defaultAlgorithm), out var result))
         {
-            return ValueTask.FromResult(PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.KeyDerivationFailed));
+            return ValueTask.FromResult(PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED));
         }
 
-        return ValueTask.FromResult(result ?? PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.EncryptionFailed));
+        return ValueTask.FromResult(result ?? PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.ENCRYPTION_FAILED));
     }
 
-    /// <inheritdoc />
-    public ValueTask<PrfResult<string>> DecryptAsync(SymmetricEncryptedMessage encrypted, string keyIdentifier)
+       public ValueTask<PrfResult<string>> DecryptAsync(SymmetricEncryptedMessage encrypted, string keyIdentifier)
     {
         ArgumentNullException.ThrowIfNull(encrypted);
         ArgumentException.ThrowIfNullOrEmpty(keyIdentifier);
@@ -88,20 +86,20 @@ public sealed class SymmetricEncryptionService : ISymmetricEncryption
                 return CryptoOperations.DecryptSymmetric(encrypted, domainKey);
             }, out var domainResult))
             {
-                return ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.KeyDerivationFailed));
+                return ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED));
             }
 
-            return ValueTask.FromResult(domainResult ?? PrfResult<string>.Fail(PrfErrorCode.DecryptionFailed));
+            return ValueTask.FromResult(domainResult ?? PrfResult<string>.Fail(PrfErrorCode.DECRYPTION_FAILED));
         }
 
         // Backward compatible: use X25519 private key directly
         var cacheKey = GetCacheKey(keyIdentifier);
         if (!_keyCache.UseKey(cacheKey, key => CryptoOperations.DecryptSymmetric(encrypted, key), out var result))
         {
-            return ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.KeyDerivationFailed));
+            return ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED));
         }
 
-        return ValueTask.FromResult(result ?? PrfResult<string>.Fail(PrfErrorCode.DecryptionFailed));
+        return ValueTask.FromResult(result ?? PrfResult<string>.Fail(PrfErrorCode.DECRYPTION_FAILED));
     }
 
     private static string GetCacheKey(string salt) => $"prf-key:{salt}";

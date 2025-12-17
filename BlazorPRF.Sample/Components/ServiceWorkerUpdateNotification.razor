@@ -30,7 +30,7 @@
             @<MudPaper Class="pa-6">
                 <MudStack Spacing="2" StretchItems="StretchItems.All">
                     <MudText Typo="Typo.body1" Align="Align.Center">An update for BlazorPRF is available!</MudText>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateApp">Update Now</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateAppAsync">Update Now</MudButton>
                 </MudStack>
             </MudPaper>,
             Severity.Info,
@@ -41,7 +41,7 @@
             });
     }
 
-    private async Task UpdateApp()
+    private async Task UpdateAppAsync()
     {
         if (_updateSnackbar is not null)
         {

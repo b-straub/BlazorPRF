@@ -8,17 +8,17 @@ public enum SchemaValidationResult
     /// <summary>
     /// Schema version matches - database is ready.
     /// </summary>
-    Valid,
+    VALID,
 
     /// <summary>
     /// New database created with current schema version.
     /// </summary>
-    Created,
+    CREATED,
 
     /// <summary>
     /// Schema mismatch detected and database was recreated.
     /// </summary>
-    Recreated
+    RECREATED
 }
 
 /// <summary>

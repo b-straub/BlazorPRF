@@ -7,6 +7,7 @@ using BlazorPRF.Shared.Crypto.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
+// ReSharper disable once CheckNamespace
 namespace BlazorPRF.Crypto.Extensions;
 
 /// <summary>

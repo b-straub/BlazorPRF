@@ -25,8 +25,32 @@
 
         @if (_signedInvite is null)
         {
-            <MudTextField @bind-Value="_email"
-                          Label="Email"
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Your Identity (included in invite)</MudText>
+
+            <MudTextField @bind-Value="_myName"
+                          Label="Your Name"
+                          Variant="Variant.Outlined"
+                          Class="mb-2"
+                          Placeholder="Alice Smith"
+                          HelperText="Your display name for the invitee"
+                          Immediate="true"
+                          Disabled="@_isProcessing" />
+
+            <MudTextField @bind-Value="_myEmail"
+                          Label="Your Email"
+                          Variant="Variant.Outlined"
+                          Class="mb-4"
+                          Placeholder="alice@example.com"
+                          HelperText="Your email address"
+                          Immediate="true"
+                          Disabled="@_isProcessing" />
+
+            <MudDivider Class="my-4" />
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Invitee</MudText>
+
+            <MudTextField @bind-Value="_inviteeEmail"
+                          Label="Invitee Email"
                           Variant="Variant.Outlined"
                           Class="mb-4"
                           Placeholder="bob@example.com"
@@ -60,7 +84,7 @@
         else
         {
             <MudAlert Severity="Severity.Success" Class="mb-4" Icon="@Icons.Material.Filled.Check">
-                Invite created for @_email
+                Invite created for @_inviteeEmail
             </MudAlert>
 
             <MudText Typo="Typo.subtitle2" Class="mb-2">Next Steps:</MudText>
@@ -104,16 +128,20 @@
 </MudCard>
 
 @code {
-    private string _email = string.Empty;
+    private string _myName = string.Empty;
+    private string _myEmail = string.Empty;
+    private string _inviteeEmail = string.Empty;
     private string? _signedInvite;
-    private string? _inviteCode;
     private string? _errorMessage;
     private bool _isProcessing;
 
     private bool CanCreate => (Model.HasKeys || Model.RequiresOnDemandAuth)
                               && !_isProcessing
-                              && !string.IsNullOrWhiteSpace(_email)
-                              && _email.Contains('@');
+                              && !string.IsNullOrWhiteSpace(_myName)
+                              && !string.IsNullOrWhiteSpace(_myEmail)
+                              && _myEmail.Contains('@')
+                              && !string.IsNullOrWhiteSpace(_inviteeEmail)
+                              && _inviteeEmail.Contains('@');
 
     private async Task CreateInviteAsync()
     {
@@ -139,34 +167,42 @@
             var code = GenerateRandomCode(8);
             var timestamp = DateTimeExtensions.GetUnixSecondsNow();
 
-            // Format: INV-{code}|{email}|{timestamp}
-            var inviteCode = $"INV-{code}|{_email}|{timestamp}";
+            // Format: INV-{code}|{inviteeEmail}|{timestamp}
+            var inviteCode = $"INV-{code}|{_inviteeEmail}|{timestamp}";
+
+            var ed25519PublicKey = Model.Ed25519PublicKey;
+            var x25519PublicKey = Model.PublicKey;
+
+            if (string.IsNullOrEmpty(ed25519PublicKey) || string.IsNullOrEmpty(x25519PublicKey))
+            {
+                _errorMessage = "Keys not available. Please authenticate.";
+                return;
+            }
 
             // Sign the invite code
             var signResult = await SigningService.SignAsync(inviteCode, Model.Salt);
 
             if (signResult is { Success: true, Value: not null })
             {
-                _inviteCode = inviteCode;
-
-                // Build signed invite JSON
-                var signedInviteObj = new
-                {
+                // Build signed invite with inviter identity for bidirectional trust
+                var signedInvite = new SignedInvite(
                     inviteCode,
-                    inviterSignature = signResult.Value,
-                    inviterEd25519PublicKey = Model.Ed25519PublicKey
-                };
+                    signResult.Value,
+                    ed25519PublicKey,
+                    x25519PublicKey,
+                    _myName,
+                    _myEmail);
 
-                var json = System.Text.Json.JsonSerializer.Serialize(signedInviteObj);
+                var json = System.Text.Json.JsonSerializer.Serialize(signedInvite, InviteJsonContext.Default.SignedInvite);
                 _signedInvite = PrfArmor.ArmorSignedInvite(json);
 
                 // Notify via reactive model - just set the property
                 Model.InviteModel.LastInviteCreated = new InviteCreatedEventArgs
                 {
                     InviteCode = inviteCode,
-                    Email = _email,
+                    Email = _inviteeEmail,
                     ArmoredInvite = _signedInvite,
-                    InviterEd25519PublicKey = Model.Ed25519PublicKey!
+                    InviterEd25519PublicKey = ed25519PublicKey
                 };
             }
             else
@@ -216,9 +252,9 @@
 
     private void Reset()
     {
-        _email = string.Empty;
+        _inviteeEmail = string.Empty;
         _signedInvite = null;
-        _inviteCode = null;
         _errorMessage = null;
+        // Keep _myName and _myEmail for convenience when creating multiple invites
     }
 }

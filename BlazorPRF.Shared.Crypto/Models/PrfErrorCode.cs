@@ -5,20 +5,20 @@ namespace BlazorPRF.Shared.Crypto.Models;
 /// </summary>
 public enum PrfErrorCode
 {
-    Unknown,
-    NotSupported,
-    PrfNotSupported,
-    CredentialNotFound,
-    AuthenticationTagMismatch,
-    InvalidData,
-    KeyDerivationFailed,
-    EncryptionFailed,
-    DecryptionFailed,
-    RegistrationFailed,
-    InvalidPublicKey,
-    InvalidPrivateKey,
-    SigningFailed,
-    VerificationFailed,
+    UNKNOWN,
+    NOT_SUPPORTED,
+    PRF_NOT_SUPPORTED,
+    CREDENTIAL_NOT_FOUND,
+    AUTHENTICATION_TAG_MISMATCH,
+    INVALID_DATA,
+    KEY_DERIVATION_FAILED,
+    ENCRYPTION_FAILED,
+    DECRYPTION_FAILED,
+    REGISTRATION_FAILED,
+    INVALID_PUBLIC_KEY,
+    INVALID_PRIVATE_KEY,
+    SIGNING_FAILED,
+    VERIFICATION_FAILED,
 }
 
 /// <summary>
@@ -31,31 +31,31 @@ public static class PrfErrorMessages
     /// </summary>
     public static string GetMessage(PrfErrorCode errorCode) => errorCode switch
     {
-        PrfErrorCode.NotSupported =>
+        PrfErrorCode.NOT_SUPPORTED =>
             "This operation is not supported by the current crypto provider.",
-        PrfErrorCode.PrfNotSupported =>
+        PrfErrorCode.PRF_NOT_SUPPORTED =>
             "The selected passkey does not support PRF extension. Please select a passkey that was created with PRF support, or register a new one.",
-        PrfErrorCode.CredentialNotFound =>
+        PrfErrorCode.CREDENTIAL_NOT_FOUND =>
             "The credential was not found. It may have been deleted or is not available on this device.",
-        PrfErrorCode.AuthenticationTagMismatch =>
+        PrfErrorCode.AUTHENTICATION_TAG_MISMATCH =>
             "Decryption failed: wrong key or corrupted data. This data was encrypted with a different key.",
-        PrfErrorCode.InvalidData =>
+        PrfErrorCode.INVALID_DATA =>
             "The data is invalid or corrupted.",
-        PrfErrorCode.KeyDerivationFailed =>
+        PrfErrorCode.KEY_DERIVATION_FAILED =>
             "Key derivation failed. Please try again.",
-        PrfErrorCode.EncryptionFailed =>
+        PrfErrorCode.ENCRYPTION_FAILED =>
             "Encryption failed. Please try again.",
-        PrfErrorCode.DecryptionFailed =>
+        PrfErrorCode.DECRYPTION_FAILED =>
             "Decryption failed. The data may be corrupted.",
-        PrfErrorCode.RegistrationFailed =>
+        PrfErrorCode.REGISTRATION_FAILED =>
             "Passkey registration failed. Please try again.",
-        PrfErrorCode.InvalidPublicKey =>
+        PrfErrorCode.INVALID_PUBLIC_KEY =>
             "The public key is invalid or malformed.",
-        PrfErrorCode.InvalidPrivateKey =>
+        PrfErrorCode.INVALID_PRIVATE_KEY =>
             "The private key is invalid or malformed.",
-        PrfErrorCode.SigningFailed =>
+        PrfErrorCode.SIGNING_FAILED =>
             "Signing failed. Please try again.",
-        PrfErrorCode.VerificationFailed =>
+        PrfErrorCode.VERIFICATION_FAILED =>
             "Signature verification failed. The signature is invalid or the data has been tampered with.",
         _ =>
             "An unknown error occurred."

@@ -181,7 +181,7 @@
             {
                 _signature = result.Value;
             }
-            else if (result.ErrorCode == PrfErrorCode.KeyDerivationFailed)
+            else if (result.ErrorCode == PrfErrorCode.KEY_DERIVATION_FAILED)
             {
                 Model.OnKeyDerivationFailed();
                 _errorMessage = "Keys expired. Please try again.";

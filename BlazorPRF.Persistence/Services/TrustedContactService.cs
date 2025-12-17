@@ -1,6 +1,7 @@
 using System.Text.Json;
 using BlazorPRF.Persistence.Data;
 using BlazorPRF.Persistence.Data.Models;
+using BlazorPRF.Persistence.Json;
 using BlazorPRF.Shared.Crypto.Configuration;
 using BlazorPRF.Shared.Crypto.Models;
 using BlazorPRF.Shared.Crypto.Services;
@@ -35,8 +36,7 @@ public sealed class TrustedContactService : ITrustedContactService
         _encryptionCredentialService = encryptionCredentialService;
     }
 
-    /// <inheritdoc />
-    public async Task<PrfResult<List<(TrustedContact Contact, ContactUserData UserData)>>> GetAllAsync()
+       public async Task<PrfResult<List<(TrustedContact Contact, ContactUserData UserData)>>> GetAllAsync()
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var contacts = await db.TrustedContacts
@@ -52,7 +52,7 @@ public sealed class TrustedContactService : ITrustedContactService
             {
                 // Return error if any decryption fails (user not authenticated)
                 return PrfResult<List<(TrustedContact, ContactUserData)>>.Fail(
-                    userDataResult.ErrorCode ?? PrfErrorCode.DecryptionFailed);
+                    userDataResult.ErrorCode ?? PrfErrorCode.DECRYPTION_FAILED);
             }
 
             results.Add((contact, userDataResult.Value));
@@ -61,8 +61,7 @@ public sealed class TrustedContactService : ITrustedContactService
         return PrfResult<List<(TrustedContact, ContactUserData)>>.Ok(results);
     }
 
-    /// <inheritdoc />
-    public async Task<PrfResult<(TrustedContact Contact, ContactUserData UserData)?>> GetByIdAsync(Guid id)
+       public async Task<PrfResult<(TrustedContact Contact, ContactUserData UserData)?>> GetByIdAsync(Guid id)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var contact = await db.TrustedContacts.FindAsync(id);
@@ -76,22 +75,20 @@ public sealed class TrustedContactService : ITrustedContactService
         if (!userDataResult.Success || userDataResult.Value is null)
         {
             return PrfResult<(TrustedContact, ContactUserData)?>.Fail(
-                userDataResult.ErrorCode ?? PrfErrorCode.DecryptionFailed);
+                userDataResult.ErrorCode ?? PrfErrorCode.DECRYPTION_FAILED);
         }
 
         return PrfResult<(TrustedContact, ContactUserData)?>.Ok((contact, userDataResult.Value));
     }
 
-    /// <inheritdoc />
-    public async Task<TrustedContact?> GetByEd25519PublicKeyAsync(string ed25519PublicKey)
+       public async Task<TrustedContact?> GetByEd25519PublicKeyAsync(string ed25519PublicKey)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         return await db.TrustedContacts
             .FirstOrDefaultAsync(c => c.Ed25519PublicKey == ed25519PublicKey);
     }
 
-    /// <inheritdoc />
-    public async Task<PrfResult<TrustedContact>> CreateAsync(
+       public async Task<PrfResult<TrustedContact>> CreateAsync(
         ContactUserData userData,
         string x25519PublicKey,
         string ed25519PublicKey,
@@ -104,7 +101,7 @@ public sealed class TrustedContactService : ITrustedContactService
         if (!encryptedResult.Success || encryptedResult.Value is null)
         {
             return PrfResult<TrustedContact>.Fail(
-                encryptedResult.ErrorCode ?? PrfErrorCode.EncryptionFailed);
+                encryptedResult.ErrorCode ?? PrfErrorCode.ENCRYPTION_FAILED);
         }
 
         var contact = new TrustedContact
@@ -137,22 +134,21 @@ public sealed class TrustedContactService : ITrustedContactService
         return PrfResult<TrustedContact>.Ok(contact);
     }
 
-    /// <inheritdoc />
-    public async Task<PrfResult<TrustedContact>> UpdateUserDataAsync(Guid id, ContactUserData userData)
+       public async Task<PrfResult<TrustedContact>> UpdateUserDataAsync(Guid id, ContactUserData userData)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var contact = await db.TrustedContacts.FindAsync(id);
 
         if (contact is null)
         {
-            return PrfResult<TrustedContact>.Fail(PrfErrorCode.CredentialNotFound);
+            return PrfResult<TrustedContact>.Fail(PrfErrorCode.CREDENTIAL_NOT_FOUND);
         }
 
         var encryptedResult = await EncryptUserDataAsync(userData);
         if (!encryptedResult.Success || encryptedResult.Value is null)
         {
             return PrfResult<TrustedContact>.Fail(
-                encryptedResult.ErrorCode ?? PrfErrorCode.EncryptionFailed);
+                encryptedResult.ErrorCode ?? PrfErrorCode.ENCRYPTION_FAILED);
         }
 
         contact.EncryptedUserData = encryptedResult.Value;
@@ -161,8 +157,7 @@ public sealed class TrustedContactService : ITrustedContactService
         return PrfResult<TrustedContact>.Ok(contact);
     }
 
-    /// <inheritdoc />
-    public async Task<bool> UpdateTrustLevelAsync(Guid id, TrustLevel trustLevel)
+       public async Task<bool> UpdateTrustLevelAsync(Guid id, TrustLevel trustLevel)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var contact = await db.TrustedContacts.FindAsync(id);
@@ -177,8 +172,7 @@ public sealed class TrustedContactService : ITrustedContactService
         return true;
     }
 
-    /// <inheritdoc />
-    public async Task<bool> DeleteAsync(Guid id)
+       public async Task<bool> DeleteAsync(Guid id)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var contact = await db.TrustedContacts.FindAsync(id);
@@ -193,8 +187,7 @@ public sealed class TrustedContactService : ITrustedContactService
         return true;
     }
 
-    /// <inheritdoc />
-    public async Task<bool> ExistsByEd25519PublicKeyAsync(string ed25519PublicKey)
+       public async Task<bool> ExistsByEd25519PublicKeyAsync(string ed25519PublicKey)
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         return await db.TrustedContacts
@@ -206,16 +199,16 @@ public sealed class TrustedContactService : ITrustedContactService
     /// </summary>
     private async Task<PrfResult<string>> EncryptUserDataAsync(ContactUserData userData)
     {
-        var json = JsonSerializer.Serialize(userData);
+        var json = JsonSerializer.Serialize(userData, PersistenceJsonContext.Default.ContactUserData);
         var encryptedResult = await _symmetricEncryption.EncryptAsync(json, ContactsEncryptionKey);
 
         if (!encryptedResult.Success || encryptedResult.Value is null)
         {
-            return PrfResult<string>.Fail(encryptedResult.ErrorCode ?? PrfErrorCode.EncryptionFailed);
+            return PrfResult<string>.Fail(encryptedResult.ErrorCode ?? PrfErrorCode.ENCRYPTION_FAILED);
         }
 
         // Store as JSON for simplicity (could use binary format for efficiency)
-        var encryptedJson = JsonSerializer.Serialize(encryptedResult.Value);
+        var encryptedJson = JsonSerializer.Serialize(encryptedResult.Value, PersistenceJsonContext.Default.SymmetricEncryptedMessage);
         return PrfResult<string>.Ok(encryptedJson);
     }
 
@@ -227,38 +220,38 @@ public sealed class TrustedContactService : ITrustedContactService
         SymmetricEncryptedMessage? encrypted;
         try
         {
-            encrypted = JsonSerializer.Deserialize<SymmetricEncryptedMessage>(encryptedUserData);
+            encrypted = JsonSerializer.Deserialize(encryptedUserData, PersistenceJsonContext.Default.SymmetricEncryptedMessage);
         }
         catch (JsonException)
         {
-            return PrfResult<ContactUserData>.Fail(PrfErrorCode.DecryptionFailed);
+            return PrfResult<ContactUserData>.Fail(PrfErrorCode.DECRYPTION_FAILED);
         }
 
         if (encrypted is null)
         {
-            return PrfResult<ContactUserData>.Fail(PrfErrorCode.DecryptionFailed);
+            return PrfResult<ContactUserData>.Fail(PrfErrorCode.DECRYPTION_FAILED);
         }
 
         var decryptedResult = await _symmetricEncryption.DecryptAsync(encrypted, ContactsEncryptionKey);
 
         if (!decryptedResult.Success || decryptedResult.Value is null)
         {
-            return PrfResult<ContactUserData>.Fail(decryptedResult.ErrorCode ?? PrfErrorCode.DecryptionFailed);
+            return PrfResult<ContactUserData>.Fail(decryptedResult.ErrorCode ?? PrfErrorCode.DECRYPTION_FAILED);
         }
 
         ContactUserData? userData;
         try
         {
-            userData = JsonSerializer.Deserialize<ContactUserData>(decryptedResult.Value);
+            userData = JsonSerializer.Deserialize(decryptedResult.Value, PersistenceJsonContext.Default.ContactUserData);
         }
         catch (JsonException)
         {
-            return PrfResult<ContactUserData>.Fail(PrfErrorCode.DecryptionFailed);
+            return PrfResult<ContactUserData>.Fail(PrfErrorCode.DECRYPTION_FAILED);
         }
 
         if (userData is null)
         {
-            return PrfResult<ContactUserData>.Fail(PrfErrorCode.DecryptionFailed);
+            return PrfResult<ContactUserData>.Fail(PrfErrorCode.DECRYPTION_FAILED);
         }
 
         return PrfResult<ContactUserData>.Ok(userData);

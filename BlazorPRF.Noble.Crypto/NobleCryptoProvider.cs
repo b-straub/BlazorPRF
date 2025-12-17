@@ -16,29 +16,25 @@ public sealed class NobleCryptoProvider : ICryptoProvider
 {
     private static readonly IReadOnlyList<EncryptionAlgorithm> Algorithms =
     [
-        EncryptionAlgorithm.ChaCha20Poly1305,
-        EncryptionAlgorithm.AesGcm
+        EncryptionAlgorithm.CHA_CHA20_POLY1305,
+        EncryptionAlgorithm.AES_GCM
     ];
 
-    /// <inheritdoc />
-    public string ProviderName => "Noble.js + SubtleCrypto";
+       public string ProviderName => "Noble.js + SubtleCrypto";
 
-    /// <inheritdoc />
-    public IReadOnlyList<EncryptionAlgorithm> SupportedAlgorithms => Algorithms;
+       public IReadOnlyList<EncryptionAlgorithm> SupportedAlgorithms => Algorithms;
 
-    /// <inheritdoc />
-    public bool IsAlgorithmSupported(EncryptionAlgorithm algorithm) =>
-        algorithm is EncryptionAlgorithm.ChaCha20Poly1305 or EncryptionAlgorithm.AesGcm;
+       public bool IsAlgorithmSupported(EncryptionAlgorithm algorithm) =>
+        algorithm is EncryptionAlgorithm.CHA_CHA20_POLY1305 or EncryptionAlgorithm.AES_GCM;
 
     // ============================================================
     // SYMMETRIC ENCRYPTION
     // ============================================================
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<SymmetricEncryptedMessage>> EncryptSymmetricAsync(
+       public async ValueTask<PrfResult<SymmetricEncryptedMessage>> EncryptSymmetricAsync(
         string plaintext,
         ReadOnlyMemory<byte> key,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AesGcm)
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -47,7 +43,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
 
         string resultJson;
 
-        if (algorithm == EncryptionAlgorithm.ChaCha20Poly1305)
+        if (algorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305)
         {
             resultJson = NobleInterop.EncryptChaCha(plaintextBase64, keyBase64);
         }
@@ -59,11 +55,10 @@ public sealed class NobleCryptoProvider : ICryptoProvider
         return ParseSymmetricEncryptResult(resultJson, algorithm);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<string>> DecryptSymmetricAsync(
+       public async ValueTask<PrfResult<string>> DecryptSymmetricAsync(
         SymmetricEncryptedMessage encrypted,
         ReadOnlyMemory<byte> key,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AesGcm)
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -74,7 +69,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
 
         string resultJson;
 
-        if (effectiveAlgorithm == EncryptionAlgorithm.ChaCha20Poly1305)
+        if (effectiveAlgorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305)
         {
             resultJson = NobleInterop.DecryptChaCha(encrypted.Ciphertext, encrypted.Nonce, keyBase64);
         }
@@ -90,11 +85,10 @@ public sealed class NobleCryptoProvider : ICryptoProvider
     // ASYMMETRIC ENCRYPTION (ECIES)
     // ============================================================
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<EncryptedMessage>> EncryptAsymmetricAsync(
+       public async ValueTask<PrfResult<EncryptedMessage>> EncryptAsymmetricAsync(
         string plaintext,
         string recipientPublicKeyBase64,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AesGcm)
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -102,7 +96,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
 
         string resultJson;
 
-        if (algorithm == EncryptionAlgorithm.ChaCha20Poly1305)
+        if (algorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305)
         {
             resultJson = NobleInterop.EncryptAsymmetricChaCha(plaintextBase64, recipientPublicKeyBase64);
         }
@@ -114,11 +108,10 @@ public sealed class NobleCryptoProvider : ICryptoProvider
         return ParseAsymmetricEncryptResult(resultJson, algorithm);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<string>> DecryptAsymmetricAsync(
+       public async ValueTask<PrfResult<string>> DecryptAsymmetricAsync(
         EncryptedMessage encrypted,
         ReadOnlyMemory<byte> privateKey,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AesGcm)
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -129,7 +122,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
 
         string resultJson;
 
-        if (effectiveAlgorithm == EncryptionAlgorithm.ChaCha20Poly1305)
+        if (effectiveAlgorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305)
         {
             resultJson = NobleInterop.DecryptAsymmetricChaCha(
                 encrypted.EphemeralPublicKey,
@@ -153,8 +146,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
     // ED25519 DIGITAL SIGNATURES
     // ============================================================
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<string>> SignAsync(string message, ReadOnlyMemory<byte> privateKey)
+       public async ValueTask<PrfResult<string>> SignAsync(string message, ReadOnlyMemory<byte> privateKey)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -171,11 +163,10 @@ public sealed class NobleCryptoProvider : ICryptoProvider
             return PrfResult<string>.Ok(root.GetProperty("signatureBase64").GetString()!);
         }
 
-        return PrfResult<string>.Fail(PrfErrorCode.SigningFailed);
+        return PrfResult<string>.Fail(PrfErrorCode.SIGNING_FAILED);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<bool> VerifyAsync(string message, string signatureBase64, string publicKeyBase64)
+       public async ValueTask<bool> VerifyAsync(string message, string signatureBase64, string publicKeyBase64)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -188,8 +179,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
     // KEY GENERATION
     // ============================================================
 
-    /// <inheritdoc />
-    public async ValueTask<KeyPair> DeriveX25519KeyPairAsync(ReadOnlyMemory<byte> prfSeed)
+       public async ValueTask<KeyPair> DeriveX25519KeyPairAsync(ReadOnlyMemory<byte> prfSeed)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -199,8 +189,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
         return ParseKeyPairResult(resultJson);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<KeyPair> DeriveEd25519KeyPairAsync(ReadOnlyMemory<byte> prfSeed)
+       public async ValueTask<KeyPair> DeriveEd25519KeyPairAsync(ReadOnlyMemory<byte> prfSeed)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -210,8 +199,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
         return ParseKeyPairResult(resultJson);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<DualKeyPairFull> DeriveDualKeyPairAsync(ReadOnlyMemory<byte> prfSeed)
+       public async ValueTask<DualKeyPairFull> DeriveDualKeyPairAsync(ReadOnlyMemory<byte> prfSeed)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -235,8 +223,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
         );
     }
 
-    /// <inheritdoc />
-    public async ValueTask<string> GenerateSaltAsync(int length = 32)
+       public async ValueTask<string> GenerateSaltAsync(int length = 32)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -247,11 +234,9 @@ public sealed class NobleCryptoProvider : ICryptoProvider
     // KEY-ID BASED OPERATIONS (Keys stay in JS, C# only uses keyId)
     // ============================================================
 
-    /// <inheritdoc />
-    public bool SupportsKeyIdOperations => true;
+       public bool SupportsKeyIdOperations => true;
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<DualKeyPair>> StoreKeysAsync(string keyId, ReadOnlyMemory<byte> prfSeed, int? ttlMs)
+       public async ValueTask<PrfResult<DualKeyPair>> StoreKeysAsync(string keyId, ReadOnlyMemory<byte> prfSeed, int? ttlMs)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -261,8 +246,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
         return ParseDualKeyPairResult(resultJson);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<DualKeyPair>> GetPublicKeysAsync(string keyId)
+       public async ValueTask<PrfResult<DualKeyPair>> GetPublicKeysAsync(string keyId)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -270,22 +254,19 @@ public sealed class NobleCryptoProvider : ICryptoProvider
         return ParseDualKeyPairResult(resultJson);
     }
 
-    /// <inheritdoc />
-    public bool HasCachedKey(string keyId)
+       public bool HasCachedKey(string keyId)
     {
         // Note: This is synchronous because it's a simple lookup
         // EnsureInitializedAsync should have been called before this
         return NobleInterop.HasKey(keyId);
     }
 
-    /// <inheritdoc />
-    public void RemoveCachedKey(string keyId)
+       public void RemoveCachedKey(string keyId)
     {
         NobleInterop.RemoveKeys(keyId);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<string>> SignWithKeyIdAsync(string message, string keyId)
+       public async ValueTask<PrfResult<string>> SignWithKeyIdAsync(string message, string keyId)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -300,14 +281,13 @@ public sealed class NobleCryptoProvider : ICryptoProvider
             return PrfResult<string>.Ok(root.GetProperty("signatureBase64").GetString()!);
         }
 
-        return PrfResult<string>.Fail(PrfErrorCode.SigningFailed);
+        return PrfResult<string>.Fail(PrfErrorCode.SIGNING_FAILED);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<SymmetricEncryptedMessage>> EncryptSymmetricWithKeyIdAsync(
+       public async ValueTask<PrfResult<SymmetricEncryptedMessage>> EncryptSymmetricWithKeyIdAsync(
         string plaintext,
         string keyId,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AesGcm)
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -315,7 +295,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
 
         string resultJson;
 
-        if (algorithm == EncryptionAlgorithm.ChaCha20Poly1305)
+        if (algorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305)
         {
             resultJson = NobleInterop.EncryptSymmetricCachedChaCha(keyId, plaintextBase64);
         }
@@ -327,11 +307,10 @@ public sealed class NobleCryptoProvider : ICryptoProvider
         return ParseSymmetricEncryptResult(resultJson, algorithm);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<string>> DecryptSymmetricWithKeyIdAsync(
+       public async ValueTask<PrfResult<string>> DecryptSymmetricWithKeyIdAsync(
         SymmetricEncryptedMessage encrypted,
         string keyId,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AesGcm)
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -340,7 +319,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
 
         string resultJson;
 
-        if (effectiveAlgorithm == EncryptionAlgorithm.ChaCha20Poly1305)
+        if (effectiveAlgorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305)
         {
             resultJson = NobleInterop.DecryptSymmetricCachedChaCha(keyId, encrypted.Ciphertext, encrypted.Nonce);
         }
@@ -352,11 +331,10 @@ public sealed class NobleCryptoProvider : ICryptoProvider
         return ParseDecryptResult(resultJson);
     }
 
-    /// <inheritdoc />
-    public async ValueTask<PrfResult<string>> DecryptAsymmetricWithKeyIdAsync(
+       public async ValueTask<PrfResult<string>> DecryptAsymmetricWithKeyIdAsync(
         EncryptedMessage encrypted,
         string keyId,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AesGcm)
+        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
     {
         await NobleInterop.EnsureInitializedAsync();
 
@@ -365,7 +343,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
 
         string resultJson;
 
-        if (effectiveAlgorithm == EncryptionAlgorithm.ChaCha20Poly1305)
+        if (effectiveAlgorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305)
         {
             resultJson = NobleInterop.DecryptAsymmetricCachedChaCha(
                 keyId,
@@ -457,7 +435,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
             return PrfResult<SymmetricEncryptedMessage>.Ok(message);
         }
 
-        return PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.EncryptionFailed);
+        return PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.ENCRYPTION_FAILED);
     }
 
     private static PrfResult<EncryptedMessage> ParseAsymmetricEncryptResult(
@@ -478,7 +456,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
             return PrfResult<EncryptedMessage>.Ok(message);
         }
 
-        return PrfResult<EncryptedMessage>.Fail(PrfErrorCode.EncryptionFailed);
+        return PrfResult<EncryptedMessage>.Fail(PrfErrorCode.ENCRYPTION_FAILED);
     }
 
     private static PrfResult<string> ParseDecryptResult(string resultJson)
@@ -497,10 +475,10 @@ public sealed class NobleCryptoProvider : ICryptoProvider
         var error = root.TryGetProperty("error", out var errorProp) ? errorProp.GetString() : null;
         if (error is not null && error.Contains("tag", StringComparison.OrdinalIgnoreCase))
         {
-            return PrfResult<string>.Fail(PrfErrorCode.AuthenticationTagMismatch);
+            return PrfResult<string>.Fail(PrfErrorCode.AUTHENTICATION_TAG_MISMATCH);
         }
 
-        return PrfResult<string>.Fail(PrfErrorCode.DecryptionFailed);
+        return PrfResult<string>.Fail(PrfErrorCode.DECRYPTION_FAILED);
     }
 
     private static KeyPair ParseKeyPairResult(string resultJson)
@@ -534,6 +512,6 @@ public sealed class NobleCryptoProvider : ICryptoProvider
             return PrfResult<DualKeyPair>.Ok(keyPair);
         }
 
-        return PrfResult<DualKeyPair>.Fail(PrfErrorCode.KeyDerivationFailed);
+        return PrfResult<DualKeyPair>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED);
     }
 }

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace BlazorPRF.Persistence.Data.Models;
 
 /// <summary>
@@ -9,11 +11,13 @@ public sealed class AppSetting
     /// <summary>
     /// Setting key (primary key).
     /// </summary>
+    [MaxLength(128)]
     public required string Key { get; set; }
 
     /// <summary>
     /// Setting value (JSON serialized for complex types).
     /// </summary>
+    [MaxLength(4096)]
     public required string Value { get; set; }
 
     /// <summary>

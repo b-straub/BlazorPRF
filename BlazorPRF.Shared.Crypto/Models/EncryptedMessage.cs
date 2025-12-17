@@ -19,7 +19,7 @@ public sealed record EncryptedMessage(
     /// <summary>
     /// Gets the effective algorithm (defaults to ChaCha20Poly1305 for backward compatibility).
     /// </summary>
-    public EncryptionAlgorithm EffectiveAlgorithm => Algorithm ?? EncryptionAlgorithm.ChaCha20Poly1305;
+    public EncryptionAlgorithm EffectiveAlgorithm => Algorithm ?? EncryptionAlgorithm.CHA_CHA20_POLY1305;
 }
 
 /// <summary>
@@ -37,5 +37,5 @@ public sealed record SymmetricEncryptedMessage(
     /// <summary>
     /// Gets the effective algorithm (defaults to ChaCha20Poly1305 for backward compatibility).
     /// </summary>
-    public EncryptionAlgorithm EffectiveAlgorithm => Algorithm ?? EncryptionAlgorithm.ChaCha20Poly1305;
+    public EncryptionAlgorithm EffectiveAlgorithm => Algorithm ?? EncryptionAlgorithm.CHA_CHA20_POLY1305;
 }

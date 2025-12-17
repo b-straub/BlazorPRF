@@ -3,6 +3,7 @@ using BlazorPRF.Crypto.Extensions;
 using BlazorPRF.Persistence.Extensions;
 using BlazorPRF.Persistence.Services;
 using BlazorPRF.Sample;
+using BlazorPRF.Sample.Models;
 using BlazorPRF.Sample.Services;
 using BlazorPRF.UI.Services;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -57,32 +58,33 @@ builder.Services.AddBlazorPrfPersistence(options =>
 
 // Add invite persistence - interface from BlazorPRF.UI, implementation is app-specific
 builder.Services.AddSingleton<IInvitePersistence, SqliteInvitePersistence>();
-builder.Services.AddSingleton<InviteService>();
 
-// Add database initialization service for error tracking
-builder.Services.AddSingleton<IPrfDbInitializationService, PrfDbInitializationService>();
+// Add contacts service for managing trusted contacts
+builder.Services.AddSingleton<IContactsService, ContactsService>();
+
+// DbInitModel is registered via RxBlazorV2 generator (Singleton scope)
 
 var host = builder.Build();
 
 // Initialize SqliteWasm and validate/migrate database schema
 await host.Services.InitializeSqliteWasmAsync();
 
-var dbInitService = host.Services.GetRequiredService<IPrfDbInitializationService>();
+var dbInitModel = host.Services.GetRequiredService<DbInitModel>();
 var schemaService = host.Services.GetRequiredService<ISchemaVersionService>();
 
 try
 {
     var schemaResult = await schemaService.ValidateAndMigrateAsync();
 
-    if (schemaResult == SchemaValidationResult.Recreated)
+    if (schemaResult == SchemaValidationResult.RECREATED)
     {
-        dbInitService.WasRecreated = true;
-        dbInitService.ErrorMessage = "Database schema has changed!";
+        dbInitModel.WasRecreated = true;
+        dbInitModel.ErrorMessage = "Database schema has changed!";
     }
 }
 catch (Exception ex)
 {
-    dbInitService.ErrorMessage = $"Database initialization failed: {ex.Message}";
+    dbInitModel.ErrorMessage = $"Database initialization failed: {ex.Message}";
     Console.WriteLine($"[Startup] Database error: {ex.Message}");
 }
 

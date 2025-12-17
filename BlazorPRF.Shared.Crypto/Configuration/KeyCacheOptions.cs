@@ -13,7 +13,7 @@ public sealed class KeyCacheOptions
     /// <summary>
     /// Key caching strategy.
     /// </summary>
-    public KeyCacheStrategy Strategy { get; set; } = KeyCacheStrategy.Timed;
+    public KeyCacheStrategy Strategy { get; set; } = KeyCacheStrategy.TIMED;
 
     /// <summary>
     /// Time-to-live in minutes for cached keys (only used with Timed strategy).
@@ -30,17 +30,17 @@ public enum KeyCacheStrategy
     /// No caching - keys are derived fresh for each operation.
     /// Most secure but requires user interaction each time.
     /// </summary>
-    None,
+    NONE,
 
     /// <summary>
     /// Session caching - keys are cached until page refresh.
     /// Balance between security and usability.
     /// </summary>
-    Session,
+    SESSION,
 
     /// <summary>
     /// Timed caching - keys expire after TTL.
     /// Recommended for most applications.
     /// </summary>
-    Timed
+    TIMED
 }
