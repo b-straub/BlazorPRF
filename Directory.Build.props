@@ -7,7 +7,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <!-- Central version for all RxBlazorV2 packages -->
-    <BlazorPRFVersion>0.2.5-pre</BlazorPRFVersion>
+    <BlazorPRFVersion>0.2.6-pre</BlazorPRFVersion>
     <BlazorPRFCryptoEngine>Noble</BlazorPRFCryptoEngine>
   </PropertyGroup>
 </Project>
