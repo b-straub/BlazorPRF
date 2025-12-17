@@ -6,13 +6,14 @@ using RxBlazorV2.Model;
 using SqliteWasmBlazor;
 using System.Diagnostics.CodeAnalysis;
 
-namespace BlazorPRF.Sample.Models;
+namespace BlazorPRF.UI.Models;
 
 /// <summary>
 /// Reactive model for database initialization status and error handling.
 /// Replaces IPrfDbInitializationService with reactive patterns.
 /// Note: No [ObservableComponent] - this is a UI-less model accessed via injection.
 /// </summary>
+[ObservableComponent]
 [ObservableModelScope(ModelScope.Singleton)]
 public partial class DbInitModel : ObservableModel
 {

@@ -7,6 +7,7 @@
 <SessionExpiredPopover />
 <ServiceWorkerUpdateNotification />
 <InviteStatusDisplay />
+<DatabaseErrorAlert />
 
 <MudLayout>
     <MudAppBar Elevation="1">
@@ -21,7 +22,7 @@
                 <MudIconButton Icon="@Icons.Material.Filled.Home"
                                Color="Color.Inherit"
                                Edge="Edge.Start"
-                               Href="/" />
+                               Href="./" />
             </NotAuthorized>
         </AuthorizeView>
         <MudText Typo="Typo.h5" Class="ml-3">BlazorPRF Demo</MudText>
@@ -55,7 +56,6 @@
 
     <MudMainContent>
         <MudContainer MaxWidth="MaxWidth.Large" Class="my-4">
-            <DatabaseErrorAlert />
             @Body
         </MudContainer>
     </MudMainContent>

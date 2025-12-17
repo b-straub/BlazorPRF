@@ -3,8 +3,8 @@ using BlazorPRF.Crypto.Extensions;
 using BlazorPRF.Persistence.Extensions;
 using BlazorPRF.Persistence.Services;
 using BlazorPRF.Sample;
-using BlazorPRF.Sample.Models;
 using BlazorPRF.Sample.Services;
+using BlazorPRF.UI.Models;
 using BlazorPRF.UI.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
@@ -75,7 +75,7 @@ var schemaService = host.Services.GetRequiredService<ISchemaVersionService>();
 try
 {
     var schemaResult = await schemaService.ValidateAndMigrateAsync();
-
+    
     switch (schemaResult)
     {
         case SchemaValidationResult.RECREATED:
