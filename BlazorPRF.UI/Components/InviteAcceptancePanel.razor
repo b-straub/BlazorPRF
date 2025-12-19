@@ -1,6 +1,9 @@
+@using BlazorPRF.Persistence.Services
 @inherits InviteAcceptanceModelComponent
+@inject IUserProfileService UserProfileService
 @inject IClipboard Clipboard
 @inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
 
 <MudCard>
     <MudCardHeader>
@@ -49,14 +52,19 @@
                 </MudAlert>
             }
 
-            <MudTextField @bind-Value="Model.Username"
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Your Identity (from profile)</MudText>
+
+            <MudTextField Value="Model.Username"
                           Label="Your Name"
-                          Variant="Variant.Outlined"
+                          Variant="Variant.Filled"
+                          Class="mb-2"
+                          ReadOnly="true" />
+
+            <MudTextField Value="_myEmail"
+                          Label="Your Email"
+                          Variant="Variant.Filled"
                           Class="mb-4"
-                          Placeholder="Bob Smith"
-                          HelperText="Choose a display name for your public key"
-                          Immediate="true"
-                          Disabled="@Model.IsProcessing" />
+                          ReadOnly="true" />
 
             <MudButton Color="Color.Secondary"
                        Variant="Variant.Filled"
@@ -125,6 +133,60 @@
 </MudCard>
 
 @code {
+    private bool _profileLoaded;
+    private string _myEmail = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await LoadProfileAsync();
+    }
+
+    private async Task LoadProfileAsync()
+    {
+        if (_profileLoaded)
+        {
+            return;
+        }
+
+        // Try to load profile silently (don't trigger auth if not already authenticated)
+        if (!Model.PrfModel.HasKeys && !Model.PrfModel.RequiresOnDemandAuth)
+        {
+            return;
+        }
+
+        // For on-demand auth, wait until user authenticates (don't prefetch)
+        if (Model.PrfModel.RequiresOnDemandAuth && !Model.PrfModel.HasKeys)
+        {
+            return;
+        }
+
+        var result = await UserProfileService.GetAsync();
+        if (result is { Success: true, Value: not null })
+        {
+            // Check if profile has required fields
+            if (string.IsNullOrWhiteSpace(result.Value.Username) ||
+                string.IsNullOrWhiteSpace(result.Value.Email))
+            {
+                Snackbar.Add("Please configure your profile first.", Severity.Info);
+                NavigationManager.NavigateTo("settings");
+                return;
+            }
+
+            // Prefill the identity from profile
+            Model.Username = result.Value.Username;
+            _myEmail = result.Value.Email;
+            _profileLoaded = true;
+            StateHasChanged();
+        }
+        else if (result.Success && result.Value is null)
+        {
+            // No profile exists - redirect to settings
+            Snackbar.Add("Please configure your profile first.", Severity.Info);
+            NavigationManager.NavigateTo("settings");
+        }
+    }
+
     private async Task CopyResponseAsync()
     {
         if (string.IsNullOrEmpty(Model.SignedResponse))

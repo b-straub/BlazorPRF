@@ -39,6 +39,11 @@
         <PackageReference Include="BlazorPRF.$(BlazorPRFCryptoEngine).Crypto" Version="$(BlazorPRFVersion)" Condition="'$(Configuration)' == 'Release'"/>
     </ItemGroup>
 
+    <!-- Persistence is always a ProjectReference (not packaged) -->
+    <ItemGroup>
+        <ProjectReference Include="..\BlazorPRF.Persistence\BlazorPRF.Persistence.csproj" />
+    </ItemGroup>
+
     <ItemGroup Condition="'$(Configuration)' == 'Debug'">
         <!--
         <ProjectReference Include="..\BlazorPRF.BC.Crypto\BlazorPRF.BC.Crypto.csproj" />
@@ -46,7 +51,6 @@
         <!-- Reference Shared for build order only, use DLL reference for types -->
         <ProjectReference Include="..\BlazorPRF.Shared.Crypto\BlazorPRF.Shared.Crypto.csproj" ReferenceOutputAssembly="false" />
         <ProjectReference Include="..\BlazorPRF.$(BlazorPRFCryptoEngine).Crypto\BlazorPRF.$(BlazorPRFCryptoEngine).Crypto.csproj" />
-        <ProjectReference Include="..\BlazorPRF.Persistence\BlazorPRF.Persistence.csproj" />
         <!-- Direct reference to Shared.Crypto DLL for Debug compilation -->
         <Reference Include="BlazorPRF.Shared.Crypto">
             <HintPath>$(MSBuildThisFileDirectory)..\BlazorPRF.Shared.Crypto\bin\$(Configuration)\net10.0\BlazorPRF.Shared.Crypto.dll</HintPath>

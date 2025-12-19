@@ -5,7 +5,6 @@ using BlazorPRF.Persistence.Services;
 using BlazorPRF.Sample;
 using BlazorPRF.Sample.Services;
 using BlazorPRF.Persistence.Models;
-using BlazorPRF.UI.Models;
 using BlazorPRF.UI.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
@@ -35,11 +34,8 @@ builder.Services.AddBlazorPrf(builder.Configuration);
 // Add BlazorPRF.Persistence observable models (DbInitModel)
 BlazorPRF.Persistence.ObservableModels.Initialize(builder.Services);
 
-// Add BlazorPRF.UI observable models
+// Add BlazorPRF.UI observable models (includes ContactsModel)
 BlazorPRF.UI.ObservableModels.Initialize(builder.Services);
-
-// Add BlazorPRF.Sample observable models (ContactsModel)
-ObservableModels.Initialize(builder.Services);
 
 // Add PRF-based authentication state
 builder.Services.AddAuthorizationCore();

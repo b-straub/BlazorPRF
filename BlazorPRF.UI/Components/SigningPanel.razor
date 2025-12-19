@@ -2,6 +2,7 @@
 @inject ISigningService SigningService
 @inject ISnackbar Snackbar
 @inject IClipboard Clipboard
+@using System.Text.Json
 
 <MudCard>
     <MudCardHeader>
@@ -48,14 +49,14 @@
                     }
                 </MudButton>
 
-                @if (_signature is not null)
+                @if (_armoredSignature is not null)
                 {
                     <MudPaper Class="pa-4 mt-4" Elevation="0" Outlined="true">
                         <MudStack Row="true" AlignItems="AlignItems.Start" Justify="Justify.SpaceBetween">
                             <div Style="flex: 1; overflow: hidden;">
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Signature (Base64)</MudText>
-                                <MudText Typo="Typo.body2" Style="font-family: monospace; word-break: break-all;">
-                                    @_signature
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Signed Message (Armored)</MudText>
+                                <MudText Typo="Typo.body2" Style="font-family: monospace; white-space: pre-wrap; word-break: break-all;">
+                                    @_armoredSignature
                                 </MudText>
                             </div>
                             <MudTooltip Text="Copy to clipboard">
@@ -69,28 +70,13 @@
             </MudTabPanel>
 
             <MudTabPanel Text="Verify">
-                <MudTextField @bind-Value="_messageToVerify"
-                              Label="Message"
+                <MudTextField @bind-Value="_armoredToVerify"
+                              Label="Armored Signed Message"
                               Variant="Variant.Outlined"
-                              Lines="3"
-                              Class="mt-4 mb-2"
-                              Immediate="true"
-                              Disabled="@_isProcessing" />
-
-                <MudTextField @bind-Value="_signatureToVerify"
-                              Label="Signature (Base64)"
-                              Variant="Variant.Outlined"
-                              Class="mb-2"
+                              Lines="8"
+                              Class="mt-4 mb-4"
                               Style="font-family: monospace;"
-                              Immediate="true"
-                              Disabled="@_isProcessing" />
-
-                <MudTextField @bind-Value="_publicKeyToVerify"
-                              Label="Public Key (Base64)"
-                              Variant="Variant.Outlined"
-                              Class="mb-4"
-                              Style="font-family: monospace;"
-                              HelperText="Ed25519 public key of the signer"
+                              Placeholder="Paste -----BEGIN PFA SIGNED MESSAGE----- block here"
                               Immediate="true"
                               Disabled="@_isProcessing" />
 
@@ -117,13 +103,26 @@
                               Variant="Variant.Outlined">
                         @if (_verificationResult.Value)
                         {
-                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" />
-                            <span>Signature is VALID</span>
+                            <MudStack Row="true" AlignItems="AlignItems.Center">
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" />
+                                <span>Signature is VALID</span>
+                            </MudStack>
+                            @if (_verifiedMessage is not null)
+                            {
+                                <MudText Typo="Typo.body2" Class="mt-2">
+                                    <strong>Message:</strong> @_verifiedMessage.Message
+                                </MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                    Signed: @DateTimeOffset.FromUnixTimeSeconds(_verifiedMessage.TimestampUnix).LocalDateTime.ToString("g")
+                                </MudText>
+                            }
                         }
                         else
                         {
-                            <MudIcon Icon="@Icons.Material.Filled.Cancel" Class="mr-2" />
-                            <span>Signature is INVALID</span>
+                            <MudStack Row="true" AlignItems="AlignItems.Center">
+                                <MudIcon Icon="@Icons.Material.Filled.Cancel" Class="mr-2" />
+                                <span>Signature is INVALID</span>
+                            </MudStack>
                         }
                     </MudAlert>
                 }
@@ -141,19 +140,15 @@
 
 @code {
     private string _messageToSign = string.Empty;
-    private string _messageToVerify = string.Empty;
-    private string _signatureToVerify = string.Empty;
-    private string _publicKeyToVerify = string.Empty;
+    private string _armoredToVerify = string.Empty;
     private bool _isProcessing;
     private string? _errorMessage;
-    private string? _signature;
+    private string? _armoredSignature;
     private bool? _verificationResult;
+    private SignedMessage? _verifiedMessage;
 
     private bool CanSign => (Model.HasKeys || Model.RequiresOnDemandAuth) && !_isProcessing && !string.IsNullOrWhiteSpace(_messageToSign);
-    private bool CanVerify => !_isProcessing
-                              && !string.IsNullOrWhiteSpace(_messageToVerify)
-                              && !string.IsNullOrWhiteSpace(_signatureToVerify)
-                              && !string.IsNullOrWhiteSpace(_publicKeyToVerify);
+    private bool CanVerify => !_isProcessing && !string.IsNullOrWhiteSpace(_armoredToVerify);
 
     private async Task SignAsync()
     {
@@ -164,7 +159,7 @@
 
         _isProcessing = true;
         _errorMessage = null;
-        _signature = null;
+        _armoredSignature = null;
 
         try
         {
@@ -175,11 +170,12 @@
                 return;
             }
 
-            var result = await SigningService.SignAsync(_messageToSign, Model.Salt);
+            var result = await SigningService.CreateSignedMessageAsync(_messageToSign, Model.Salt);
 
             if (result is { Success: true, Value: not null })
             {
-                _signature = result.Value;
+                var json = JsonSerializer.Serialize(result.Value, SignedMessageJsonContext.Default.SignedMessage);
+                _armoredSignature = PrfArmor.ArmorSignedMessage(json);
             }
             else if (result.ErrorCode == PrfErrorCode.KEY_DERIVATION_FAILED)
             {
@@ -211,10 +207,31 @@
         _isProcessing = true;
         _errorMessage = null;
         _verificationResult = null;
+        _verifiedMessage = null;
 
         try
         {
-            _verificationResult = await SigningService.VerifyAsync(_messageToVerify, _signatureToVerify, _publicKeyToVerify);
+            var json = PrfArmor.UnArmorSignedMessage(_armoredToVerify);
+            if (json is null)
+            {
+                _errorMessage = "Invalid armored signed message format";
+                return;
+            }
+
+            var signedMessage = JsonSerializer.Deserialize(json, SignedMessageJsonContext.Default.SignedMessage);
+            if (signedMessage is null)
+            {
+                _errorMessage = "Failed to parse signed message";
+                return;
+            }
+
+            // Reconstruct the data that was signed: "{timestamp}:{message}"
+            var dataToVerify = $"{signedMessage.TimestampUnix}:{signedMessage.Message}";
+            _verificationResult = await SigningService.VerifyAsync(dataToVerify, signedMessage.Signature, signedMessage.PublicKey);
+            if (_verificationResult == true)
+            {
+                _verifiedMessage = signedMessage;
+            }
         }
         catch (Exception ex)
         {
@@ -228,15 +245,15 @@
 
     private async Task CopySignatureAsync()
     {
-        if (string.IsNullOrEmpty(_signature))
+        if (string.IsNullOrEmpty(_armoredSignature))
         {
             return;
         }
 
         try
         {
-            await Clipboard.SetTextAsync(_signature);
-            Snackbar.Add("Signature copied!", Severity.Success);
+            await Clipboard.SetTextAsync(_armoredSignature);
+            Snackbar.Add("Signed message copied!", Severity.Success);
         }
         catch
         {

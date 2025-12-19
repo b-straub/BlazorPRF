@@ -123,6 +123,10 @@
                     </MudButton>
                 </div>
             </MudStack>
+
+            <MudText Typo="Typo.caption" Class="mt-6 mud-text-secondary">
+                Build: @_buildTime
+            </MudText>
         </MudContainer>
     </NotAuthorized>
 
@@ -263,11 +267,19 @@
                     </MudButtonRx>
                 </MudStack>
             </MudItem>
+
+            <MudItem xs="12">
+                <MudText Typo="Typo.caption" Align="Align.Right" Class="mud-text-secondary">
+                    Build: @_buildTime
+                </MudText>
+            </MudItem>
         </MudGrid>
     </Authorized>
 </AuthorizeView>
 
 @code {
+    private readonly string _buildTime = cmdwtf.BuildTimestamp.BuildTime.ToLongDateString() + " - " + cmdwtf.BuildTimestamp.BuildTime.ToLongTimeString();
+
     [Inject]
     public required NavigationManager NavigationManager { get; init; }
 

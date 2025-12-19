@@ -4,22 +4,95 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
 
-<MudCard>
-    <MudCardHeader>
-        <CardHeaderAvatar>
-            <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Color="Color.Tertiary" />
-        </CardHeaderAvatar>
-        <CardHeaderContent>
-            <MudText Typo="Typo.h6">Step 3: Verify Acceptance</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">Verify both signatures to establish trust</MudText>
-        </CardHeaderContent>
-    </MudCardHeader>
+@if (ShowCard)
+{
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderAvatar>
+                <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Color="Color.Tertiary" />
+            </CardHeaderAvatar>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Step 3: Verify Acceptance</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Verify both signatures to establish trust</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            @RenderContent
+        </MudCardContent>
+    </MudCard>
+}
+else
+{
+    @RenderContent
+}
 
-    <MudCardContent>
+@code {
+    /// <summary>
+    /// Whether to wrap content in a MudCard. Set to false for dialog usage.
+    /// </summary>
+    [Parameter]
+    public bool ShowCard { get; set; } = true;
+
+    /// <summary>
+    /// Custom actions to show after successful verification.
+    /// If not provided, shows default "Encrypt to This User" button.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? SuccessActions { get; set; }
+
+    /// <summary>
+    /// Custom actions to show after failed verification.
+    /// If not provided, no additional actions shown.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? FailureActions { get; set; }
+
+    /// <summary>
+    /// Whether verification was successful (both signatures valid).
+    /// </summary>
+    public bool IsVerificationSuccessful => _verificationComplete && _inviterSignatureValid && _accepterSignatureValid;
+
+    /// <summary>
+    /// Whether verification is complete (success or failure).
+    /// </summary>
+    public bool IsVerificationComplete => _verificationComplete;
+
+    /// <summary>
+    /// Reset the panel state for another verification.
+    /// </summary>
+    public void Reset()
+    {
+        _signedResponse = string.Empty;
+        _errorMessage = null;
+        _verificationComplete = false;
+        _inviterSignatureValid = false;
+        _accepterSignatureValid = false;
+        _verifiedUsername = null;
+        _verifiedEmail = null;
+        _verifiedX25519PublicKey = null;
+        _verifiedEd25519PublicKey = null;
+        StateHasChanged();
+    }
+
+    private string _signedResponse = string.Empty;
+    private bool _isProcessing;
+    private string? _errorMessage;
+    private bool _verificationComplete;
+    private bool _inviterSignatureValid;
+    private bool _accepterSignatureValid;
+    private string? _verifiedUsername;
+    private string? _verifiedEmail;
+    private string? _verifiedX25519PublicKey;
+    private string? _verifiedEd25519PublicKey;
+
+    private bool CanVerify => !_isProcessing && !string.IsNullOrWhiteSpace(_signedResponse);
+
+    private RenderFragment RenderContent => __builder =>
+    {
         <MudTextField @bind-Value="_signedResponse"
                       Label="Signed Response"
                       Variant="Variant.Outlined"
-                      Lines="8"
+                      Lines="@(ShowCard ? 8 : 6)"
                       Class="mb-4"
                       Style="font-family: monospace;"
                       Placeholder="Paste the armored signed response from the invitee"
@@ -124,13 +197,20 @@
                         AND they were responding to YOUR specific invite.
                     </MudText>
 
-                    <MudButton Color="Color.Primary"
-                               Variant="Variant.Filled"
-                               StartIcon="@Icons.Material.Filled.Lock"
-                               OnClick="NavigateToEncrypt"
-                               Size="Size.Small">
-                        Encrypt to This User
-                    </MudButton>
+                    @if (SuccessActions is not null)
+                    {
+                        @SuccessActions
+                    }
+                    else
+                    {
+                        <MudButton Color="Color.Primary"
+                                   Variant="Variant.Filled"
+                                   StartIcon="@Icons.Material.Filled.Lock"
+                                   OnClick="NavigateToEncrypt"
+                                   Size="Size.Small">
+                            Encrypt to This User
+                        </MudButton>
+                    }
                 </MudPaper>
             }
             else
@@ -187,25 +267,15 @@
                             <MudListItem Icon="@Icons.Material.Filled.Warning">The signature doesn't match the public key</MudListItem>
                         }
                     </MudList>
+
+                    @if (FailureActions is not null)
+                    {
+                        @FailureActions
+                    }
                 </MudPaper>
             }
         }
-    </MudCardContent>
-</MudCard>
-
-@code {
-    private string _signedResponse = string.Empty;
-    private bool _isProcessing;
-    private string? _errorMessage;
-    private bool _verificationComplete;
-    private bool _inviterSignatureValid;
-    private bool _accepterSignatureValid;
-    private string? _verifiedUsername;
-    private string? _verifiedEmail;
-    private string? _verifiedX25519PublicKey;
-    private string? _verifiedEd25519PublicKey;
-
-    private bool CanVerify => !_isProcessing && !string.IsNullOrWhiteSpace(_signedResponse);
+    };
 
     private async Task VerifyAsync()
     {
@@ -346,5 +416,4 @@
         var uri = $"encrypt?publicKey={Uri.EscapeDataString(armoredKey)}";
         NavigationManager.NavigateTo(uri);
     }
-
 }

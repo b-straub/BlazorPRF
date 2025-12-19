@@ -1,12 +1,11 @@
 using BlazorPRF.Persistence.Data.Models;
-using BlazorPRF.Sample.Services;
 using BlazorPRF.Shared.Crypto.Formatting;
-using BlazorPRF.UI.Models;
+using BlazorPRF.UI.Services;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;
 using System.Diagnostics.CodeAnalysis;
 
-namespace BlazorPRF.Sample.Models;
+namespace BlazorPRF.UI.Models;
 
 /// <summary>
 /// Reactive model for contacts state management.
@@ -25,6 +24,7 @@ public partial class ContactsModel : ObservableModel
     /// <summary>
     /// Loaded contacts with their decrypted user data.
     /// </summary>
+    [ObservableComponentTrigger]
     public partial List<(TrustedContact Contact, ContactUserData UserData)> Contacts { get; set; } = [];
 
     /// <summary>
@@ -148,10 +148,10 @@ public partial class ContactsModel : ObservableModel
     }
 
     /// <summary>
-    /// Internal observer - auto-detected via InviteModel.Status access.
-    /// Reloads contacts when a contact is successfully saved (verification succeeds).
+    /// Cross-model observer: watches InviteModel.Status for successful contact saves.
+    /// Naming convention: On{ParameterName}{PropertyName}Changed.
     /// </summary>
-    private void OnInviteStatusChanged()
+    private void OnInviteModelStatusChanged()
     {
         if (InviteModel.Status?.Severity == StatusSeverity.SUCCESS)
         {

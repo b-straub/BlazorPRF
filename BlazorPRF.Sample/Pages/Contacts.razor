@@ -1,13 +1,8 @@
 @page "/contacts"
 @attribute [Authorize]
 @inherits ContactsModelComponent
-@using BlazorPRF.Sample.Models
-@using BlazorPRF.Shared.Crypto.Formatting
-@using TextCopy
-@inject NavigationManager NavigationManager
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
-@inject IClipboard Clipboard
 
 <PageTitle>Contacts - BlazorPRF</PageTitle>
 
@@ -18,196 +13,15 @@
             Manage your verified contacts. User data is encrypted with your PRF-derived key.
         </MudText>
     </MudItem>
-    <MudItem xs="12" sm="4" Class="d-flex align-center justify-end">
-        <MudButton Color="Color.Primary"
-                   Variant="Variant.Filled"
-                   StartIcon="@Icons.Material.Filled.PersonAdd"
-                   OnClick="OpenVerifyDialogAsync">
-            Add via Response
-        </MudButton>
-    </MudItem>
 </MudGrid>
 
-@if (Model.Loading)
-{
-    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
-        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
-        <MudText>Loading contacts...</MudText>
-    </MudStack>
-}
-else if (Model.ErrorMessage is not null)
-{
-    <MudAlert Severity="Severity.Warning" Class="mb-4" Variant="Variant.Outlined">
-        @Model.ErrorMessage
-        <MudStack Row="true" Class="mt-2">
-            @if (Model.IsDecryptionError)
-            {
-                <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => Model.SignOut.Execute())">
-                    Sign Out
-                </MudButton>
-                <MudButton Variant="Variant.Text"
-                           Color="Color.Error"
-                           OnClick="@(() => Model.ResetDatabase.ExecuteAsync())"
-                           Disabled="Model.ResetDatabase.Executing">
-                    @if (Model.ResetDatabase.Executing)
-                    {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                        <span>Resetting...</span>
-                    }
-                    else
-                    {
-                        <span>Reset Database</span>
-                    }
-                </MudButton>
-            }
-            else
-            {
-                <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => Model.LoadContacts.ExecuteAsync())">
-                    Retry
-                </MudButton>
-            }
-        </MudStack>
-    </MudAlert>
-}
-else if (Model.Contacts.Count == 0)
-{
-    <MudAlert Severity="Severity.Info" Class="mb-4" Variant="Variant.Outlined">
-        No trusted contacts yet. Use the <MudLink Href="invite">Identity Verification</MudLink> page to establish trust with others.
-    </MudAlert>
-}
-else
-{
-    <MudTable Items="@Model.Contacts" Hover="true" Striped="true" Dense="true" Class="mb-4">
-        <HeaderContent>
-            <MudTh>Name</MudTh>
-            <MudTh>Email</MudTh>
-            <MudTh>Trust</MudTh>
-            <MudTh>Direction</MudTh>
-            <MudTh>Verified</MudTh>
-            <MudTh Style="width: 120px;">Actions</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Name">@context.UserData.Username</MudTd>
-            <MudTd DataLabel="Email">@context.UserData.Email</MudTd>
-            <MudTd DataLabel="Trust">
-                <MudChip T="string" Size="Size.Small" Color="@GetTrustColor(context.Contact.TrustLevel)">
-                    @context.Contact.TrustLevel
-                </MudChip>
-            </MudTd>
-            <MudTd DataLabel="Direction">
-                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
-                         Color="@(context.Contact.Direction == TrustDirection.SENT ? Color.Primary : Color.Secondary)">
-                    @(context.Contact.Direction == TrustDirection.SENT ? "I invited" : "They invited")
-                </MudChip>
-            </MudTd>
-            <MudTd DataLabel="Verified">@context.Contact.VerifiedAt.ToLocalTime().ToString("g")</MudTd>
-            <MudTd DataLabel="Actions">
-                <MudTooltip Text="Copy X25519 public key">
-                    <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
-                                   Size="Size.Small"
-                                   OnClick="@(() => CopyPublicKeyAsync(context.Contact, context.UserData))" />
-                </MudTooltip>
-                <MudTooltip Text="Encrypt message for this contact">
-                    <MudIconButton Icon="@Icons.Material.Filled.Send"
-                                   Size="Size.Small"
-                                   Href="@($"asymmetric?key={Uri.EscapeDataString(context.Contact.X25519PublicKey)}")" />
-                </MudTooltip>
-                <MudTooltip Text="Delete contact">
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                   Size="Size.Small"
-                                   Color="Color.Error"
-                                   OnClick="@(() => Model.DeleteContact.ExecuteAsync(context.Contact.Id))" />
-                </MudTooltip>
-            </MudTd>
-        </RowTemplate>
-    </MudTable>
-}
-
-<MudDivider Class="my-4" />
-
-<MudStack Row="true" Spacing="2">
-    <MudButton Href="invite"
-               Variant="Variant.Outlined"
-               Color="Color.Primary"
-               StartIcon="@Icons.Material.Filled.GroupAdd">
-        Create New Invitation
-    </MudButton>
-    <MudButton Variant="Variant.Outlined"
-               Color="Color.Default"
-               StartIcon="@Icons.Material.Filled.Refresh"
-               OnClick="@(() => Model.LoadContacts.ExecuteAsync())"
-               Disabled="@Model.Loading">
-        Refresh
-    </MudButton>
-</MudStack>
+<ContactsPanel OnCreateInviteRequested="OpenCreateInviteDialogAsync"
+               OnAcceptInviteRequested="OpenAcceptInviteDialogAsync"
+               OnVerifyResponseRequested="OpenVerifyDialogAsync" />
 
 @code {
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await Model.LoadContacts.ExecuteAsync();
-        }
-    }
-
-    /// <summary>
-    /// Called reactively when NavigateToRequest changes.
-    /// </summary>
-    protected override void OnNavigateToRequestChanged()
-    {
-        if (Model.NavigateToRequest is not null)
-        {
-            var url = Model.NavigateToRequest;
-            Model.NavigateToRequest = null;
-            NavigationManager.NavigateTo(url);
-        }
-    }
-
-    /// <summary>
-    /// Called reactively when Status changes.
-    /// </summary>
-    protected override void OnStatusChanged()
-    {
-        if (Model.Status is not null)
-        {
-            var severity = Model.Status.Severity switch
-            {
-                StatusSeverity.SUCCESS => Severity.Success,
-                StatusSeverity.WARNING => Severity.Warning,
-                StatusSeverity.ERROR => Severity.Error,
-                _ => Severity.Info
-            };
-            Snackbar.Add(Model.Status.Message, severity);
-        }
-    }
-
-    private async Task CopyPublicKeyAsync(TrustedContact contact, ContactUserData? userData)
-    {
-        // Create armored public key with metadata
-        var metadata = userData is not null
-            ? new PublicKeyMetadata
-              {
-                  Name = userData.Username,
-                  Email = userData.Email,
-                  Comment = userData.Comment
-              }
-            : null;
-
-        var armored = PrfArmor.ArmorPublicKey(contact.X25519PublicKey, metadata);
-        await Clipboard.SetTextAsync(armored);
-        Snackbar.Add("Public key copied to clipboard", Severity.Success);
-    }
-
-    private static Color GetTrustColor(TrustLevel level) => level switch
-    {
-        TrustLevel.FULL => Color.Success,
-        TrustLevel.MARGINAL => Color.Warning,
-        _ => Color.Default
-    };
-
     private async Task OpenVerifyDialogAsync()
     {
-        // Ensure user is authenticated before opening dialog
         if (!await Model.PrfModel.EnsureKeysAsync())
         {
             Snackbar.Add("Authentication required to verify responses.", Severity.Warning);
@@ -223,9 +37,46 @@ else
         };
 
         var dialog = await DialogService.ShowAsync<VerifyResponseDialog>("Verify Response & Add Contact", options);
-        var result = await dialog.Result;
+        _ = await dialog.Result;
+    }
 
-        // Dialog closes - reactive observer in ContactsModel will handle refresh
-        _ = result;
+    private async Task OpenCreateInviteDialogAsync()
+    {
+        if (!await Model.PrfModel.EnsureKeysAsync())
+        {
+            Snackbar.Add("Authentication required to create invitations.", Severity.Warning);
+            return;
+        }
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<CreateInviteDialog>("Create New Invitation", options);
+        _ = await dialog.Result;
+    }
+
+    private async Task OpenAcceptInviteDialogAsync()
+    {
+        if (!await Model.PrfModel.EnsureKeysAsync())
+        {
+            Snackbar.Add("Authentication required to accept invitations.", Severity.Warning);
+            return;
+        }
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<AcceptInviteDialog>("Accept an Invitation", options);
+        _ = await dialog.Result;
     }
 }

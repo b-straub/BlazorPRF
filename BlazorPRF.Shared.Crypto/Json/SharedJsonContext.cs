@@ -12,9 +12,18 @@ namespace BlazorPRF.Shared.Crypto.Json;
     UseStringEnumConverter = true)]
 [JsonSerializable(typeof(EncryptedMessage))]
 [JsonSerializable(typeof(SymmetricEncryptedMessage))]
+[JsonSerializable(typeof(SignedMessage))]
 [JsonSerializable(typeof(KeyPair))]
 [JsonSerializable(typeof(PrfResult<EncryptedMessage>))]
 [JsonSerializable(typeof(PrfResult<SymmetricEncryptedMessage>))]
+[JsonSerializable(typeof(PrfResult<SignedMessage>))]
 [JsonSerializable(typeof(PrfResult<string>))]
 [JsonSerializable(typeof(PrfResult<KeyPair>))]
 public partial class SharedJsonContext : JsonSerializerContext;
+
+/// <summary>
+/// Source-generated JSON serialization context for SignedMessage.
+/// </summary>
+[JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
+[JsonSerializable(typeof(SignedMessage))]
+public partial class SignedMessageJsonContext : JsonSerializerContext;

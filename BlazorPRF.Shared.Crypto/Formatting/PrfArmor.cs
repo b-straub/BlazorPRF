@@ -21,6 +21,8 @@ public static partial class PrfArmor
     private const string SignedInviteFooter = "-----END PFA SIGNED INVITE-----";
     private const string SignedResponseHeader = "-----BEGIN PFA SIGNED RESPONSE-----";
     private const string SignedResponseFooter = "-----END PFA SIGNED RESPONSE-----";
+    private const string SignedMessageHeader = "-----BEGIN PFA SIGNED MESSAGE-----";
+    private const string SignedMessageFooter = "-----END PFA SIGNED MESSAGE-----";
     private const int LineLength = 64;
     private const int FormatVersion = 1;
 
@@ -268,6 +270,46 @@ public static partial class PrfArmor
     public static string? UnArmorSignedResponse(string armored)
     {
         var base64 = ExtractBase64(armored, SignedResponseHeader, SignedResponseFooter);
+        if (base64 is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var bytes = Convert.FromBase64String(base64);
+            return Encoding.UTF8.GetString(bytes);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Checks if a string looks like an armored signed message.
+    /// </summary>
+    public static bool IsArmoredSignedMessage(string text)
+    {
+        return text.TrimStart().StartsWith(SignedMessageHeader, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Formats a signed message in PGP-style armor.
+    /// </summary>
+    public static string ArmorSignedMessage(string signedMessageJson)
+    {
+        var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(signedMessageJson));
+        var wrapped = WrapBase64(base64);
+        return $"{SignedMessageHeader}\n\n{wrapped}\n{SignedMessageFooter}";
+    }
+
+    /// <summary>
+    /// Extracts and decodes a signed message JSON from PGP-style armor.
+    /// </summary>
+    public static string? UnArmorSignedMessage(string armored)
+    {
+        var base64 = ExtractBase64(armored, SignedMessageHeader, SignedMessageFooter);
         if (base64 is null)
         {
             return null;

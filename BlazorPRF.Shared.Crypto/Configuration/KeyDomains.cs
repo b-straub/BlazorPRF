@@ -22,6 +22,11 @@ public static class KeyDomains
     public const string InvitationEmail = "invitation-email";
 
     /// <summary>
+    /// Domain identifier for encrypting user profile data.
+    /// </summary>
+    public const string UserProfileData = "user-profile-data";
+
+    /// <summary>
     /// Builds a unique key identifier by combining auth salt with domain.
     /// Used for domain-specific key derivation via HKDF.
     /// </summary>

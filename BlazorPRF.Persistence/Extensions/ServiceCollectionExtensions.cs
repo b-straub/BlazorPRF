@@ -27,7 +27,7 @@ public static class ServiceCollectionExtensions
         // Services - Singleton for WASM (they use IDbContextFactory internally)
         services.AddSingleton<ITrustedContactService, TrustedContactService>();
         services.AddSingleton<IInvitationService, InvitationService>();
-        services.AddSingleton<ISettingsService, SettingsService>();
+        services.AddSingleton<IUserProfileService, UserProfileService>();
         services.AddSingleton<IEncryptionCredentialService, EncryptionCredentialService>();
         services.AddSingleton<ISchemaVersionService, SchemaVersionService>();
 

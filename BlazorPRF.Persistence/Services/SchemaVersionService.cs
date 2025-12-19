@@ -18,8 +18,9 @@ public sealed class SchemaVersionService : ISchemaVersionService
     /// Version history:
     /// 1 - Initial schema (TrustedContacts, SentInvitations, ReceivedInvitations, AppSettings)
     /// 2 - Added encryption_credential setting for tracking which passkey encrypted data
+    /// 3 - Added UserProfiles table for encrypted user profile storage
     /// </remarks>
-    public int CurrentSchemaVersion => 2;
+    public int CurrentSchemaVersion => 3;
 
     private readonly IDbContextFactory<PrfDbContext> _dbContextFactory;
 

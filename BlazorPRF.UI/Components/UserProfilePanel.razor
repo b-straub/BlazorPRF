@@ -1,0 +1,193 @@
+@using BlazorPRF.Persistence.Data.Models
+@inherits UserProfileModelComponent
+@inject ISnackbar Snackbar
+
+@if (Model.Loading)
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+        <MudText>Loading profile...</MudText>
+    </MudStack>
+}
+else if (Model.ErrorMessage is not null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mb-4" Variant="Variant.Outlined">
+        @Model.ErrorMessage
+        <MudStack Row="true" Class="mt-2">
+            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => Model.LoadProfile.ExecuteAsync())">
+                Retry
+            </MudButton>
+        </MudStack>
+    </MudAlert>
+}
+else
+{
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderAvatar>
+                <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Primary" />
+            </CardHeaderAvatar>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Your Profile</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Personal information used for invitations</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudTextField @bind-Value="_username"
+                          Label="Display Name"
+                          Variant="Variant.Outlined"
+                          Class="mb-4"
+                          Placeholder="user"
+                          HelperText="Your name shown to contacts"
+                          Immediate="true"
+                          Disabled="@Model.Saving" />
+
+            <MudTextField @bind-Value="_email"
+                          Label="Email Address"
+                          Variant="Variant.Outlined"
+                          Class="mb-4"
+                          Placeholder="user@example.com"
+                          HelperText="@(ShowEmailError ? "Please enter a valid email address" : "Your email address")"
+                          Error="@ShowEmailError"
+                          InputType="InputType.Email"
+                          Immediate="true"
+                          Disabled="@Model.Saving" />
+
+            <MudDivider Class="my-4" />
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2 mud-text-secondary">Email Server Settings (Future Feature)</MudText>
+
+            <MudGrid>
+                <MudItem xs="12" sm="8">
+                    <MudTextField @bind-Value="_smtpHost"
+                                  Label="SMTP Host"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="smtp.example.com"
+                                  Disabled="true"
+                                  HelperText="Coming soon" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField @bind-Value="_smtpPort"
+                                     Label="SMTP Port"
+                                     Variant="Variant.Outlined"
+                                     Disabled="true" />
+                </MudItem>
+            </MudGrid>
+
+            <MudGrid Class="mt-2">
+                <MudItem xs="12" sm="8">
+                    <MudTextField @bind-Value="_imapHost"
+                                  Label="IMAP Host"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="imap.example.com"
+                                  Disabled="true"
+                                  HelperText="Coming soon" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField @bind-Value="_imapPort"
+                                     Label="IMAP Port"
+                                     Variant="Variant.Outlined"
+                                     Disabled="true" />
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+        <MudCardActions>
+            <MudSpacer />
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Save"
+                       OnClick="SaveProfileAsync"
+                       Disabled="@(!CanSave)">
+                @if (Model.Saving)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                    <span>Saving...</span>
+                }
+                else
+                {
+                    <span>Save Profile</span>
+                }
+            </MudButton>
+        </MudCardActions>
+    </MudCard>
+}
+
+@code {
+    private static readonly System.Text.RegularExpressions.Regex EmailRegex = new(
+        @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+        System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    private string _username = string.Empty;
+    private string _email = string.Empty;
+    private string? _smtpHost;
+    private int? _smtpPort = 587;
+    private string? _imapHost;
+    private int? _imapPort = 993;
+
+    private bool IsValidEmail => !string.IsNullOrWhiteSpace(_email) && EmailRegex.IsMatch(_email);
+
+    // Only show error after user has typed something
+    private bool ShowEmailError => !string.IsNullOrEmpty(_email) && !IsValidEmail;
+
+    private bool CanSave => !Model.Saving &&
+                           !string.IsNullOrWhiteSpace(_username) &&
+                           IsValidEmail;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Model.LoadProfile.ExecuteAsync();
+        }
+    }
+
+    /// <summary>
+    /// Called reactively when ProfileLoaded changes.
+    /// </summary>
+    protected override void OnProfileLoadedChanged()
+    {
+        if (Model.ProfileLoaded && Model.Profile is not null)
+        {
+            _username = Model.Profile.Username;
+            _email = Model.Profile.Email;
+            _smtpHost = Model.Profile.SmtpHost;
+            _smtpPort = Model.Profile.SmtpPort ?? 587;
+            _imapHost = Model.Profile.ImapHost;
+            _imapPort = Model.Profile.ImapPort ?? 993;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Called reactively when SuccessMessage changes.
+    /// </summary>
+    protected override void OnSuccessMessageChanged()
+    {
+        if (Model.SuccessMessage is not null)
+        {
+            Snackbar.Add(Model.SuccessMessage, Severity.Success);
+        }
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        if (!CanSave)
+        {
+            return;
+        }
+
+        var data = new UserProfileData
+        {
+            Username = _username,
+            Email = _email,
+            SmtpHost = _smtpHost,
+            SmtpPort = _smtpPort,
+            SmtpUsername = null, // Future
+            ImapHost = _imapHost,
+            ImapPort = _imapPort,
+            ImapUsername = null  // Future
+        };
+
+        await Model.SaveProfile.ExecuteAsync(data);
+    }
+}

@@ -1,0 +1,15 @@
+@page "/settings"
+@attribute [Authorize]
+
+<PageTitle>Settings - BlazorPRF</PageTitle>
+
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="8">
+        <MudText Typo="Typo.h4" GutterBottom="true">User Settings</MudText>
+        <MudText Typo="Typo.body1">
+            Configure your profile. This data is encrypted with your PRF-derived key.
+        </MudText>
+    </MudItem>
+</MudGrid>
+
+<UserProfilePanel />

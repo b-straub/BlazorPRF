@@ -13,6 +13,7 @@ namespace BlazorPRF.Persistence.Json;
     JsonSerializerDefaults.Web,
     UseStringEnumConverter = true)]
 [JsonSerializable(typeof(ContactUserData))]
+[JsonSerializable(typeof(UserProfileData))]
 [JsonSerializable(typeof(EncryptionCredentialInfo))]
 [JsonSerializable(typeof(SymmetricEncryptedMessage))]
 public partial class PersistenceJsonContext : JsonSerializerContext;

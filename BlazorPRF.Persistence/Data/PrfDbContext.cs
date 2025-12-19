@@ -33,6 +33,11 @@ public sealed class PrfDbContext : DbContext
     /// </summary>
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
+    /// <summary>
+    /// User profile with encrypted personal data.
+    /// </summary>
+    public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -94,6 +99,13 @@ public sealed class PrfDbContext : DbContext
             entity.HasKey(e => e.Key);
             entity.Property(e => e.Key).HasMaxLength(128);
             entity.Property(e => e.Value).IsRequired();
+        });
+
+        // UserProfile configuration
+        modelBuilder.Entity<UserProfile>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.EncryptedData).IsRequired();
         });
     }
 }

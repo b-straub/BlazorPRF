@@ -1,8 +1,11 @@
 @using BlazorPRF.Shared.Crypto.Extensions
+@using BlazorPRF.Persistence.Services
 @inherits PrfModelComponent
 @inject ISigningService SigningService
+@inject IUserProfileService UserProfileService
 @inject IClipboard Clipboard
 @inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
 
 <MudCard>
     <MudCardHeader>
@@ -25,25 +28,19 @@
 
         @if (_signedInvite is null)
         {
-            <MudText Typo="Typo.subtitle2" Class="mb-2">Your Identity (included in invite)</MudText>
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Your Identity (from profile)</MudText>
 
-            <MudTextField @bind-Value="_myName"
+            <MudTextField Value="_myName"
                           Label="Your Name"
-                          Variant="Variant.Outlined"
+                          Variant="Variant.Filled"
                           Class="mb-2"
-                          Placeholder="Alice Smith"
-                          HelperText="Your display name for the invitee"
-                          Immediate="true"
-                          Disabled="@_isProcessing" />
+                          ReadOnly="true" />
 
-            <MudTextField @bind-Value="_myEmail"
+            <MudTextField Value="_myEmail"
                           Label="Your Email"
-                          Variant="Variant.Outlined"
+                          Variant="Variant.Filled"
                           Class="mb-4"
-                          Placeholder="alice@example.com"
-                          HelperText="Your email address"
-                          Immediate="true"
-                          Disabled="@_isProcessing" />
+                          ReadOnly="true" />
 
             <MudDivider Class="my-4" />
 
@@ -134,6 +131,57 @@
     private string? _signedInvite;
     private string? _errorMessage;
     private bool _isProcessing;
+    private bool _profileLoaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await LoadProfileAsync();
+    }
+
+    private async Task LoadProfileAsync()
+    {
+        if (_profileLoaded)
+        {
+            return;
+        }
+
+        // Try to load profile silently (don't trigger auth if not already authenticated)
+        if (!Model.HasKeys && !Model.RequiresOnDemandAuth)
+        {
+            return;
+        }
+
+        // For on-demand auth, wait until user authenticates (don't prefetch)
+        if (Model.RequiresOnDemandAuth && !Model.HasKeys)
+        {
+            return;
+        }
+
+        var result = await UserProfileService.GetAsync();
+        if (result is { Success: true, Value: not null })
+        {
+            // Check if profile has required fields
+            if (string.IsNullOrWhiteSpace(result.Value.Username) ||
+                string.IsNullOrWhiteSpace(result.Value.Email))
+            {
+                Snackbar.Add("Please configure your profile first.", Severity.Info);
+                NavigationManager.NavigateTo("settings");
+                return;
+            }
+
+            _myName = result.Value.Username;
+            _myEmail = result.Value.Email;
+            _profileLoaded = true;
+            StateHasChanged();
+        }
+        else if (result.Success && result.Value is null)
+        {
+            // No profile exists - redirect to settings
+            Snackbar.Add("Please configure your profile first.", Severity.Info);
+            NavigationManager.NavigateTo("settings");
+        }
+    }
 
     private bool CanCreate => (Model.HasKeys || Model.RequiresOnDemandAuth)
                               && !_isProcessing
