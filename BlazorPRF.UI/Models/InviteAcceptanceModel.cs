@@ -35,7 +35,12 @@ public partial class InviteAcceptanceModel : ObservableModel
     public partial string Username { get; set; } = string.Empty;
 
     /// <summary>
-    /// Parsed email from the invite code.
+    /// The accepter's email address (from profile).
+    /// </summary>
+    public partial string AccepterEmail { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Parsed email from the invite code (intended recipient).
     /// </summary>
     public partial string? ParsedEmail { get; set; }
 
@@ -88,6 +93,13 @@ public partial class InviteAcceptanceModel : ObservableModel
     /// The signed response ready to send to the inviter.
     /// </summary>
     public partial string? SignedResponse { get; set; }
+
+    /// <summary>
+    /// Whether the invite email matches the accepter's email.
+    /// </summary>
+    public bool EmailMismatch => ParsedEmail is not null
+                                 && !string.IsNullOrWhiteSpace(AccepterEmail)
+                                 && !string.Equals(ParsedEmail, AccepterEmail, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Whether the user can sign the acceptance.
@@ -298,12 +310,12 @@ public partial class InviteAcceptanceModel : ObservableModel
     }
 
     /// <summary>
-    /// Resets the form to initial state.
+    /// Resets the form to initial state (preserves identity from profile).
     /// </summary>
     private void ResetImpl()
     {
         SignedInviteInput = string.Empty;
-        Username = string.Empty;
+        // Note: Username and AccepterEmail are preserved (loaded from profile)
         ParsedEmail = null;
         ParsedInviteCode = null;
         InviterSignature = null;

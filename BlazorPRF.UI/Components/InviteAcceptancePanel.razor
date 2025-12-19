@@ -60,11 +60,25 @@
                           Class="mb-2"
                           ReadOnly="true" />
 
-            <MudTextField Value="_myEmail"
+            <MudTextField Value="Model.AccepterEmail"
                           Label="Your Email"
                           Variant="Variant.Filled"
-                          Class="mb-4"
+                          Class="mb-2"
                           ReadOnly="true" />
+
+            @if (Model.EmailMismatch)
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-4" Variant="Variant.Outlined" Dense="true">
+                    <MudText Typo="Typo.body2">
+                        This invite was created for <strong>@Model.ParsedEmail</strong>, not your email.
+                        You can still accept it, but verify this is intended for you.
+                    </MudText>
+                </MudAlert>
+            }
+            else
+            {
+                <div class="mb-4"></div>
+            }
 
             <MudButton Color="Color.Secondary"
                        Variant="Variant.Filled"
@@ -134,7 +148,6 @@
 
 @code {
     private bool _profileLoaded;
-    private string _myEmail = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -175,7 +188,7 @@
 
             // Prefill the identity from profile
             Model.Username = result.Value.Username;
-            _myEmail = result.Value.Email;
+            Model.AccepterEmail = result.Value.Email;
             _profileLoaded = true;
             StateHasChanged();
         }

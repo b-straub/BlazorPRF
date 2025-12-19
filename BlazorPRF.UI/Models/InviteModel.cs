@@ -106,8 +106,8 @@ public partial class InviteModel : ObservableModel
 
         var success = await Persistence.SaveAcceptedInviteAsync(LastInviteAccepted, ct);
         Status = new StatusMessage(
-            success ? "Acceptance recorded" : "Failed to record acceptance",
-            success ? StatusSeverity.INFO : StatusSeverity.ERROR);
+            success ? "Inviter added to contacts" : "Failed to record acceptance",
+            success ? StatusSeverity.SUCCESS : StatusSeverity.ERROR);
     }
 
     private async Task ProcessVerificationAsync(CancellationToken ct)
