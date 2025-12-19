@@ -69,8 +69,12 @@ else
         _accepterSignatureValid = false;
         _verifiedUsername = null;
         _verifiedEmail = null;
+        _originalInviteEmail = null;
+        _emailMismatch = false;
+        _contactSavedManually = false;
         _verifiedX25519PublicKey = null;
         _verifiedEd25519PublicKey = null;
+        _pendingInviteCode = null;
         StateHasChanged();
     }
 
@@ -82,8 +86,12 @@ else
     private bool _accepterSignatureValid;
     private string? _verifiedUsername;
     private string? _verifiedEmail;
+    private string? _originalInviteEmail;
+    private bool _emailMismatch;
+    private bool _contactSavedManually;
     private string? _verifiedX25519PublicKey;
     private string? _verifiedEd25519PublicKey;
+    private string? _pendingInviteCode;
 
     private bool CanVerify => !_isProcessing && !string.IsNullOrWhiteSpace(_signedResponse);
 
@@ -158,9 +166,37 @@ else
                             <strong>Name:</strong> @_verifiedUsername
                         </MudText>
                     }
-                    <MudText Typo="Typo.body2" Class="mb-2">
+                    <MudText Typo="Typo.body2" Class="@(_emailMismatch ? "" : "mb-2")">
                         <strong>Email:</strong> @_verifiedEmail
                     </MudText>
+
+                    @if (_emailMismatch)
+                    {
+                        <MudAlert Severity="Severity.Warning" Class="my-2" Variant="Variant.Filled" Dense="true">
+                            <MudText Typo="Typo.body2">
+                                The invite was created for <strong>@_originalInviteEmail</strong>, but the accepter claims <strong>@_verifiedEmail</strong>.
+                            </MudText>
+                        </MudAlert>
+
+                        @if (!_contactSavedManually)
+                        {
+                            <MudButton Color="Color.Error"
+                                       Variant="Variant.Filled"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.PersonAdd"
+                                       OnClick="SaveContactManually"
+                                       Class="mb-2">
+                                Add Contact Anyway
+                            </MudButton>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Success" Class="mb-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="mr-1" />
+                                Contact added
+                            </MudText>
+                        }
+                    }
 
                     <MudDivider Class="my-3" />
 
@@ -291,8 +327,12 @@ else
         _accepterSignatureValid = false;
         _verifiedUsername = null;
         _verifiedEmail = null;
+        _originalInviteEmail = null;
+        _emailMismatch = false;
+        _contactSavedManually = false;
         _verifiedX25519PublicKey = null;
         _verifiedEd25519PublicKey = null;
+        _pendingInviteCode = null;
 
         try
         {
@@ -355,16 +395,26 @@ else
                 _verifiedEmail = response.Email;
                 _verifiedX25519PublicKey = response.X25519PublicKey;
                 _verifiedEd25519PublicKey = response.Ed25519PublicKey;
+                _pendingInviteCode = response.SignedInvite.InviteCode;
 
-                // Notify via reactive model - just set the property
-                Model.InviteModel.LastInviteVerified = new InviteVerifiedEventArgs
+                // Extract original invite email and check for mismatch
+                var inviteCode = response.SignedInvite.InviteCode;
+                if (!string.IsNullOrEmpty(inviteCode))
                 {
-                    InviteCode = response.SignedInvite.InviteCode!,
-                    Username = response.Username,
-                    Email = response.Email!,
-                    X25519PublicKey = response.X25519PublicKey!,
-                    Ed25519PublicKey = response.Ed25519PublicKey!
-                };
+                    var parts = inviteCode.Split('|');
+                    if (parts.Length >= 2 && parts[0].StartsWith("INV-"))
+                    {
+                        _originalInviteEmail = parts[1];
+                        _emailMismatch = !string.Equals(_originalInviteEmail, response.Email, StringComparison.OrdinalIgnoreCase);
+                    }
+                }
+
+                // Only auto-save contact if emails match
+                // If mismatch, user must explicitly confirm via "Add Contact Anyway" button
+                if (!_emailMismatch)
+                {
+                    SaveContact();
+                }
             }
         }
         catch (System.Text.Json.JsonException)
@@ -392,6 +442,32 @@ else
         {
             Snackbar.Add("Failed to copy", Severity.Error);
         }
+    }
+
+    private void SaveContact()
+    {
+        if (string.IsNullOrEmpty(_pendingInviteCode) ||
+            string.IsNullOrEmpty(_verifiedX25519PublicKey) ||
+            string.IsNullOrEmpty(_verifiedEd25519PublicKey) ||
+            string.IsNullOrEmpty(_verifiedEmail))
+        {
+            return;
+        }
+
+        Model.InviteModel.LastInviteVerified = new InviteVerifiedEventArgs
+        {
+            InviteCode = _pendingInviteCode,
+            Username = _verifiedUsername,
+            Email = _verifiedEmail,
+            X25519PublicKey = _verifiedX25519PublicKey,
+            Ed25519PublicKey = _verifiedEd25519PublicKey
+        };
+    }
+
+    private void SaveContactManually()
+    {
+        SaveContact();
+        _contactSavedManually = true;
     }
 
     private void NavigateToEncrypt()

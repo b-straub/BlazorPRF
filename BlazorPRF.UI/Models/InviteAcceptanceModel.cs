@@ -249,7 +249,8 @@ public partial class InviteAcceptanceModel : ObservableModel
             }
 
             // Build message to sign - include the original signed invite JSON for verification
-            var messageToSign = $"{SignedInviteInput}|{x25519PublicKey}|{ed25519PublicKey}|{Username}|{ParsedEmail}|{timestamp}";
+            // Use AccepterEmail (from profile) so verifier can detect mismatch with invite's target email
+            var messageToSign = $"{SignedInviteInput}|{x25519PublicKey}|{ed25519PublicKey}|{Username}|{AccepterEmail}|{timestamp}";
 
             // Sign the message
             var signResult = await SigningService.SignAsync(messageToSign, PrfModel.Salt);
@@ -257,6 +258,7 @@ public partial class InviteAcceptanceModel : ObservableModel
             if (signResult is { Success: true, Value: not null })
             {
                 // Build response using shared DTOs
+                // Email field uses AccepterEmail (from profile) so verifier can detect mismatch
                 var response = new InviteAcceptanceResponse(
                     new SignedInvite(
                         ParsedInviteCode,
@@ -266,7 +268,7 @@ public partial class InviteAcceptanceModel : ObservableModel
                         InviterUsername,
                         InviterEmail),
                     Username,
-                    ParsedEmail,
+                    AccepterEmail,
                     x25519PublicKey,
                     ed25519PublicKey,
                     timestamp,
@@ -285,7 +287,7 @@ public partial class InviteAcceptanceModel : ObservableModel
                     InviterUsername = InviterUsername,
                     InviterEmail = InviterEmail,
                     Username = Username,
-                    Email = ParsedEmail,
+                    Email = AccepterEmail,
                     ArmoredResponse = SignedResponse
                 };
             }
