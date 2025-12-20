@@ -118,3 +118,8 @@ a, .btn-link {
 code {
     color: #c02d76;
 }
+
+/* Hide scroll buttons for tabs that don't need scrolling */
+.tabs-no-scroll .mud-tabs-scroll-button {
+    display: none;
+}

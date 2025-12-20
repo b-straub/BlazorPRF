@@ -1,3 +1,4 @@
+@using RxBlazorV2.MudBlazor.Components.Razor
 @inherits LayoutComponentBase
 
 <MudThemeProvider @bind-IsDarkMode="_isDarkMode" />
@@ -6,7 +7,6 @@
 <MudSnackbarProvider />
 <SessionExpiredPopover />
 <ServiceWorkerUpdateNotification />
-<InviteStatusDisplay />
 <DatabaseErrorAlert />
 
 <MudLayout>
@@ -34,6 +34,7 @@
                        Color="Color.Inherit"
                        Href="https://github.com/b-straub/BlazorPRF"
                        Target="_blank" />
+        <StatusDisplay ShowMessageSource="false"/>
     </MudAppBar>
 
     <AuthorizeView>

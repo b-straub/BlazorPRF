@@ -101,4 +101,9 @@ public sealed class InviteVerifiedEventArgs
     /// The verified Ed25519 public key (for signature verification).
     /// </summary>
     public required string Ed25519PublicKey { get; init; }
+
+    /// <summary>
+    /// If true, this is an update to an existing contact rather than a new contact.
+    /// </summary>
+    public bool IsUpdate { get; init; }
 }

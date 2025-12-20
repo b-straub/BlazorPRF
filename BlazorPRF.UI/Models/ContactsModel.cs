@@ -4,6 +4,7 @@ using BlazorPRF.UI.Services;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;
 using System.Diagnostics.CodeAnalysis;
+using RxBlazorV2.MudBlazor.Components;
 
 namespace BlazorPRF.UI.Models;
 
@@ -18,7 +19,7 @@ public partial class ContactsModel : ObservableModel
 {
     [SuppressMessage("RxBlazorGenerator", "RXBG050:Partial constructor parameter type may not be registered in DI", Justification = "Services registered externally")]
     // ReSharper disable UnusedParameter.Local
-    public partial ContactsModel(PrfModel prfModel, InviteModel inviteModel, IContactsService contactsService);
+    public partial ContactsModel(PrfModel prfModel, InviteModel inviteModel, IContactsService contactsService, StatusModel statusModel);
     // ReSharper restore UnusedParameter.Local
 
     /// <summary>
@@ -48,13 +49,7 @@ public partial class ContactsModel : ObservableModel
     /// </summary>
     [ObservableComponentTrigger]
     public partial string? NavigateToRequest { get; set; }
-
-    /// <summary>
-    /// Status message for snackbar display.
-    /// </summary>
-    [ObservableComponentTrigger]
-    public partial StatusMessage? Status { get; set; }
-
+    
     // Asymmetric page state
 
     /// <summary>
@@ -70,6 +65,7 @@ public partial class ContactsModel : ObservableModel
 
     // Commands
     [ObservableCommand(nameof(LoadContactsAsync))]
+    [ObservableCommandTrigger("InviteModel.ContactsModifiedAt")]
     public partial IObservableCommandAsync LoadContacts { get; }
 
     [ObservableCommand(nameof(DeleteContactAsync))]
@@ -80,7 +76,7 @@ public partial class ContactsModel : ObservableModel
 
     [ObservableCommand(nameof(SignOutImpl))]
     public partial IObservableCommand SignOut { get; }
-
+    
     /// <summary>
     /// Load all contacts with error handling.
     /// </summary>
@@ -108,12 +104,12 @@ public partial class ContactsModel : ObservableModel
 
         if (deleted)
         {
-            Status = new StatusMessage("Contact deleted", StatusSeverity.SUCCESS);
+            StatusModel.AddSuccess("Contact deleted");
             Contacts = Contacts.Where(c => c.Contact.Id != id).ToList();
         }
         else
         {
-            Status = new StatusMessage("Failed to delete contact", StatusSeverity.ERROR);
+            StatusModel.AddError("Failed to delete contact");
         }
     }
 
@@ -129,12 +125,12 @@ public partial class ContactsModel : ObservableModel
             // Clear auth state
             PrfModel.ClearKeys.Execute();
 
-            Status = new StatusMessage("Database reset successfully!", StatusSeverity.SUCCESS);
+            StatusModel.AddSuccess("Database reset successfully!");
             NavigateToRequest = "./";
         }
         catch (Exception ex)
         {
-            Status = new StatusMessage($"Database reset failed: {ex.Message}", StatusSeverity.ERROR);
+            StatusModel.AddError($"Database reset failed: {ex.Message}");
         }
     }
 
@@ -145,18 +141,6 @@ public partial class ContactsModel : ObservableModel
     {
         PrfModel.ClearKeys.Execute();
         NavigateToRequest = "./";
-    }
-
-    /// <summary>
-    /// Cross-model observer: watches InviteModel.Status for successful contact saves.
-    /// Naming convention: On{ParameterName}{PropertyName}Changed.
-    /// </summary>
-    private void OnInviteModelStatusChanged()
-    {
-        if (InviteModel.Status?.Severity == StatusSeverity.SUCCESS)
-        {
-            _ = LoadContacts.ExecuteAsync();
-        }
     }
 
     /// <summary>

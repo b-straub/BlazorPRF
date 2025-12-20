@@ -1,9 +1,9 @@
 @using BlazorPRF.Persistence.Data.Models
 @using BlazorPRF.Shared.Crypto.Formatting
+@using RxBlazorV2.Model
 @using TextCopy
 @inherits ContactsModelComponent
 @inject IClipboard Clipboard
-@inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
 
 @if (Model.Loading)
@@ -103,7 +103,7 @@ else
 
 <MudDivider Class="my-4" />
 
-<MudStack Row="true" Spacing="2">
+<MudStack Row="true" Wrap="Wrap.Wrap" Spacing="2" Class="gap-2">
     <MudButton Variant="Variant.Outlined"
                Color="Color.Primary"
                StartIcon="@Icons.Material.Filled.GroupAdd"
@@ -171,24 +171,6 @@ else
         }
     }
 
-    /// <summary>
-    /// Called reactively when Status changes.
-    /// </summary>
-    protected override void OnStatusChanged()
-    {
-        if (Model.Status is not null)
-        {
-            var severity = Model.Status.Severity switch
-            {
-                StatusSeverity.SUCCESS => Severity.Success,
-                StatusSeverity.WARNING => Severity.Warning,
-                StatusSeverity.ERROR => Severity.Error,
-                _ => Severity.Info
-            };
-            Snackbar.Add(Model.Status.Message, severity);
-        }
-    }
-
     private async Task CopyPublicKeyAsync(TrustedContact contact, ContactUserData? userData)
     {
         var metadata = userData is not null
@@ -202,7 +184,7 @@ else
 
         var armored = PrfArmor.ArmorPublicKey(contact.X25519PublicKey, metadata);
         await Clipboard.SetTextAsync(armored);
-        Snackbar.Add("Public key copied to clipboard", Severity.Success);
+        Model.StatusModel.AddSuccess("Public key copied to clipboard");
     }
 
     private static Color GetTrustColor(TrustLevel level) => level switch

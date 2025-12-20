@@ -72,6 +72,7 @@ else
         _originalInviteEmail = null;
         _emailMismatch = false;
         _contactSavedManually = false;
+        _contactExists = false;
         _verifiedX25519PublicKey = null;
         _verifiedEd25519PublicKey = null;
         _pendingInviteCode = null;
@@ -89,6 +90,7 @@ else
     private string? _originalInviteEmail;
     private bool _emailMismatch;
     private bool _contactSavedManually;
+    private bool _contactExists;
     private string? _verifiedX25519PublicKey;
     private string? _verifiedEd25519PublicKey;
     private string? _pendingInviteCode;
@@ -134,14 +136,14 @@ else
         {
             @if (_inviterSignatureValid && _accepterSignatureValid)
             {
-                <MudAlert Severity="Severity.Success" Class="mt-4" Variant="Variant.Filled" Dense="true">
+                <MudAlert Severity="Severity.Success" Class="mt-4" Variant="Variant.Outlined" Dense="true">
                     <MudStack Row="true" AlignItems="AlignItems.Center">
                         <MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
                         <MudText>Both signatures VALID - Identity verified!</MudText>
                     </MudStack>
                 </MudAlert>
 
-                <MudPaper Class="pa-4 mt-4" Elevation="0" Style="background-color: var(--mud-palette-success-lighten);">
+                <MudPaper Class="pa-4 mt-4" Elevation="0" Outlined="true">
                     <MudText Typo="Typo.subtitle2" Class="mb-2">
                         <MudIcon Icon="@Icons.Material.Filled.Verified" Size="Size.Small" Color="Color.Success" Class="mr-1" />
                         Verification Details
@@ -172,7 +174,7 @@ else
 
                     @if (_emailMismatch)
                     {
-                        <MudAlert Severity="Severity.Warning" Class="my-2" Variant="Variant.Filled" Dense="true">
+                        <MudAlert Severity="Severity.Warning" Class="my-2" Variant="Variant.Outlined" Dense="true">
                             <MudText Typo="Typo.body2">
                                 The invite was created for <strong>@_originalInviteEmail</strong>, but the accepter claims <strong>@_verifiedEmail</strong>.
                             </MudText>
@@ -186,14 +188,41 @@ else
                                        StartIcon="@Icons.Material.Filled.PersonAdd"
                                        OnClick="SaveContactManually"
                                        Class="mb-2">
-                                Add Contact Anyway
+                                @(_contactExists ? "Update Contact Anyway" : "Add Contact Anyway")
                             </MudButton>
                         }
                         else
                         {
                             <MudText Typo="Typo.body2" Color="Color.Success" Class="mb-2">
                                 <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="mr-1" />
-                                Contact added
+                                @(_contactExists ? "Contact updated" : "Contact added")
+                            </MudText>
+                        }
+                    }
+                    else if (_contactExists)
+                    {
+                        <MudAlert Severity="Severity.Info" Class="my-2" Variant="Variant.Outlined" Dense="true">
+                            <MudText Typo="Typo.body2">
+                                This contact already exists in your trusted contacts.
+                            </MudText>
+                        </MudAlert>
+
+                        @if (!_contactSavedManually)
+                        {
+                            <MudButton Color="Color.Primary"
+                                       Variant="Variant.Filled"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Update"
+                                       OnClick="UpdateContact"
+                                       Class="mb-2">
+                                Update Contact
+                            </MudButton>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Success" Class="mb-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="mr-1" />
+                                Contact updated
                             </MudText>
                         }
                     }
@@ -251,14 +280,14 @@ else
             }
             else
             {
-                <MudAlert Severity="Severity.Error" Class="mt-4" Variant="Variant.Filled" Dense="true">
+                <MudAlert Severity="Severity.Error" Class="mt-4" Variant="Variant.Outlined" Dense="true">
                     <MudStack Row="true" AlignItems="AlignItems.Center">
                         <MudIcon Icon="@Icons.Material.Filled.Cancel" />
                         <MudText>Verification FAILED - Do not trust!</MudText>
                     </MudStack>
                 </MudAlert>
 
-                <MudPaper Class="pa-4 mt-4" Elevation="0" Style="background-color: var(--mud-palette-error-lighten);">
+                <MudPaper Class="pa-4 mt-4" Elevation="0" Outlined="true">
                     <MudText Typo="Typo.subtitle2" Class="mb-2">Verification Details</MudText>
 
                     <MudStack Spacing="1" Class="mb-3">
@@ -336,6 +365,31 @@ else
 
         try
         {
+            // Check for wrong armor types and provide helpful error messages
+            if (PrfArmor.IsArmoredSignedInvite(_signedResponse))
+            {
+                _errorMessage = "This is a Signed Invite, not a Signed Response. You need to paste the response that the invitee sent back after accepting.";
+                return;
+            }
+
+            if (PrfArmor.IsArmoredSignedMessage(_signedResponse))
+            {
+                _errorMessage = "This is a Signed Message, not a Signed Response. Paste the acceptance response from the invitee.";
+                return;
+            }
+
+            if (PrfArmor.IsArmoredMessage(_signedResponse))
+            {
+                _errorMessage = "This is an Encrypted Message, not a Signed Response. Paste the acceptance response from the invitee.";
+                return;
+            }
+
+            if (PrfArmor.IsArmoredPublicKey(_signedResponse))
+            {
+                _errorMessage = "This is a Public Key, not a Signed Response. Paste the acceptance response from the invitee.";
+                return;
+            }
+
             // UnArmor if armored, otherwise try as raw JSON
             var json = PrfArmor.IsArmoredSignedResponse(_signedResponse)
                 ? PrfArmor.UnArmorSignedResponse(_signedResponse)
@@ -343,7 +397,7 @@ else
 
             if (json is null)
             {
-                _errorMessage = "Invalid armored format";
+                _errorMessage = "Invalid format. Expected a PFA SIGNED RESPONSE block.";
                 return;
             }
 
@@ -409,11 +463,14 @@ else
                     }
                 }
 
-                // Only auto-save contact if emails match
-                // If mismatch, user must explicitly confirm via "Add Contact Anyway" button
-                if (!_emailMismatch)
+                // Check if contact already exists
+                _contactExists = await Model.InviteModel.ContactExistsAsync(_verifiedEd25519PublicKey);
+
+                // Only auto-save contact if emails match AND contact doesn't already exist
+                // If mismatch or exists, user must explicitly confirm
+                if (!_emailMismatch && !_contactExists)
                 {
-                    SaveContact();
+                    SaveContact(isUpdate: false);
                 }
             }
         }
@@ -444,7 +501,7 @@ else
         }
     }
 
-    private void SaveContact()
+    private void SaveContact(bool isUpdate)
     {
         if (string.IsNullOrEmpty(_pendingInviteCode) ||
             string.IsNullOrEmpty(_verifiedX25519PublicKey) ||
@@ -460,13 +517,20 @@ else
             Username = _verifiedUsername,
             Email = _verifiedEmail,
             X25519PublicKey = _verifiedX25519PublicKey,
-            Ed25519PublicKey = _verifiedEd25519PublicKey
+            Ed25519PublicKey = _verifiedEd25519PublicKey,
+            IsUpdate = isUpdate
         };
     }
 
     private void SaveContactManually()
     {
-        SaveContact();
+        SaveContact(isUpdate: _contactExists);
+        _contactSavedManually = true;
+    }
+
+    private void UpdateContact()
+    {
+        SaveContact(isUpdate: true);
         _contactSavedManually = true;
     }
 

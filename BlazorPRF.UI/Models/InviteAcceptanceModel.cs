@@ -142,6 +142,35 @@ public partial class InviteAcceptanceModel : ObservableModel
 
         try
         {
+            // Check for wrong armor types and provide helpful error messages
+            if (PrfArmor.IsArmoredSignedResponse(SignedInviteInput))
+            {
+                ErrorMessage = "This is a Signed Response, not a Signed Invite. Paste the invite you received from the inviter.";
+                InviteValid = false;
+                return;
+            }
+
+            if (PrfArmor.IsArmoredSignedMessage(SignedInviteInput))
+            {
+                ErrorMessage = "This is a Signed Message, not a Signed Invite. Paste the invite you received from the inviter.";
+                InviteValid = false;
+                return;
+            }
+
+            if (PrfArmor.IsArmoredMessage(SignedInviteInput))
+            {
+                ErrorMessage = "This is an Encrypted Message, not a Signed Invite. Paste the invite you received from the inviter.";
+                InviteValid = false;
+                return;
+            }
+
+            if (PrfArmor.IsArmoredPublicKey(SignedInviteInput))
+            {
+                ErrorMessage = "This is a Public Key, not a Signed Invite. Paste the invite you received from the inviter.";
+                InviteValid = false;
+                return;
+            }
+
             // UnArmor if armored, otherwise try as raw JSON
             var json = PrfArmor.IsArmoredSignedInvite(SignedInviteInput)
                 ? PrfArmor.UnArmorSignedInvite(SignedInviteInput)
@@ -149,6 +178,7 @@ public partial class InviteAcceptanceModel : ObservableModel
 
             if (json is null)
             {
+                ErrorMessage = "Invalid format. Expected a PFA SIGNED INVITE block.";
                 InviteValid = false;
                 return;
             }

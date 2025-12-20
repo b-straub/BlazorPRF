@@ -46,14 +46,12 @@
 
             <MudText Typo="Typo.subtitle2" Class="mb-2">Invitee</MudText>
 
-            <MudTextField @bind-Value="_inviteeEmail"
-                          Label="Invitee Email"
-                          Variant="Variant.Outlined"
-                          Class="mb-4"
-                          Placeholder="bob@example.com"
-                          HelperText="Email of the person you're inviting"
-                          Immediate="true"
-                          Disabled="@_isProcessing" />
+            <EmailInput @bind-Value="_inviteeEmail"
+                       @bind-IsValid="_inviteeEmailValid"
+                       Label="Invitee Email"
+                       Placeholder="bob@example.com"
+                       HelperText="Email of the person you're inviting"
+                       Disabled="@_isProcessing" />
 
             <MudButton Color="Color.Primary"
                        Variant="Variant.Filled"
@@ -128,6 +126,7 @@
     private string _myName = string.Empty;
     private string _myEmail = string.Empty;
     private string _inviteeEmail = string.Empty;
+    private bool _inviteeEmailValid;
     private string? _signedInvite;
     private string? _errorMessage;
     private bool _isProcessing;
@@ -188,8 +187,7 @@
                               && !string.IsNullOrWhiteSpace(_myName)
                               && !string.IsNullOrWhiteSpace(_myEmail)
                               && _myEmail.Contains('@')
-                              && !string.IsNullOrWhiteSpace(_inviteeEmail)
-                              && _inviteeEmail.Contains('@');
+                              && _inviteeEmailValid;
 
     private async Task CreateInviteAsync()
     {

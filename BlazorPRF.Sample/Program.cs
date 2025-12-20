@@ -37,6 +37,9 @@ BlazorPRF.Persistence.ObservableModels.Initialize(builder.Services);
 // Add BlazorPRF.UI observable models (includes ContactsModel)
 BlazorPRF.UI.ObservableModels.Initialize(builder.Services);
 
+// RxBlazorV2.MudBlazor
+RxBlazorV2.MudBlazor.ObservableModels.Initialize(builder.Services);
+
 // Add PRF-based authentication state
 builder.Services.AddAuthorizationCore();
 builder.Services.AddSingleton<PrfAuthenticationStateProvider>();

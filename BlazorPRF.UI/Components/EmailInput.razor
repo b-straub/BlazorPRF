@@ -1,0 +1,70 @@
+@using System.Text.RegularExpressions
+
+<MudTextField T="string"
+              Value="@Value"
+              ValueChanged="@OnValueChanged"
+              Label="@Label"
+              Variant="@Variant"
+              Class="@Class"
+              Placeholder="@Placeholder"
+              HelperText="@CurrentHelperText"
+              Error="@ShowError"
+              InputType="InputType.Email"
+              Immediate="true"
+              Disabled="@Disabled" />
+
+@code {
+    private static readonly Regex EmailRegex = new(
+        @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    [Parameter]
+    public bool IsValid { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsValidChanged { get; set; }
+
+    [Parameter]
+    public string Label { get; set; } = "Email Address";
+
+    [Parameter]
+    public string Placeholder { get; set; } = "user@example.com";
+
+    [Parameter]
+    public string HelperText { get; set; } = "Enter your email address";
+
+    [Parameter]
+    public string ErrorText { get; set; } = "Please enter a valid email address";
+
+    [Parameter]
+    public Variant Variant { get; set; } = Variant.Outlined;
+
+    [Parameter]
+    public string Class { get; set; } = "mb-4";
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Only show error after user has typed something.
+    /// </summary>
+    private bool ShowError => !string.IsNullOrEmpty(Value) && !CheckIsValid(Value);
+
+    private string CurrentHelperText => ShowError ? ErrorText : HelperText;
+
+    private static bool CheckIsValid(string value) =>
+        !string.IsNullOrWhiteSpace(value) && EmailRegex.IsMatch(value);
+
+    private async Task OnValueChanged(string newValue)
+    {
+        await ValueChanged.InvokeAsync(newValue);
+        var valid = CheckIsValid(newValue);
+        await IsValidChanged.InvokeAsync(valid);
+    }
+}

@@ -81,12 +81,6 @@ public sealed class SqliteInvitePersistence : IInvitePersistence
 
        public async Task<bool> SaveVerifiedContactAsync(InviteVerifiedEventArgs args, CancellationToken ct)
     {
-        // Check if contact already exists
-        if (await _contactService.ExistsByEd25519PublicKeyAsync(args.Ed25519PublicKey))
-        {
-            return false; // Contact already exists
-        }
-
         // Create trusted contact with encrypted user data
         var userData = new ContactUserData
         {
@@ -112,8 +106,40 @@ public sealed class SqliteInvitePersistence : IInvitePersistence
             // Link the sent invitation to the contact
             await _invitationService.MarkSentInvitationAcceptedAsync(args.InviteCode, result.Value.Id);
 
-            // Note: Contact modification notification is handled reactively via InviteModel.Status
-            // which ContactsModel observes to reload contacts when Status.Severity is SUCCESS
+            return true;
+        }
+
+        return false;
+    }
+
+    public Task<bool> ContactExistsAsync(string ed25519PublicKey, CancellationToken ct)
+    {
+        return _contactService.ExistsByEd25519PublicKeyAsync(ed25519PublicKey);
+    }
+
+    public async Task<bool> UpdateVerifiedContactAsync(InviteVerifiedEventArgs args, CancellationToken ct)
+    {
+        // Find existing contact by Ed25519 public key
+        var existingContact = await _contactService.GetByEd25519PublicKeyAsync(args.Ed25519PublicKey);
+        if (existingContact is null)
+        {
+            return false;
+        }
+
+        // Update user data
+        var userData = new ContactUserData
+        {
+            Username = args.Username ?? "Unknown",
+            Email = args.Email,
+            Comment = "Updated via signed invite verification"
+        };
+
+        var result = await _contactService.UpdateUserDataAsync(existingContact.Id, userData);
+
+        if (result is { Success: true })
+        {
+            // Link the sent invitation to the existing contact
+            await _invitationService.MarkSentInvitationAcceptedAsync(args.InviteCode, existingContact.Id);
             return true;
         }
 

@@ -2,24 +2,9 @@ using BlazorPRF.UI.Services;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;
 using System.Diagnostics.CodeAnalysis;
+using RxBlazorV2.MudBlazor.Components;
 
 namespace BlazorPRF.UI.Models;
-
-/// <summary>
-/// Severity levels for status messages.
-/// </summary>
-public enum StatusSeverity
-{
-    INFO,
-    SUCCESS,
-    WARNING,
-    ERROR
-}
-
-/// <summary>
-/// Status message with severity for reactive UI display.
-/// </summary>
-public sealed record StatusMessage(string Message, StatusSeverity Severity);
 
 /// <summary>
 /// Reactive model for invitation events.
@@ -34,7 +19,7 @@ public partial class InviteModel : ObservableModel
     /// Persistence injection for saving invite events.
     /// </summary>
     [SuppressMessage("RxBlazorGenerator", "RXBG050:Partial constructor parameter type may not be registered in DI", Justification = "IInvitePersistence registered externally")]
-    public partial InviteModel(IInvitePersistence persistence);
+    public partial InviteModel(IInvitePersistence persistence, StatusModel statusModel);
 
     /// <summary>
     /// Latest invite creation event. Set when an invite is created.
@@ -55,11 +40,10 @@ public partial class InviteModel : ObservableModel
     public partial InviteVerifiedEventArgs? LastInviteVerified { get; set; }
 
     /// <summary>
-    /// Status message for UI display. Components can react via OnStatusChanged().
-    /// Other models observe this to react to completion (e.g., ContactsModel reloads on SUCCESS).
+    /// Timestamp of last successful contact modification (add/update).
+    /// Other models can observe this to reload contacts reactively.
     /// </summary>
-    [ObservableComponentTrigger]
-    public partial StatusMessage? Status { get; set; }
+    public partial DateTime? ContactsModifiedAt { get; set; }
 
     // Commands - auto-triggered when corresponding event properties are set
 
@@ -92,9 +76,14 @@ public partial class InviteModel : ObservableModel
         }
 
         var success = await Persistence.SaveCreatedInviteAsync(LastInviteCreated, ct);
-        Status = new StatusMessage(
-            success ? "Invitation saved" : "Failed to save invitation",
-            success ? StatusSeverity.INFO : StatusSeverity.ERROR);
+        if (success)
+        {
+            StatusModel.AddSuccess("Invitation saved!", ModelID);
+        }
+        else
+        {
+            StatusModel.AddError("Failed to save invitation.");
+        }
     }
 
     private async Task ProcessAcceptanceAsync(CancellationToken ct)
@@ -105,9 +94,15 @@ public partial class InviteModel : ObservableModel
         }
 
         var success = await Persistence.SaveAcceptedInviteAsync(LastInviteAccepted, ct);
-        Status = new StatusMessage(
-            success ? "Inviter added to contacts" : "Failed to record acceptance",
-            success ? StatusSeverity.SUCCESS : StatusSeverity.ERROR);
+        if (success)
+        {
+            ContactsModifiedAt = DateTime.UtcNow;
+            StatusModel.AddSuccess("Inviter added to contacts!", ModelID);
+        }
+        else
+        {
+            StatusModel.AddError("Failed to record acceptance.");
+        }
     }
 
     private async Task ProcessVerificationAsync(CancellationToken ct)
@@ -117,9 +112,40 @@ public partial class InviteModel : ObservableModel
             return;
         }
 
-        var success = await Persistence.SaveVerifiedContactAsync(LastInviteVerified, ct);
-        Status = success
-            ? new StatusMessage("Contact saved to trusted contacts!", StatusSeverity.SUCCESS)
-            : new StatusMessage("Contact already exists or save failed", StatusSeverity.WARNING);
+        bool success;
+        if (LastInviteVerified.IsUpdate)
+        {
+            success = await Persistence.UpdateVerifiedContactAsync(LastInviteVerified, ct);
+            if (success)
+            {
+                ContactsModifiedAt = DateTime.UtcNow;
+                StatusModel.AddSuccess("Contact updated!", ModelID);
+            }
+            else
+            {
+                StatusModel.AddError("Failed to update contact.");
+            }
+        }
+        else
+        {
+            success = await Persistence.SaveVerifiedContactAsync(LastInviteVerified, ct);
+            if (success)
+            {
+                ContactsModifiedAt = DateTime.UtcNow;
+                StatusModel.AddSuccess("Contact saved to trusted contacts!", ModelID);
+            }
+            else
+            {
+                StatusModel.AddError("Failed to save contact.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks if a contact exists by Ed25519 public key.
+    /// </summary>
+    public Task<bool> ContactExistsAsync(string ed25519PublicKey, CancellationToken ct = default)
+    {
+        return Persistence.ContactExistsAsync(ed25519PublicKey, ct);
     }
 }
