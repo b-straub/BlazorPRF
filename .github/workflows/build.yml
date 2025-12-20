@@ -1,4 +1,4 @@
-name: Build and Test
+name: Build, Test and Deploy
 
 on:
   push:
@@ -9,6 +9,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
 
     steps:
       - name: Checkout
@@ -42,6 +46,25 @@ jobs:
       - name: Install npm dependencies (Wasm.Crypto)
         working-directory: BaseCrypto/BlazorPRF.Wasm.Crypto/TypeScript
         run: npm install
+
+      # Build TypeScript BEFORE any dotnet commands (MSBuild discovers static web assets at evaluation time)
+      - name: Build TypeScript (Noble.Crypto)
+        working-directory: BlazorPRF.Noble.Crypto/TypeScript
+        run: npm run build:release
+
+      - name: Build TypeScript (BC.Crypto)
+        working-directory: BlazorPRF.BC.Crypto/TypeScript
+        run: npm run build:release
+
+      - name: Build TypeScript (Wasm.Crypto)
+        working-directory: BaseCrypto/BlazorPRF.Wasm.Crypto/TypeScript
+        run: npm run build:release
+
+      - name: Verify wwwroot folders exist
+        run: |
+          ls -la BlazorPRF.Noble.Crypto/wwwroot/
+          ls -la BlazorPRF.BC.Crypto/wwwroot/
+          ls -la BaseCrypto/BlazorPRF.Wasm.Crypto/wwwroot/
 
       # Build and pack base crypto packages
       - name: Build Shared.Crypto
@@ -81,3 +104,39 @@ jobs:
 
       - name: Test
         run: dotnet test BlazorPRF.slnx -c Release -p:GeneratePackageOnBuild=false --no-build --verbosity normal
+
+      # Deploy to GitHub Pages (only on push to master, not PRs)
+      - name: Set base path for GitHub Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          sed -i 's|<base href="/" />|<base href="/BlazorPRF/" />|g' BlazorPRF.Sample/wwwroot/index.html
+
+      - name: Publish Sample
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: dotnet publish BlazorPRF.Sample/BlazorPRF.Sample.csproj -c Release -o ./build
+
+      - name: Add .nojekyll and 404.html
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          cd build/wwwroot
+          touch .nojekyll
+          cp index.html 404.html
+
+      - name: List _content folders
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          echo "=== _content folders ==="
+          find build/wwwroot/_content -type d 2>/dev/null || echo "No _content folder"
+          echo ""
+          echo "=== JS files in _content ==="
+          find build/wwwroot/_content -name "*.js" 2>/dev/null || echo "No JS files"
+
+      - name: Upload artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./build/wwwroot
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/deploy-pages@v4
