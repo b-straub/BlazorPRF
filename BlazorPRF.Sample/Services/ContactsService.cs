@@ -17,17 +17,20 @@ public sealed class ContactsService : IContactsService
     private readonly ICredentialHintProvider _credentialHintProvider;
     private readonly IEncryptionCredentialService _encryptionCredentialService;
     private readonly IDbContextFactory<PrfDbContext> _dbContextFactory;
+    private readonly ISqliteWasmDatabaseService _databaseService;
 
     public ContactsService(
         ITrustedContactService contactService,
         ICredentialHintProvider credentialHintProvider,
         IEncryptionCredentialService encryptionCredentialService,
-        IDbContextFactory<PrfDbContext> dbContextFactory)
+        IDbContextFactory<PrfDbContext> dbContextFactory,
+        ISqliteWasmDatabaseService databaseService)
     {
         _contactService = contactService;
         _credentialHintProvider = credentialHintProvider;
         _encryptionCredentialService = encryptionCredentialService;
         _dbContextFactory = dbContextFactory;
+        _databaseService = databaseService;
     }
 
     public async Task<ContactsLoadResult> LoadContactsAsync(Func<Task<bool>> ensureAuthAsync)
@@ -62,7 +65,7 @@ public sealed class ContactsService : IContactsService
     public async Task ResetDatabaseAsync()
     {
         // Delete the database file from OPFS SAHPool
-        await SqliteWasmWorkerBridge.Instance.DeleteDatabaseAsync("BlazorPrf.db");
+        await _databaseService.DeleteDatabaseAsync("BlazorPrf.db");
 
         // Recreate database schema
         await using var context = await _dbContextFactory.CreateDbContextAsync();

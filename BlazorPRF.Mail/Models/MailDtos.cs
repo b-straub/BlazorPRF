@@ -26,6 +26,18 @@ public sealed class ImapEmail
     public bool HasPfaArmor { get; set; }
     public bool HasInviteArmor { get; set; }
     public bool HasResponseArmor { get; set; }
+
+    /// <summary>
+    /// Client-side flag: set after successful decryption.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool Decrypted { get; set; }
+
+    /// <summary>
+    /// Client-side flag: set after failed decryption.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool DecryptFailed { get; set; }
 }
 
 /// <summary>

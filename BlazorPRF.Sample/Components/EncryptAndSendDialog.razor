@@ -108,7 +108,7 @@
             var json = System.Text.Json.JsonSerializer.Serialize(result.Value, SharedJsonContext.Default.EncryptedMessage);
             var armoredMessage = PrfArmor.ArmorMessage(json);
 
-            MailApiModel.PreFillSend(RecipientEmail!, "Encrypted Message", armoredMessage);
+            MailApiModel.PreFillSend(RecipientEmail!, PrfArmor.SubjectEncryptedMessage, armoredMessage);
             MudDialog?.Close(DialogResult.Ok(true));
 
             if (MailApiModel.CanSendMail)

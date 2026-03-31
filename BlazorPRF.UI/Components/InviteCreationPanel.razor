@@ -48,9 +48,9 @@
 
             <MudText Typo="Typo.subtitle2" Class="mb-2">Invitee</MudText>
 
-            <EmailInput Value="Model.InviteeEmail"
+            <EmailInput Value="@Model.InviteeEmail"
                        ValueChanged="@(v => Model.InviteeEmail = v)"
-                       IsValid="Model.InviteeEmailValid"
+                       IsValid="@Model.InviteeEmailValid"
                        IsValidChanged="@(v => Model.InviteeEmailValid = v)"
                        Label="Invitee Email"
                        Placeholder="bob@example.com"

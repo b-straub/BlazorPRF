@@ -29,8 +29,16 @@ public partial class MailApiModel : ObservableModel, IMailSender
         IMailService mailService,
         IUserProfileService userProfileService,
         IAsymmetricEncryption asymmetricEncryption,
-        ISigningService signingService);
+        ISigningService signingService,
+        ISignedApiClient signedApiClient);
     // ReSharper restore UnusedParameter.Local
+
+    // Server state
+    /// <summary>
+    /// Whether the mail relay server has an admin key configured.
+    /// null = not checked yet.
+    /// </summary>
+    public partial bool? ServerHasAdmin { get; set; }
 
     // Profile state
     /// <summary>
@@ -289,6 +297,28 @@ public partial class MailApiModel : ObservableModel, IMailSender
     }
 
     /// <summary>
+    /// Ensure the admin's Ed25519 key is also registered as a user key.
+    /// Admin auth and user auth are separate — admin needs a user key for mail operations.
+    /// </summary>
+    private async Task EnsureAdminRegisteredAsUserAsync(SigningContext context)
+    {
+        var ed25519Key = PrfModel.Ed25519PublicKey;
+        if (string.IsNullOrEmpty(ed25519Key))
+        {
+            return;
+        }
+
+        var body = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            publicKey = ed25519Key,
+            userId = "admin"
+        });
+
+        // This is idempotent — if already registered, server just updates
+        await SignedApiClient.SendAdminSignedAsync("register", body, "POST", context);
+    }
+
+    /// <summary>
     /// Auto-fetch emails when IMAP is configured.
     /// Triggered by ImapFilter change or called after profile load on mail page.
     /// </summary>
@@ -301,13 +331,84 @@ public partial class MailApiModel : ObservableModel, IMailSender
     }
 
     /// <summary>
-    /// Load profile and auto-fetch emails if IMAP is configured.
-    /// Use this from the mail page to combine both operations.
+    /// Load profile, check admin status, and auto-fetch emails if IMAP is configured.
+    /// Use this from the mail page to combine all initialization operations.
     /// </summary>
     public async Task LoadProfileAndFetchAsync()
     {
         await LoadProfileAsync();
-        await AutoFetchEmailsAsync();
+        await CheckAdminStatusAsync();
+
+        // Only fetch emails if user is registered on the server
+        if (PrfModel.Role is PrfUserRole.Admin or PrfUserRole.User)
+        {
+            await AutoFetchEmailsAsync();
+        }
+    }
+
+    /// <summary>
+    /// Determine the user's role on the mail relay server.
+    /// Tries admin access first, then user access, falls back to unregistered.
+    /// Public to avoid auto-detection as internal observer (RXBG031: reads+writes PrfModel.Role).
+    /// </summary>
+    public async Task CheckAdminStatusAsync()
+    {
+        if (PrfModel.Role != PrfUserRole.Unknown)
+        {
+            return;
+        }
+
+        var ed25519Key = PrfModel.Ed25519PublicKey;
+        if (string.IsNullOrEmpty(ed25519Key))
+        {
+            return;
+        }
+
+        try
+        {
+            // Check if server has an admin configured (unauthenticated)
+            var setupResult = await SignedApiClient.GetAsync("admin-setup");
+            if (setupResult is { Success: true, Value: not null })
+            {
+                var doc = System.Text.Json.JsonDocument.Parse(setupResult.Value);
+                ServerHasAdmin = doc.RootElement.TryGetProperty("hasAdmin", out var ha) && ha.GetBoolean();
+            }
+
+            var context = CreateSigningContext();
+
+            // Try admin access first (GET /register lists keys — admin only)
+            var adminResult = await SignedApiClient.SendAdminSignedAsync("register", "", "GET", context);
+            if (adminResult.Success)
+            {
+                // Auto-register admin's own key as a user so mail operations work
+                await EnsureAdminRegisteredAsUserAsync(context);
+                PrfModel.Role = PrfUserRole.Admin;
+                return;
+            }
+
+            // Not admin — try a user-signed request to check if key is registered
+            var userResult = await SignedApiClient.SendUserSignedAsync(
+                "test_imap",
+                System.Text.Json.JsonSerializer.Serialize(new { imapHost = "", filter = "test" }),
+                "POST",
+                context);
+
+            // If we get past auth (even with a validation error), the key is registered
+            // "IMAP host is required" = registered but bad params
+            // "Public key not registered" = not registered
+            if (userResult.Success || (userResult.Error is not null && !userResult.Error.Contains("not registered")))
+            {
+                PrfModel.Role = PrfUserRole.User;
+            }
+            else
+            {
+                PrfModel.Role = PrfUserRole.Unregistered;
+            }
+        }
+        catch
+        {
+            PrfModel.Role = PrfUserRole.Unregistered;
+        }
     }
 
     private async Task FetchEmailsAsync()
@@ -441,10 +542,13 @@ public partial class MailApiModel : ObservableModel, IMailSender
             if (result.Success && result.Value is not null)
             {
                 DecryptedContent = result.Value;
+                SelectedEmail.Decrypted = true;
+                SelectedEmail.DecryptFailed = false;
             }
             else
             {
                 DecryptError = result.Error ?? "Decryption failed";
+                SelectedEmail.DecryptFailed = true;
             }
         }
         catch (Exception ex)

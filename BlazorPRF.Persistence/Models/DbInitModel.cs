@@ -16,7 +16,7 @@ namespace BlazorPRF.Persistence.Models;
 public partial class DbInitModel : ObservableModel
 {
     [SuppressMessage("RxBlazorGenerator", "RXBG050:Partial constructor parameter type may not be registered in DI", Justification = "Services registered externally")]
-    public partial DbInitModel(IDbContextFactory<PrfDbContext> dbContextFactory, NavigationManager navigationManager);
+    public partial DbInitModel(IDbContextFactory<PrfDbContext> dbContextFactory, NavigationManager navigationManager, ISqliteWasmDatabaseService databaseService);
 
     /// <summary>
     /// Error message if database initialization failed.
@@ -63,7 +63,7 @@ public partial class DbInitModel : ObservableModel
         try
         {
             // Delete the database file from OPFS SAHPool
-            await SqliteWasmWorkerBridge.Instance.DeleteDatabaseAsync("BlazorPrf.db");
+            await DatabaseService.DeleteDatabaseAsync("BlazorPrf.db", ct);
 
             // Recreate database schema
             await using var context = await DbContextFactory.CreateDbContextAsync(ct);

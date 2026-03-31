@@ -7,20 +7,10 @@
 @using BlazorPRF.Sample.Components
 @inject NavigationManager NavigationManager
 @inject IDialogService DialogService
+@inject TextCopy.IClipboard Clipboard
 @inject InviteAcceptanceModel InviteAcceptanceModel
 
-<PageTitle>Mail API - BlazorPRF</PageTitle>
-
-<AuthorizeView Roles="Admin">
-    <Authorized>
-        <MudText Typo="Typo.h4" GutterBottom="true">Mail API (Admin)</MudText>
-        <MudText Typo="Typo.body1" Class="mb-6">Manage keys and test email functionality</MudText>
-    </Authorized>
-    <NotAuthorized>
-        <MudText Typo="Typo.h4" GutterBottom="true">Mail API</MudText>
-        <MudText Typo="Typo.body1" Class="mb-6">Test your email configuration</MudText>
-    </NotAuthorized>
-</AuthorizeView>
+<PageTitle>Mail - BlazorPRF</PageTitle>
 
 @if (Model.PrfModel is { HasKeys: false, RequiresOnDemandAuth: false })
 {
@@ -28,21 +18,132 @@
         Please derive keys first using the authentication panel.
     </MudAlert>
 }
+else if (Model.PrfModel.Role == PrfUserRole.Unknown)
+{
+    <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="pa-8">
+        <MudProgressCircular Indeterminate="true" />
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">Checking mail relay access...</MudText>
+    </MudStack>
+}
+else if (Model.PrfModel.Role == PrfUserRole.Unregistered)
+{
+    <MudText Typo="Typo.h4" GutterBottom="true">Mail Relay Setup</MudText>
+
+    <MudCard Class="mb-4">
+        <MudCardHeader>
+            <CardHeaderAvatar>
+                <MudIcon Icon="@Icons.Material.Filled.Key" Color="Color.Primary" />
+            </CardHeaderAvatar>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Your Ed25519 Signing Key</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudTextField Value="@Model.PrfModel.Ed25519PublicKey"
+                          Label="Ed25519 Public Key (Base64)"
+                          Variant="Variant.Filled"
+                          ReadOnly="true"
+                          Style="font-family: monospace;"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                          OnAdornmentClick="CopySigningKeyAsync" />
+        </MudCardContent>
+    </MudCard>
+
+    @if (Model.ServerHasAdmin == false)
+    {
+        @* No admin configured — first-time setup *@
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderAvatar>
+                    <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Color="Color.Info" />
+                </CardHeaderAvatar>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">First-Time Setup</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">No admin is configured on the server yet</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudText Typo="Typo.body2" Class="mb-2">
+                    To become admin, install your signing key on the server:
+                </MudText>
+                <MudList T="string" Dense="true">
+                    <MudListItem Icon="@Icons.Material.Filled.LooksOne" IconColor="Color.Primary">
+                        Copy your signing key above
+                    </MudListItem>
+                    <MudListItem Icon="@Icons.Material.Filled.LooksTwo" IconColor="Color.Primary">
+                        SSH into your server and create <code>secure/admin_keys.json</code>:
+                        <MudText Typo="Typo.body2" Style="font-family: monospace;" Class="mt-1 pa-2 mud-background-gray rounded">
+                            { "admin": "@Model.PrfModel.Ed25519PublicKey" }
+                        </MudText>
+                    </MudListItem>
+                    <MudListItem Icon="@Icons.Material.Filled.Looks3" IconColor="Color.Primary">
+                        Click Reload — you will be recognized as admin
+                    </MudListItem>
+                </MudList>
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Color="Color.Primary"
+                           Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="ReloadAsync">
+                    Reload
+                </MudButton>
+            </MudCardActions>
+        </MudCard>
+    }
+    else
+    {
+        @* Admin exists but this user is not registered *@
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderAvatar>
+                    <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Warning" />
+                </CardHeaderAvatar>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Registration Required</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Your key is not registered on the mail relay</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudText Typo="Typo.body2">
+                    Ask your admin to register your signing key on the Mail page (Admin panel → Register New Key).
+                    Copy and share the key above.
+                </MudText>
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Color="Color.Primary"
+                           Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="ReloadAsync">
+                    Reload
+                </MudButton>
+            </MudCardActions>
+        </MudCard>
+    }
+}
 else
 {
+    @* Registered user or admin — show mail UI *@
+    <AuthorizeView Roles="Admin">
+        <Authorized>
+            <MudText Typo="Typo.h4" GutterBottom="true">Mail (Admin)</MudText>
+        </Authorized>
+        <NotAuthorized>
+            <MudText Typo="Typo.h4" GutterBottom="true">Mail</MudText>
+        </NotAuthorized>
+    </AuthorizeView>
+
     <MudGrid>
-        @* Send Mail - Available to all authenticated users *@
         <MudItem xs="12" md="6">
             <MailSendPanel />
         </MudItem>
 
-        @* IMAP Inbox *@
         <MudItem xs="12" md="6">
             <MailInboxPanel OnAcceptInviteRequested="HandleAcceptInviteAsync"
                             OnVerifyResponseRequested="HandleVerifyResponseAsync" />
         </MudItem>
 
-        @* Admin-only sections *@
         <AuthorizeView Roles="Admin">
             <Authorized>
                 <AdminKeyManagementPanel OnKeysChanged="HandleKeysChanged" />
@@ -54,11 +155,32 @@ else
 @code {
     protected override async Task OnContextReadyAsync()
     {
-        // Load mail profile and auto-fetch emails
         await Model.LoadProfileAndFetchAsync();
-
-        // Check for query params to pre-fill send form
         ProcessQueryParams();
+    }
+
+    private async Task ReloadAsync()
+    {
+        Model.PrfModel.Role = PrfUserRole.Unknown;
+        await Model.LoadProfileAndFetchAsync();
+    }
+
+    private async Task CopySigningKeyAsync()
+    {
+        if (string.IsNullOrEmpty(Model.PrfModel.Ed25519PublicKey))
+        {
+            return;
+        }
+
+        try
+        {
+            await Clipboard.SetTextAsync(Model.PrfModel.Ed25519PublicKey);
+            Model.StatusModel.AddSuccess("Signing key copied!");
+        }
+        catch
+        {
+            Model.StatusModel.AddError("Failed to copy");
+        }
     }
 
     private void ProcessQueryParams()
@@ -85,7 +207,6 @@ else
 
     private async Task HandleAcceptInviteAsync(string armoredInvite)
     {
-        // Load profiles before opening dialog to avoid async re-renders during dialog init
         await InviteAcceptanceModel.LoadProfileAsync();
         if (Model.Profile is null)
         {
@@ -123,5 +244,4 @@ else
 
         await DialogService.ShowAsync<VerifyResponseDialog>("Verify Response", parameters, options);
     }
-
 }

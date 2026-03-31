@@ -11,6 +11,15 @@ namespace BlazorPRF.Shared.Crypto.Formatting;
 /// </summary>
 public static partial class PrfArmor
 {
+    /// <summary>Well-known mail subject for encrypted messages.</summary>
+    public const string SubjectEncryptedMessage = "Encrypted Message";
+
+    /// <summary>Well-known mail subject for invitations.</summary>
+    public const string SubjectInvitation = "PRF Invitation";
+
+    /// <summary>Well-known mail subject for invite responses.</summary>
+    public const string SubjectInviteResponse = "PRF Invite Response";
+
     private const string PublicKeyHeader = "-----BEGIN PFA PUBLIC KEY-----";
     private const string PublicKeyFooter = "-----END PFA PUBLIC KEY-----";
     private const string PrivateKeyHeader = "-----BEGIN PFA PRIVATE KEY-----";

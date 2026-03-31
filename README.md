@@ -212,6 +212,246 @@ See [BlazorPRF.Sample](./BlazorPRF.Sample/) for a complete example application d
 - Digital signatures (sign and verify)
 - Identity verification via signed invites
 - Session management with different caching strategies
+- Encrypted mail sending via PRF-authenticated mail relay
+
+## Mail Relay (Site/)
+
+The `Site/` directory contains a PHP backend that acts as an authenticated mail relay. Browsers cannot make raw SMTP/IMAP socket connections, so this server relays mail on behalf of authenticated users.
+
+### How it works
+
+```
+Blazor WASM Client                    PHP Mail Relay                    Mail Server
+       │                                    │                               │
+       │ 1. Sign request with Ed25519       │                               │
+       │ 2. Include SMTP credentials        │                               │
+       │ 3. POST /send_mail ───────────────→│                               │
+       │                                    │ 4. Verify Ed25519 signature   │
+       │                                    │ 5. Check key is registered    │
+       │                                    │ 6. Check timestamp + nonce    │
+       │                                    │ 7. Open SMTP connection ─────→│
+       │                                    │ 8. Send email                 │
+       │                          ←─────────│ 9. Return result              │
+```
+
+Every API request is signed with the user's PRF-derived Ed25519 private key. The server verifies the signature against registered public keys before executing any action. This prevents unauthorized use of the relay.
+
+### Security model
+
+- **No stored credentials**: SMTP/IMAP passwords are sent per-request (encrypted in the user's profile on the client, decrypted only when needed). The server never stores them.
+- **Ed25519 request signing**: Every request includes timestamp, nonce, body hash, and signature. Replay attacks are prevented by nonce tracking and timestamp tolerance.
+- **Admin key registration**: Only an admin (whose Ed25519 public key is configured server-side) can register user keys. Unregistered keys are rejected.
+- **SSRF protection**: SMTP/IMAP host parameters are validated against private/reserved IP ranges.
+- **No open relay**: Without a registered key, the server rejects all mail operations.
+
+### API endpoints
+
+| Endpoint | Auth | Description |
+|----------|------|-------------|
+| `GET /` | None | Health check |
+| `GET /admin-setup` | None | Check if admin is configured |
+| `POST /register` | Admin | Register a user's Ed25519 public key |
+| `GET /keys` | Admin | List registered keys |
+| `DELETE /keys?keyId=...` | Admin | Revoke a key |
+| `POST /send_mail` | User | Send email via SMTP |
+| `POST /test_smtp` | User | Test SMTP connection |
+| `POST /test_imap` | User | Test IMAP / fetch emails |
+
+### Secure setup guide
+
+#### Prerequisites
+
+- PHP 8.1+ with `sodium` and `imap` extensions
+- Apache with `mod_rewrite` (or nginx with equivalent rules)
+- HTTPS (required for signature security)
+
+#### 1. Deploy the Site/ directory
+
+```bash
+# Copy to your web server
+cp -r Site/ /var/www/mail-relay/
+
+# Set ownership
+chown -R www-data:www-data /var/www/mail-relay/
+
+# Restrict permissions on secure directory
+chmod 700 /var/www/mail-relay/secure/
+chmod 600 /var/www/mail-relay/secure/config.php
+chmod 600 /var/www/mail-relay/secure/admin_keys.json
+```
+
+#### 2. Create the configuration
+
+```bash
+cp /var/www/mail-relay/secure/config.php.dist /var/www/mail-relay/secure/config.php
+```
+
+Edit `config.php`:
+
+```php
+<?php
+return [
+    'dbPath' => __DIR__ . '/data/app.db',
+    'allowedOrigins' => [
+        'https://your-blazor-app.example.com',
+        // Do NOT include localhost in production
+    ],
+    'timestampTolerance' => 300 // 5 minutes
+];
+```
+
+#### 3. Create the data directory
+
+```bash
+mkdir -p /var/www/mail-relay/secure/data/
+chmod 700 /var/www/mail-relay/secure/data/
+# The SQLite database is created automatically on first request
+```
+
+#### 4. Bootstrap the admin key
+
+This is a two-step process because the admin key comes from your passkey, which is only available in the browser.
+
+**Step 1: Get your Ed25519 public key**
+
+1. Open the BlazorPRF app and authenticate with your passkey
+2. Navigate to the Mail page — it shows your Ed25519 signing key with a copy button
+3. Copy the Base64 key (44 characters)
+
+**Step 2: Install the admin key on the server**
+
+```bash
+# Via SSH to your server (never commit this file)
+cat > /var/www/mail-relay/secure/admin_keys.json << 'EOF'
+{
+    "admin": "YOUR_ED25519_PUBLIC_KEY_BASE64_HERE"
+}
+EOF
+chmod 600 /var/www/mail-relay/secure/admin_keys.json
+```
+
+**Step 3: Verify admin access**
+
+1. Navigate to the Mail page in the app
+2. The app automatically checks your key against the server
+3. If your key matches `admin_keys.json`, the "Admin" section appears
+4. You should see "Register New Key" and "Registered Keys" panels
+
+#### 5. Register user keys
+
+Once you have admin access:
+
+1. Each user authenticates with their passkey and copies their Ed25519 public key from the Mail page
+2. The admin pastes the user's key into "Register New Key" on the Mail page
+3. Registered users can now send/receive mail through the relay
+
+**Important**: Both the admin key (in `admin_keys.json`) and user keys (in `app.db`) are Ed25519 **signing** keys, not the X25519 encryption keys. Each user has both, derived from the same PRF seed.
+
+#### 6. Configure your web server
+
+**Apache** (`.htaccess` is included, ensure `AllowOverride All`):
+
+```apache
+<VirtualHost *:443>
+    ServerName mail-relay.example.com
+    DocumentRoot /var/www/mail-relay
+
+    # Ensure .htaccess is respected
+    <Directory /var/www/mail-relay>
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    # URL rewriting for single entry point
+    FallbackResource /index.php
+
+    SSLEngine on
+    SSLCertificateFile /path/to/cert.pem
+    SSLCertificateKeyFile /path/to/key.pem
+</VirtualHost>
+```
+
+**nginx**:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name mail-relay.example.com;
+    root /var/www/mail-relay;
+
+    # Block access to sensitive directories
+    location ~ ^/(secure|lib|actions|PrfCrypto)/ {
+        deny all;
+    }
+
+    # Route all requests to index.php
+    location / {
+        try_files $uri /index.php?path=$uri&$args;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+}
+```
+
+#### 6. Register users
+
+After deploying, use the BlazorPRF admin panel (visible to the admin key holder) to register user Ed25519 public keys. Only registered users can send/receive mail through the relay.
+
+### Local development (Laravel Herd / Valet)
+
+The `Site/` directory includes a `LocalValetDriver.php` for local development with Laravel Herd or Valet:
+
+1. Link the site: `cd Site && herd link prf`
+2. Secure it: `herd secure prf` (creates `https://prf.test`)
+3. Create `secure/config.php` from `secure/config.php.dist`
+4. Add `https://localhost:7212` (or your Blazor dev port) to `allowedOrigins`
+5. Configure the API URL in `Program.cs`: `builder.Services.AddPrfApi("https://prf.test/api/")`
+6. Follow the admin bootstrap steps above
+
+### Production deployment checklist
+
+- [ ] HTTPS enabled (required for Ed25519 signature security)
+- [ ] `secure/` directory permissions: `700`
+- [ ] `config.php` permissions: `600`, no localhost origins
+- [ ] `admin_keys.json` permissions: `600`, deployed via SSH
+- [ ] PHP `sodium` and `imap` extensions enabled
+- [ ] `.htaccess` rules active (Apache) or equivalent nginx location blocks
+- [ ] Verify health check: `curl https://your-relay.example.com/api/`
+
+### Directory structure
+
+```
+Site/
+  index.php                  # Single entry point, request routing
+  LocalValetDriver.php       # Laravel Valet driver (local dev)
+  .htaccess                  # Apache rewrite rules + directory protection
+  actions/
+    SendMail.php             # SMTP mail sending with TLS
+    TestSmtp.php             # SMTP connection testing
+    TestImap.php             # IMAP connection + email fetching
+    .htaccess                # Deny direct access
+  lib/
+    Auth.php                 # Ed25519 signature verification, nonce tracking
+    Database.php             # SQLite for registered keys + nonce storage
+    Response.php             # JSON response helpers, CORS
+    .htaccess                # Deny direct access
+  PrfCrypto/
+    PrfCrypto.php            # Ed25519 verify via libsodium
+  secure/                    # NOT in git (see .gitignore)
+    config.php               # Allowed origins, DB path, timestamp tolerance
+    config.php.dist          # Template (in git)
+    admin_keys.json          # Admin Ed25519 public key
+    data/
+      app.db                 # SQLite database (auto-created)
+    .htaccess                # Deny all access
+```
 
 ## License
 

@@ -24,6 +24,28 @@ public sealed class SignedApiClient : ISignedApiClient
     }
 
     /// <inheritdoc />
+    public async Task<ApiResult<string>> GetAsync(string endpoint)
+    {
+        try
+        {
+            var client = _httpClientFactory.CreateClient(_httpClientName);
+            var response = await client.GetAsync(endpoint);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                return ApiResult<string>.Ok(responseBody);
+            }
+
+            return ApiResult<string>.Failure($"Request failed ({response.StatusCode}): {responseBody}");
+        }
+        catch (Exception ex)
+        {
+            return ApiResult<string>.Failure($"Request error: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<ApiResult<string>> SendAdminSignedAsync(
         string endpoint,
         string body,

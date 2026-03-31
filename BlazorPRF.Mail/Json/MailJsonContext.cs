@@ -31,7 +31,8 @@ public sealed record ImapApiRequest(
     string ImapPassword,
     string Filter = "unseen",
     int? Uid = null,
-    int Limit = 10);
+    int Limit = 10,
+    bool FetchBody = false);
 
 /// <summary>
 /// Request to PHP SMTP test endpoint.

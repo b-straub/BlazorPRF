@@ -21,7 +21,7 @@
 
     private async Task HandleSendViaEmail((string Email, string ArmoredMessage) args)
     {
-        Model.PreFillSend(args.Email, "Encrypted Message", args.ArmoredMessage);
+        Model.PreFillSend(args.Email, PrfArmor.SubjectEncryptedMessage, args.ArmoredMessage);
         await Model.SendEmail.ExecuteAsync();
     }
 }

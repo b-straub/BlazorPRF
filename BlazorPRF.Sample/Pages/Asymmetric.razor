@@ -93,6 +93,6 @@
 
     private async Task HandleSendViaEmail((string Email, string ArmoredMessage) args)
     {
-        await Model.MailSender.SendAsync(args.Email, "Encrypted Message", args.ArmoredMessage);
+        await Model.MailSender.SendAsync(args.Email, PrfArmor.SubjectEncryptedMessage, args.ArmoredMessage);
     }
 }

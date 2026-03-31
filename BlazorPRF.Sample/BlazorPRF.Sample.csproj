@@ -16,11 +16,11 @@
   <ItemGroup>
     <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
     <PackageReference Include="cmdwtf.BuildTimestampGenerator" Version="1.1.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.2" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.2" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.2" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.2" />
-    <PackageReference Include="SqliteWasmBlazor" Version="0.7.0-pre" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.5" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.5" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.5" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.5" />
+    <PackageReference Include="SqliteWasmBlazor" Version="0.8.3-pre" />
     <PackageReference Include="BlazorPRF.Noble.UI" Version="$(BlazorPRFVersion)" Condition="'$(Configuration)' == 'Release'" />
   </ItemGroup>
 

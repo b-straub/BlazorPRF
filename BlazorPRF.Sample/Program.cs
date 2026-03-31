@@ -63,6 +63,9 @@ builder.Services.AddHttpClient("PrfApi", client =>
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
+// Register SqliteWasm database management service
+builder.Services.AddSqliteWasm();
+
 // Add BlazorPRF.Persistence with SqliteWasm
 builder.Services.AddBlazorPrfPersistence(options =>
 {

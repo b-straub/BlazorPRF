@@ -11,7 +11,9 @@ public enum PrfUserRole
 {
     /// <summary>Role not yet determined.</summary>
     Unknown,
-    /// <summary>Regular authenticated user.</summary>
+    /// <summary>Key not registered on the mail relay server.</summary>
+    Unregistered,
+    /// <summary>Regular authenticated user (key registered).</summary>
     User,
     /// <summary>Administrator with elevated privileges.</summary>
     Admin

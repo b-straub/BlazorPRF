@@ -41,7 +41,7 @@
         if (!string.IsNullOrWhiteSpace(Model.InviterEmail) &&
             !string.IsNullOrWhiteSpace(Model.SignedResponse))
         {
-            MailApiModel.PreFillSend(Model.InviterEmail, "PRF Invite Response", Model.SignedResponse);
+            MailApiModel.PreFillSend(Model.InviterEmail, PrfArmor.SubjectInviteResponse, Model.SignedResponse);
         }
 
         MudDialog?.Close(DialogResult.Ok(true));

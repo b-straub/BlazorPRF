@@ -23,6 +23,13 @@ public interface ISignedApiClient
         SigningContext context);
 
     /// <summary>
+    /// Send an unauthenticated GET request.
+    /// </summary>
+    /// <param name="endpoint">API endpoint</param>
+    /// <returns>Response body or error result</returns>
+    Task<ApiResult<string>> GetAsync(string endpoint);
+
+    /// <summary>
     /// Send a user-signed request.
     /// </summary>
     /// <param name="endpoint">API endpoint (appended to base URL)</param>

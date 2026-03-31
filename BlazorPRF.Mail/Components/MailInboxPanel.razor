@@ -92,17 +92,12 @@
                                     {
                                         <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Warning" />
                                     }
-                                    @if (email.HasPfaArmor)
+                                    @{ var emailIcon = GetEmailIcon(email); }
+                                    @if (emailIcon is not null)
                                     {
-                                        <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Color="Color.Success" />
-                                    }
-                                    @if (email.HasInviteArmor)
-                                    {
-                                        <MudIcon Icon="@Icons.Material.Filled.Mail" Size="Size.Small" Color="Color.Secondary" />
-                                    }
-                                    @if (email.HasResponseArmor)
-                                    {
-                                        <MudIcon Icon="@Icons.Material.Filled.Reply" Size="Size.Small" Color="Color.Tertiary" />
+                                        <MudTooltip Text="@emailIcon.Value.Tooltip">
+                                            <MudIcon Icon="@emailIcon.Value.Icon" Size="Size.Small" Color="@emailIcon.Value.Color" />
+                                        </MudTooltip>
                                     }
                                     <MudText Typo="Typo.body2" Style="@(email.Seen ? "" : "font-weight: bold;")">
                                         @TruncateText(email.Subject, 50)
@@ -126,7 +121,18 @@
         <MudStack Row="true" AlignItems="AlignItems.Center">
             @if (Model.SelectedEmail?.HasPfaArmor == true)
             {
-                <MudIcon Icon="@Icons.Material.Filled.Lock" Color="Color.Success" Class="mr-2" />
+                @if (!string.IsNullOrEmpty(Model.DecryptedContent))
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.LockOpen" Color="Color.Success" Class="mr-2" />
+                }
+                else if (!string.IsNullOrEmpty(Model.DecryptError))
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Color="Color.Error" Class="mr-2" />
+                }
+                else
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Color="Color.Default" Class="mr-2" />
+                }
             }
             @if (Model.SelectedEmail?.HasInviteArmor == true)
             {
@@ -273,6 +279,38 @@
     /// </summary>
     [Parameter]
     public EventCallback<string> OnVerifyResponseRequested { get; set; }
+
+    private static (string Icon, Color Color, string Tooltip)? GetEmailIcon(ImapEmail email)
+    {
+        if (email.Decrypted)
+        {
+            return (Icons.Material.Filled.LockOpen, Color.Success, "Decrypted");
+        }
+
+        if (email.DecryptFailed)
+        {
+            return (Icons.Material.Filled.Lock, Color.Error, "Decryption failed");
+        }
+
+        var subject = email.Subject;
+
+        if (subject.Contains(PrfArmor.SubjectEncryptedMessage, StringComparison.OrdinalIgnoreCase))
+        {
+            return (Icons.Material.Filled.Lock, Color.Primary, "Encrypted message");
+        }
+
+        if (subject.Contains(PrfArmor.SubjectInvitation, StringComparison.OrdinalIgnoreCase))
+        {
+            return (Icons.Material.Filled.GroupAdd, Color.Secondary, "Invitation");
+        }
+
+        if (subject.Contains(PrfArmor.SubjectInviteResponse, StringComparison.OrdinalIgnoreCase))
+        {
+            return (Icons.Material.Filled.Reply, Color.Tertiary, "Invite response");
+        }
+
+        return null;
+    }
 
     private static string TruncateText(string text, int maxLength)
     {
