@@ -1,0 +1,85 @@
+@inherits MailApiModelComponent
+
+<MudCard>
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Send Mail (SMTP)</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (Model.Profile is null)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+                Please configure your SMTP settings in <MudLink Href="/settings">Settings</MudLink> first.
+            </MudAlert>
+        }
+        else if (!Model.IsSmtpConfigured)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+                SMTP not configured. Go to <MudLink Href="/settings">Settings</MudLink> to set up your mail server.
+            </MudAlert>
+        }
+        else
+        {
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
+                Using: @Model.Profile.SmtpHost:@(Model.Profile.SmtpPort ?? 587) (@Model.Profile.SmtpUsername)
+            </MudText>
+
+            <MudButton Color="Color.Info"
+                       Variant="Variant.Outlined"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.NetworkCheck"
+                       OnClick="@(() => Model.TestSmtp.ExecuteAsync())"
+                       Disabled="@Model.IsTestingSmtp"
+                       Class="mb-3">
+                @if (Model.IsTestingSmtp)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                    <span>Testing...</span>
+                }
+                else
+                {
+                    <span>Test SMTP Connection</span>
+                }
+            </MudButton>
+        }
+
+        <MudTextField @bind-Value="Model.SendTo"
+                      Label="To"
+                      Variant="Variant.Outlined"
+                      Placeholder="recipient@example.com"
+                      Class="mb-3"
+                      Disabled="@(!Model.IsSmtpConfigured)" />
+
+        <MudTextField @bind-Value="Model.SendSubject"
+                      Label="Subject"
+                      Variant="Variant.Outlined"
+                      Placeholder="Test email from BlazorPRF"
+                      Class="mb-3"
+                      Disabled="@(!Model.IsSmtpConfigured)" />
+
+        <MudTextField @bind-Value="Model.SendBody"
+                      Label="Body"
+                      Variant="Variant.Outlined"
+                      Lines="4"
+                      Placeholder="This is a test email..."
+                      Class="mb-3"
+                      Disabled="@(!Model.IsSmtpConfigured)" />
+
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Send"
+                   OnClick="@(() => Model.SendEmail.ExecuteAsync())"
+                   Disabled="@(Model.IsSending || !Model.CanSendMail)">
+            @if (Model.IsSending)
+            {
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                <span>Sending...</span>
+            }
+            else
+            {
+                <span>Send Email</span>
+            }
+        </MudButton>
+    </MudCardContent>
+</MudCard>

@@ -17,7 +17,7 @@
             <MudCard Class="mb-4">
                 <MudCardContent>
                     <MudText Typo="Typo.subtitle2" Class="mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.Contacts" Size="Size.Small" Class="mr-1" />
+                        <MudIcon Icon="@Icons.Material.Filled.Contacts" Size="Size.Small" Class="mr-1"/>
                         Select from Trusted Contacts
                     </MudText>
                     <MudSelect T="Guid?"
@@ -39,26 +39,23 @@
             </MudCard>
         }
 
-        <AsymmetricEncryptPanel InitialPublicKey="@Model.SelectedPublicKey" />
+        <AsymmetricEncryptPanel InitialPublicKey="@Model.SelectedPublicKey" OnSendViaEmail="HandleSendViaEmail" />
     </MudItem>
 
     <MudItem xs="12">
-        <AsymmetricDecryptPanel />
+        <AsymmetricDecryptPanel/>
     </MudItem>
 </MudGrid>
 
 @code {
     private bool _queryStringProcessed;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnContextReadyAsync()
     {
-        if (firstRender)
+        // Trigger contact loading if not already loaded
+        if (Model.Contacts.Count == 0 && !Model.Loading)
         {
-            // Trigger contact loading if not already loaded
-            if (Model.Contacts.Count == 0 && !Model.Loading)
-            {
-                await Model.LoadContacts.ExecuteAsync();
-            }
+            await Model.LoadContacts.ExecuteAsync();
         }
 
         // Process query string after contacts are loaded
@@ -67,8 +64,6 @@
             _queryStringProcessed = true;
             ProcessQueryString();
         }
-
-        await base.OnAfterRenderAsync(firstRender);
     }
 
     private void ProcessQueryString()
@@ -94,5 +89,10 @@
             // No matching contact - use raw key directly
             Model.SelectedPublicKey = keyParam;
         }
+    }
+
+    private async Task HandleSendViaEmail((string Email, string ArmoredMessage) args)
+    {
+        await Model.MailSender.SendAsync(args.Email, "Encrypted Message", args.ArmoredMessage);
     }
 }

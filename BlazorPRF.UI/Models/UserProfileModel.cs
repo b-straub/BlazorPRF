@@ -4,6 +4,7 @@ using BlazorPRF.Shared.Crypto.Models;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;
 using System.Diagnostics.CodeAnalysis;
+using RxBlazorV2.MudBlazor.Components;
 
 namespace BlazorPRF.UI.Models;
 
@@ -17,7 +18,7 @@ public partial class UserProfileModel : ObservableModel
 {
     [SuppressMessage("RxBlazorGenerator", "RXBG050:Partial constructor parameter type may not be registered in DI", Justification = "Services registered externally")]
     // ReSharper disable UnusedParameter.Local
-    public partial UserProfileModel(PrfModel prfModel, IUserProfileService userProfileService);
+    public partial UserProfileModel(PrfModel prfModel, IUserProfileService userProfileService, StatusModel statusModel);
     // ReSharper restore UnusedParameter.Local
 
     /// <summary>

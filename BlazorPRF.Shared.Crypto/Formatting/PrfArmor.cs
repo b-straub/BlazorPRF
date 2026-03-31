@@ -183,6 +183,105 @@ public static partial class PrfArmor
     }
 
     /// <summary>
+    /// Parses an EncryptedMessage from armored text or raw JSON.
+    /// This is the SSOT for parsing encrypted messages.
+    /// </summary>
+    /// <param name="input">Armored PFA message or raw JSON</param>
+    /// <returns>Parsed EncryptedMessage or null if parsing fails</returns>
+    public static Models.EncryptedMessage? ParseEncryptedMessage(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        string? json;
+        if (IsArmoredMessage(input))
+        {
+            json = UnArmorMessage(input);
+            if (json is null)
+            {
+                return null;
+            }
+        }
+        else
+        {
+            json = input.Trim();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize(json, Json.SharedJsonContext.Default.EncryptedMessage);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Extracts and parses an EncryptedMessage from text that may contain a PFA MESSAGE block.
+    /// Searches for armor markers within the text.
+    /// </summary>
+    /// <param name="text">Text that may contain an embedded PFA MESSAGE block</param>
+    /// <returns>Parsed EncryptedMessage or null if no valid message found</returns>
+    public static Models.EncryptedMessage? ExtractEncryptedMessage(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        var headerIndex = text.IndexOf(MessageHeader, StringComparison.Ordinal);
+        var footerIndex = text.IndexOf(MessageFooter, StringComparison.Ordinal);
+
+        if (headerIndex < 0 || footerIndex < 0 || footerIndex <= headerIndex)
+        {
+            return null;
+        }
+
+        var armored = text.Substring(headerIndex, footerIndex - headerIndex + MessageFooter.Length);
+        return ParseEncryptedMessage(armored);
+    }
+
+    /// <summary>
+    /// Parses a SymmetricEncryptedMessage from armored text or raw JSON.
+    /// This is the SSOT for parsing symmetric encrypted messages.
+    /// </summary>
+    /// <param name="input">Armored PFA message or raw JSON</param>
+    /// <returns>Parsed SymmetricEncryptedMessage or null if parsing fails</returns>
+    public static Models.SymmetricEncryptedMessage? ParseSymmetricEncryptedMessage(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        string? json;
+        if (IsArmoredMessage(input))
+        {
+            json = UnArmorMessage(input);
+            if (json is null)
+            {
+                return null;
+            }
+        }
+        else
+        {
+            json = input.Trim();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize(json, Json.SharedJsonContext.Default.SymmetricEncryptedMessage);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Checks if a string looks like an armored public key.
     /// </summary>
     public static bool IsArmoredPublicKey(string text)

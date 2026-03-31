@@ -1,6 +1,5 @@
 @inherits PrfModelComponent
 @inject IAsymmetricEncryption AsymmetricEncryption
-@inject ISnackbar Snackbar
 @inject IClipboard Clipboard
 
 <MudCard>
@@ -101,21 +100,38 @@
     </MudCardContent>
 
     <MudCardActions>
-        <MudButton Color="Color.Primary"
-                   Variant="Variant.Filled"
-                   StartIcon="@Icons.Material.Filled.Lock"
-                   OnClick="EncryptAsync"
-                   Disabled="@(!CanEncrypt)">
-            @if (_isProcessing)
-            {
-                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
-                <span>Encrypting...</span>
-            }
-            else
-            {
-                <span>Encrypt</span>
-            }
-        </MudButton>
+        @if (_armoredMessage is not null)
+        {
+            <MudButton OnClick="Reset"
+                       Variant="Variant.Text">
+                Cancel
+            </MudButton>
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Send"
+                       Disabled="@(!CanSendViaEmail)"
+                       OnClick="HandleSendViaEmail">
+                @(CanSendViaEmail ? "Send" : "Mail not configured")
+            </MudButton>
+        }
+        else
+        {
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Lock"
+                       OnClick="EncryptAsync"
+                       Disabled="@(!CanEncrypt)">
+                @if (_isProcessing)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                    <span>Encrypting...</span>
+                }
+                else
+                {
+                    <span>Encrypt</span>
+                }
+            </MudButton>
+        }
     </MudCardActions>
 </MudCard>
 
@@ -129,6 +145,14 @@
 
     [Parameter]
     public string? InitialPublicKey { get; set; }
+
+    /// <summary>
+    /// Callback to send encrypted message via email.
+    /// Parameters: (recipientEmail, armoredMessage)
+    /// When not bound, "Send" button shows "Mail not configured".
+    /// </summary>
+    [Parameter]
+    public EventCallback<(string Email, string ArmoredMessage)> OnSendViaEmail { get; set; }
 
     protected override void OnParametersSet()
     {
@@ -173,6 +197,17 @@
         (Model.HasKeys || Model.RequiresOnDemandAuth) &&
         Model.PublicKey is not null &&
         string.IsNullOrWhiteSpace(_recipientPublicKeyInput);
+
+    private bool CanSendViaEmail =>
+        !string.IsNullOrWhiteSpace(_armoredMessage) &&
+        !string.IsNullOrWhiteSpace(_recipientMetadata?.Email) &&
+        OnSendViaEmail.HasDelegate;
+
+    private void Reset()
+    {
+        _armoredMessage = null;
+        _errorMessage = null;
+    }
 
     private void UseOwnPublicKey()
     {
@@ -241,11 +276,21 @@
         try
         {
             await Clipboard.SetTextAsync(_armoredMessage);
-            Snackbar.Add("Encrypted message copied!", Severity.Success);
+            Model.StatusModel.AddSuccess("Encrypted message copied!");
         }
         catch
         {
-            Snackbar.Add("Failed to copy", Severity.Error);
+            Model.StatusModel.AddError("Failed to copy");
         }
+    }
+
+    private async Task HandleSendViaEmail()
+    {
+        if (_recipientMetadata?.Email is null || string.IsNullOrEmpty(_armoredMessage))
+        {
+            return;
+        }
+
+        await OnSendViaEmail.InvokeAsync((_recipientMetadata.Email, _armoredMessage));
     }
 }

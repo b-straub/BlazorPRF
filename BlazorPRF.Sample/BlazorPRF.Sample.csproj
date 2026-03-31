@@ -16,15 +16,17 @@
   <ItemGroup>
     <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
     <PackageReference Include="cmdwtf.BuildTimestampGenerator" Version="1.1.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.1" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.2" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.2" />
     <PackageReference Include="SqliteWasmBlazor" Version="0.7.0-pre" />
     <PackageReference Include="BlazorPRF.Noble.UI" Version="$(BlazorPRFVersion)" Condition="'$(Configuration)' == 'Release'" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\BlazorPRF.Persistence\BlazorPRF.Persistence.csproj" />
+    <ProjectReference Include="..\BlazorPRF.Mail\BlazorPRF.Mail.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
@@ -38,19 +40,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js"/>
+    <ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
   </ItemGroup>
 
-  <UsingTask TaskName="ReplaceTextInFile" TaskFactory="RoslynCodeTaskFactory"
-             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+  <UsingTask TaskName="ReplaceTextInFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
-      <Filename ParameterType="System.String" Required="true"/>
-      <Placeholder ParameterType="System.String" Required="true"/>
-      <Replacement ParameterType="System.String" Required="true"/>
+      <Filename ParameterType="System.String" Required="true" />
+      <Placeholder ParameterType="System.String" Required="true" />
+      <Replacement ParameterType="System.String" Required="true" />
     </ParameterGroup>
     <Task>
-      <Using Namespace="System"/>
-      <Using Namespace="System.IO"/>
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
       <Code Type="Fragment" Language="cs">
         <![CDATA[
 try
@@ -70,30 +71,14 @@ catch (Exception ex)
   </UsingTask>
 
   <Target Name="ReleaseServiceWorker" Condition="'$(Configuration)'=='Release'" BeforeTargets="BeforeCompile">
-    <ReplaceTextInFile
-        Filename="wwwroot\index.html"
-        Placeholder="&lt;!--SW_REGISTER_PLACEHOLDER--&gt;"
-        Replacement="&lt;script&gt;navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });&lt;/script&gt;"
-    />
-    <ReplaceTextInFile
-        Filename="wwwroot\index.html"
-        Placeholder="&lt;!--SW_UPDATE_PLACEHOLDER--&gt;"
-        Replacement="&lt;script src=&quot;service-worker-update.js&quot;&gt;&lt;/script&gt;"
-    />
+    <ReplaceTextInFile Filename="wwwroot\index.html" Placeholder="&lt;!--SW_REGISTER_PLACEHOLDER--&gt;" Replacement="&lt;script&gt;navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });&lt;/script&gt;" />
+    <ReplaceTextInFile Filename="wwwroot\index.html" Placeholder="&lt;!--SW_UPDATE_PLACEHOLDER--&gt;" Replacement="&lt;script src=&quot;service-worker-update.js&quot;&gt;&lt;/script&gt;" />
   </Target>
 
   <Target Name="DebugServiceWorker" Condition="'$(Configuration)'=='Debug'" BeforeTargets="BeforeCompile">
     <!-- In Debug mode, ensure service worker scripts remain commented out (no-op) -->
-    <ReplaceTextInFile
-        Filename="wwwroot\index.html"
-        Placeholder="&lt;script&gt;navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });&lt;/script&gt;"
-        Replacement="&lt;!--SW_REGISTER_PLACEHOLDER--&gt;"
-    />
-    <ReplaceTextInFile
-        Filename="wwwroot\index.html"
-        Placeholder="&lt;script src=&quot;service-worker-update.js&quot;&gt;&lt;/script&gt;"
-        Replacement="&lt;!--SW_UPDATE_PLACEHOLDER--&gt;"
-    />
+    <ReplaceTextInFile Filename="wwwroot\index.html" Placeholder="&lt;script&gt;navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });&lt;/script&gt;" Replacement="&lt;!--SW_REGISTER_PLACEHOLDER--&gt;" />
+    <ReplaceTextInFile Filename="wwwroot\index.html" Placeholder="&lt;script src=&quot;service-worker-update.js&quot;&gt;&lt;/script&gt;" Replacement="&lt;!--SW_UPDATE_PLACEHOLDER--&gt;" />
   </Target>
 
 </Project>

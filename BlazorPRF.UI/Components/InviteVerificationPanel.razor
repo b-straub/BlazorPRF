@@ -1,7 +1,6 @@
 @inherits PrfModelComponent
 @inject ISigningService SigningService
 @inject IClipboard Clipboard
-@inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
 
 @if (ShowCard)
@@ -48,6 +47,12 @@ else
     public RenderFragment? FailureActions { get; set; }
 
     /// <summary>
+    /// Initial signed response to pre-fill (e.g., from email).
+    /// </summary>
+    [Parameter]
+    public string? InitialResponse { get; set; }
+
+    /// <summary>
     /// Whether verification was successful (both signatures valid).
     /// </summary>
     public bool IsVerificationSuccessful => _verificationComplete && _inviterSignatureValid && _accepterSignatureValid;
@@ -80,7 +85,20 @@ else
     }
 
     private string _signedResponse = string.Empty;
+    private bool _initialResponseProcessed;
     private bool _isProcessing;
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        // Pre-fill from InitialResponse parameter if not already processed
+        if (!_initialResponseProcessed && !string.IsNullOrWhiteSpace(InitialResponse))
+        {
+            _signedResponse = InitialResponse;
+            _initialResponseProcessed = true;
+        }
+    }
     private string? _errorMessage;
     private bool _verificationComplete;
     private bool _inviterSignatureValid;
@@ -493,11 +511,11 @@ else
         try
         {
             await Clipboard.SetTextAsync(key);
-            Snackbar.Add($"{keyName} copied!", Severity.Success);
+            Model.StatusModel.AddSuccess($"{keyName} copied!");
         }
         catch
         {
-            Snackbar.Add("Failed to copy", Severity.Error);
+            Model.StatusModel.AddError("Failed to copy");
         }
     }
 

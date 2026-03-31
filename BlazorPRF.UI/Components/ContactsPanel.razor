@@ -1,7 +1,4 @@
 @using BlazorPRF.Persistence.Data.Models
-@using BlazorPRF.Shared.Crypto.Formatting
-@using RxBlazorV2.Model
-@using TextCopy
 @inherits ContactsModelComponent
 @inject IClipboard Clipboard
 @inject NavigationManager NavigationManager
@@ -9,7 +6,7 @@
 @if (Model.Loading)
 {
     <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
-        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+        <MudProgressCircular Indeterminate="true" Size="Size.Small"/>
         <MudText>Loading contacts...</MudText>
     </MudStack>
 }
@@ -29,7 +26,7 @@ else if (Model.ErrorMessage is not null)
                            Disabled="Model.ResetDatabase.Executing">
                     @if (Model.ResetDatabase.Executing)
                     {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2"/>
                         <span>Resetting...</span>
                     }
                     else
@@ -40,7 +37,8 @@ else if (Model.ErrorMessage is not null)
             }
             else
             {
-                <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => Model.LoadContacts.ExecuteAsync())">
+                <MudButton Variant="Variant.Text" Color="Color.Primary"
+                           OnClick="@(() => Model.LoadContacts.ExecuteAsync())">
                     Retry
                 </MudButton>
             }
@@ -83,25 +81,25 @@ else
                 <MudTooltip Text="Copy X25519 public key">
                     <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
                                    Size="Size.Small"
-                                   OnClick="@(() => CopyPublicKeyAsync(context.Contact, context.UserData))" />
+                                   OnClick="@(() => CopyPublicKeyAsync(context.Contact, context.UserData))"/>
                 </MudTooltip>
                 <MudTooltip Text="Encrypt message for this contact">
                     <MudIconButton Icon="@Icons.Material.Filled.Send"
                                    Size="Size.Small"
-                                   Href="@($"asymmetric?key={Uri.EscapeDataString(context.Contact.X25519PublicKey)}")" />
+                                   OnClick="@(() => OnEncryptRequested.InvokeAsync((context.Contact, context.UserData)))"/>
                 </MudTooltip>
                 <MudTooltip Text="Delete contact">
                     <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                    Size="Size.Small"
                                    Color="Color.Error"
-                                   OnClick="@(() => Model.DeleteContact.ExecuteAsync(context.Contact.Id))" />
+                                   OnClick="@(() => Model.DeleteContact.ExecuteAsync(context.Contact.Id))"/>
                 </MudTooltip>
             </MudTd>
         </RowTemplate>
     </MudTable>
 }
 
-<MudDivider Class="my-4" />
+<MudDivider Class="my-4"/>
 
 <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="2" Class="gap-2">
     <MudButton Variant="Variant.Outlined"
@@ -132,6 +130,7 @@ else
 </MudStack>
 
 @code {
+
     /// <summary>
     /// Raised when user clicks "Create Invitation" button.
     /// </summary>
@@ -150,12 +149,15 @@ else
     [Parameter]
     public EventCallback OnVerifyResponseRequested { get; set; }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    /// <summary>
+    /// Raised when user clicks encrypt/send on a contact.
+    /// </summary>
+    [Parameter]
+    public EventCallback<(TrustedContact Contact, ContactUserData? UserData)> OnEncryptRequested { get; set; }
+
+    protected override async Task OnContextReadyAsync()
     {
-        if (firstRender)
-        {
-            await Model.LoadContacts.ExecuteAsync();
-        }
+        await Model.LoadContacts.ExecuteAsync();
     }
 
     /// <summary>
@@ -175,11 +177,11 @@ else
     {
         var metadata = userData is not null
             ? new PublicKeyMetadata
-              {
-                  Name = userData.Username,
-                  Email = userData.Email,
-                  Comment = userData.Comment
-              }
+            {
+                Name = userData.Username,
+                Email = userData.Email,
+                Comment = userData.Comment
+            }
             : null;
 
         var armored = PrfArmor.ArmorPublicKey(contact.X25519PublicKey, metadata);
@@ -193,4 +195,5 @@ else
         TrustLevel.MARGINAL => Color.Warning,
         _ => Color.Default
     };
+
 }

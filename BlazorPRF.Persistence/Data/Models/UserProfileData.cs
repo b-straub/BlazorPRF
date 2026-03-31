@@ -2,7 +2,7 @@ namespace BlazorPRF.Persistence.Data.Models;
 
 /// <summary>
 /// User profile data stored in encrypted form.
-/// Contains personal information and future email configuration.
+/// Contains personal information and email server configuration.
 /// </summary>
 public sealed class UserProfileData
 {
@@ -16,37 +16,49 @@ public sealed class UserProfileData
     /// </summary>
     public string Email { get; set; } = string.Empty;
 
-    // Future SMTP configuration
+    // SMTP configuration
 
     /// <summary>
-    /// SMTP server hostname (future feature).
+    /// SMTP server hostname.
     /// </summary>
     public string? SmtpHost { get; set; }
 
     /// <summary>
-    /// SMTP server port (future feature).
+    /// SMTP server port (default: 587 for TLS).
     /// </summary>
     public int? SmtpPort { get; set; }
 
     /// <summary>
-    /// SMTP authentication username (future feature).
+    /// SMTP authentication username.
     /// </summary>
     public string? SmtpUsername { get; set; }
 
-    // Future IMAP configuration
+    /// <summary>
+    /// SMTP authentication password.
+    /// Stored encrypted with PRF-derived key.
+    /// </summary>
+    public string? SmtpPassword { get; set; }
+
+    // IMAP configuration
 
     /// <summary>
-    /// IMAP server hostname (future feature).
+    /// IMAP server hostname.
     /// </summary>
     public string? ImapHost { get; set; }
 
     /// <summary>
-    /// IMAP server port (future feature).
+    /// IMAP server port (default: 993 for SSL).
     /// </summary>
     public int? ImapPort { get; set; }
 
     /// <summary>
-    /// IMAP authentication username (future feature).
+    /// IMAP authentication username.
     /// </summary>
     public string? ImapUsername { get; set; }
+
+    /// <summary>
+    /// IMAP authentication password.
+    /// Stored encrypted with PRF-derived key.
+    /// </summary>
+    public string? ImapPassword { get; set; }
 }

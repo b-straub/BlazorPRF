@@ -1,0 +1,300 @@
+@using System.Text.Json
+@using BlazorPRF.Api.Models
+@using BlazorPRF.Api.Services
+@using TextCopy
+@inherits PrfModelComponent
+@inject ISignedApiClient SignedApiClient
+@inject ISigningService SigningService
+@inject IClipboard Clipboard
+
+<MudItem xs="12" md="6">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Register New Key</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudTextField @bind-Value="_newKeyId"
+                          Label="Key ID (optional, defaults to public key)"
+                          Variant="Variant.Outlined"
+                          Class="mb-3" />
+
+            <MudTextField @bind-Value="_newPublicKey"
+                          Label="Public Key (Ed25519 base64)"
+                          Variant="Variant.Outlined"
+                          Class="mb-3" />
+
+            <MudTextField @bind-Value="_newUserId"
+                          Label="User ID (optional)"
+                          Variant="Variant.Outlined"
+                          Class="mb-3" />
+
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.PersonAdd"
+                       OnClick="RegisterKeyAsync"
+                       Disabled="@(_isProcessing || string.IsNullOrWhiteSpace(_newPublicKey))">
+                @if (_isProcessing)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                    <span>Registering...</span>
+                }
+                else
+                {
+                    <span>Register Key</span>
+                }
+            </MudButton>
+        </MudCardContent>
+    </MudCard>
+
+    <MudCard Class="mt-4">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Admin Signing Key</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            @if (!string.IsNullOrEmpty(Model.Ed25519PublicKey))
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                    <MudText Typo="Typo.body2" Style="font-family: monospace; word-break: break-all;">
+                        @Model.Ed25519PublicKey
+                    </MudText>
+                    <MudTooltip Text="Copy to clipboard">
+                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                       Color="Color.Primary"
+                                       OnClick="CopySigningKeyAsync" />
+                    </MudTooltip>
+                </MudStack>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
+                    This key must be in secure/admin_keys.json on the server
+                </MudText>
+            }
+        </MudCardContent>
+    </MudCard>
+</MudItem>
+
+<MudItem xs="12" md="6">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudText Typo="Typo.h6">Registered Keys</MudText>
+                    <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                   Color="Color.Primary"
+                                   OnClick="LoadKeysAsync"
+                                   Disabled="@_isLoading" />
+                </MudStack>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            @if (_isLoading)
+            {
+                <MudProgressLinear Indeterminate="true" />
+            }
+            else if (_registeredKeys.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                    No keys registered yet.
+                </MudText>
+            }
+            else
+            {
+                <MudList T="RegisteredKey" Dense="true">
+                    @foreach (var key in _registeredKeys)
+                    {
+                        <MudListItem>
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width: 100%;">
+                                <div>
+                                    <MudText Typo="Typo.body2" Style="font-family: monospace;">
+                                        @TruncateKey(key.KeyId)
+                                    </MudText>
+                                    @if (!string.IsNullOrEmpty(key.UserId))
+                                    {
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                            User: @key.UserId
+                                        </MudText>
+                                    }
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                        @key.CreatedDateTime.ToString("g")
+                                    </MudText>
+                                </div>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               Size="Size.Small"
+                                               OnClick="@(() => RevokeKeyAsync(key.KeyId))" />
+                            </MudStack>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+        </MudCardContent>
+    </MudCard>
+</MudItem>
+
+@code {
+    private string _newKeyId = "";
+    private string _newPublicKey = "";
+    private string _newUserId = "";
+    private bool _isProcessing;
+    private bool _isLoading;
+    private List<RegisteredKey> _registeredKeys = [];
+
+    /// <summary>
+    /// Event callback when a key is registered, for parent to update user key status.
+    /// </summary>
+    [Parameter]
+    public EventCallback<List<RegisteredKey>> OnKeysChanged { get; set; }
+
+    protected override async Task OnContextReadyAsync()
+    {
+        await LoadKeysAsync();
+    }
+
+    private SigningContext CreateSigningContext()
+    {
+        return new SigningContext(
+            Model.Ed25519PublicKey ?? "",
+            Model.Salt ?? "",
+            async (message, salt) => await SigningService.SignAsync(message, salt));
+    }
+
+    private async Task LoadKeysAsync()
+    {
+        _isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            if (!await Model.EnsureKeysAsync())
+            {
+                Model.StatusModel.AddError("Authentication cancelled or failed");
+                return;
+            }
+
+            var result = await SignedApiClient.SendAdminSignedAsync("register", "", "GET", CreateSigningContext());
+            if (!result.Success || result.Value is null)
+            {
+                Model.StatusModel.AddError(result.Error ?? "Failed to load keys");
+                return;
+            }
+
+            var keysResponse = JsonSerializer.Deserialize(result.Value, BlazorPRF.Api.Json.ApiJsonContext.Default.KeysListResponse);
+            if (keysResponse is not null)
+            {
+                _registeredKeys = keysResponse.Keys;
+                await OnKeysChanged.InvokeAsync(_registeredKeys);
+            }
+        }
+        catch (Exception ex)
+        {
+            Model.StatusModel.AddError($"Failed to load keys: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RegisterKeyAsync()
+    {
+        _isProcessing = true;
+        StateHasChanged();
+
+        try
+        {
+            if (!await Model.EnsureKeysAsync())
+            {
+                Model.StatusModel.AddError("Authentication cancelled or failed");
+                return;
+            }
+
+            var keyId = string.IsNullOrWhiteSpace(_newKeyId) ? _newPublicKey : _newKeyId;
+            var body = JsonSerializer.Serialize(new
+            {
+                keyId,
+                publicKey = _newPublicKey,
+                userId = _newUserId
+            });
+
+            var result = await SignedApiClient.SendAdminSignedAsync("register", body, "POST", CreateSigningContext());
+            if (result.Success)
+            {
+                Model.StatusModel.AddSuccess($"Key registered: {TruncateKey(keyId)}");
+                _newKeyId = "";
+                _newPublicKey = "";
+                _newUserId = "";
+                await LoadKeysAsync();
+            }
+            else
+            {
+                Model.StatusModel.AddError(result.Error ?? "Failed to register key");
+            }
+        }
+        catch (Exception ex)
+        {
+            Model.StatusModel.AddError($"Failed to register key: {ex.Message}");
+        }
+        finally
+        {
+            _isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RevokeKeyAsync(string keyId)
+    {
+        try
+        {
+            if (!await Model.EnsureKeysAsync())
+            {
+                Model.StatusModel.AddError("Authentication cancelled or failed");
+                return;
+            }
+
+            var result = await SignedApiClient.SendAdminSignedAsync($"keys?keyId={Uri.EscapeDataString(keyId)}", "", "DELETE", CreateSigningContext());
+            if (result.Success)
+            {
+                Model.StatusModel.AddSuccess($"Key revoked: {TruncateKey(keyId)}");
+                await LoadKeysAsync();
+            }
+            else
+            {
+                Model.StatusModel.AddError(result.Error ?? "Failed to revoke key");
+            }
+        }
+        catch (Exception ex)
+        {
+            Model.StatusModel.AddError($"Failed to revoke key: {ex.Message}");
+        }
+    }
+
+    private async Task CopySigningKeyAsync()
+    {
+        if (string.IsNullOrEmpty(Model.Ed25519PublicKey))
+        {
+            return;
+        }
+
+        try
+        {
+            await Clipboard.SetTextAsync(Model.Ed25519PublicKey);
+            Model.StatusModel.AddSuccess("Signing key copied!");
+        }
+        catch
+        {
+            Model.StatusModel.AddError("Failed to copy");
+        }
+    }
+
+    private static string TruncateKey(string key)
+    {
+        if (key.Length <= 20)
+        {
+            return key;
+        }
+        return $"{key[..8]}...{key[^8..]}";
+    }
+}

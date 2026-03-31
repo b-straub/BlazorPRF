@@ -1,0 +1,10 @@
+<?php
+
+return [
+    'dbPath' => __DIR__ . '/data/app.db',
+    'allowedOrigins' => [
+        // Add your production origin here
+        // 'https://your-domain.example.com',
+    ],
+    'timestampTolerance' => 300 // 5 minutes
+];

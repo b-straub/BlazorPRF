@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- Mail service Razor library with IMAP/SMTP operations -->
+
+  <PropertyGroup>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="RxBlazorV2.MudBlazor" Version="1.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorPRF.Api\BlazorPRF.Api.csproj" />
+    <ProjectReference Include="..\BlazorPRF.UI\BlazorPRF.UI.csproj" />
+  </ItemGroup>
+
+</Project>

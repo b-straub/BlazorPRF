@@ -1,0 +1,128 @@
+@using BlazorPRF.Mail.Models
+@using BlazorPRF.Shared.Crypto.Formatting
+@using BlazorPRF.Shared.Crypto.Json
+@inject IAsymmetricEncryption AsymmetricEncryption
+@inject MailApiModel MailApiModel
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">
+                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                    <MudText Typo="Typo.body2">To: <strong>@RecipientName</strong></MudText>
+                    @if (!string.IsNullOrWhiteSpace(RecipientEmail))
+                    {
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">&lt;@RecipientEmail&gt;</MudText>
+                    }
+                </MudStack>
+            </MudAlert>
+
+            <MudTextField @bind-Value="_message"
+                          Label="Message"
+                          Variant="Variant.Outlined"
+                          Lines="6"
+                          Placeholder="Type your message..."
+                          Immediate="true"
+                          Disabled="@_isProcessing" />
+
+            @if (_errorMessage is not null)
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true">
+                    @_errorMessage
+                </MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel"
+                   Variant="Variant.Text">
+            Cancel
+        </MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   StartIcon="@(_isProcessing ? null : Icons.Material.Filled.Send)"
+                   Disabled="@(!CanSend)"
+                   OnClick="EncryptAndSendAsync">
+            @if (_isProcessing)
+            {
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                <span>Encrypting...</span>
+            }
+            else
+            {
+                <span>Encrypt & Send</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public string RecipientPublicKey { get; set; } = "";
+
+    [Parameter]
+    public string RecipientName { get; set; } = "";
+
+    [Parameter]
+    public string? RecipientEmail { get; set; }
+
+    private string _message = "";
+    private string? _errorMessage;
+    private bool _isProcessing;
+
+    private bool CanSend => !_isProcessing &&
+                            !string.IsNullOrWhiteSpace(_message) &&
+                            !string.IsNullOrWhiteSpace(RecipientPublicKey) &&
+                            MailApiModel.IsSmtpConfigured &&
+                            !string.IsNullOrWhiteSpace(RecipientEmail);
+
+    private void Cancel()
+    {
+        MudDialog?.Cancel();
+    }
+
+    private async Task EncryptAndSendAsync()
+    {
+        if (!CanSend)
+        {
+            return;
+        }
+
+        _isProcessing = true;
+        _errorMessage = null;
+
+        try
+        {
+            var result = await AsymmetricEncryption.EncryptAsync(_message, RecipientPublicKey);
+
+            if (result is not { Success: true, Value: not null })
+            {
+                _errorMessage = result.Error ?? "Encryption failed";
+                return;
+            }
+
+            var json = System.Text.Json.JsonSerializer.Serialize(result.Value, SharedJsonContext.Default.EncryptedMessage);
+            var armoredMessage = PrfArmor.ArmorMessage(json);
+
+            MailApiModel.PreFillSend(RecipientEmail!, "Encrypted Message", armoredMessage);
+            MudDialog?.Close(DialogResult.Ok(true));
+
+            if (MailApiModel.CanSendMail)
+            {
+                await MailApiModel.SendEmail.ExecuteAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+}

@@ -1,3 +1,4 @@
+using BlazorPRF.Persistence.Services;
 using BlazorPRF.Shared.Crypto.Extensions;
 using BlazorPRF.Shared.Crypto.Formatting;
 using BlazorPRF.Shared.Crypto.Models;
@@ -5,6 +6,7 @@ using BlazorPRF.Shared.Crypto.Services;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;
 using System.Diagnostics.CodeAnalysis;
+using RxBlazorV2.MudBlazor.Components;
 
 namespace BlazorPRF.UI.Models;
 
@@ -19,9 +21,14 @@ public partial class InviteAcceptanceModel : ObservableModel
     [SuppressMessage("RxBlazorGenerator", "RXBG050:Partial constructor parameter type may not be registered in DI", Justification = "Services registered externally")]
     #pragma warning disable CS9113 // Parameter is unread
     // ReSharper disable UnusedParameter.Local
-    public partial InviteAcceptanceModel(PrfModel prfModel, ISigningService signingService);
+    public partial InviteAcceptanceModel(PrfModel prfModel, ISigningService signingService, IUserProfileService userProfileService, StatusModel statusModel);
     // ReSharper restore UnusedParameter.Local
     #pragma warning restore CS9113
+
+    /// <summary>
+    /// Whether the user profile is missing or incomplete (no name/email).
+    /// </summary>
+    public partial bool ProfileMissing { get; set; }
 
     /// <summary>
     /// The raw signed invite input from the user.
@@ -109,6 +116,45 @@ public partial class InviteAcceptanceModel : ObservableModel
                            && InviteValid == true
                            && ParsedEmail is not null
                            && !string.IsNullOrWhiteSpace(Username);
+
+    /// <summary>
+    /// Loads the user profile and populates Username/AccepterEmail.
+    /// Sets ProfileMissing if profile is incomplete or absent.
+    /// Call this BEFORE opening the dialog to avoid async re-renders during dialog initialization.
+    /// </summary>
+    public async Task LoadProfileAsync()
+    {
+        ProfileMissing = false;
+
+        if (!PrfModel.HasKeys && !PrfModel.RequiresOnDemandAuth)
+        {
+            return;
+        }
+
+        if (PrfModel.RequiresOnDemandAuth && !PrfModel.HasKeys)
+        {
+            return;
+        }
+
+        var result = await UserProfileService.GetAsync();
+
+        if (result is { Success: true, Value: not null })
+        {
+            if (string.IsNullOrWhiteSpace(result.Value.Username) ||
+                string.IsNullOrWhiteSpace(result.Value.Email))
+            {
+                ProfileMissing = true;
+                return;
+            }
+
+            Username = result.Value.Username;
+            AccepterEmail = result.Value.Email;
+        }
+        else if (result.Success && result.Value is null)
+        {
+            ProfileMissing = true;
+        }
+    }
 
     // Commands
     [ObservableCommand(nameof(SignAcceptanceAsync), nameof(CanSignCheck))]

@@ -19,7 +19,7 @@ public partial class ContactsModel : ObservableModel
 {
     [SuppressMessage("RxBlazorGenerator", "RXBG050:Partial constructor parameter type may not be registered in DI", Justification = "Services registered externally")]
     // ReSharper disable UnusedParameter.Local
-    public partial ContactsModel(PrfModel prfModel, InviteModel inviteModel, IContactsService contactsService, StatusModel statusModel);
+    public partial ContactsModel(PrfModel prfModel, InviteModel inviteModel, IContactsService contactsService, StatusModel statusModel, IMailSender mailSender);
     // ReSharper restore UnusedParameter.Local
 
     /// <summary>

@@ -1,0 +1,127 @@
+@page "/mail-api"
+@attribute [Authorize]
+@inherits MailApiModelComponent
+@using BlazorPRF.Api.Models
+@using BlazorPRF.Mail.Components
+@using BlazorPRF.Mail.Models
+@using BlazorPRF.Sample.Components
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+@inject InviteAcceptanceModel InviteAcceptanceModel
+
+<PageTitle>Mail API - BlazorPRF</PageTitle>
+
+<AuthorizeView Roles="Admin">
+    <Authorized>
+        <MudText Typo="Typo.h4" GutterBottom="true">Mail API (Admin)</MudText>
+        <MudText Typo="Typo.body1" Class="mb-6">Manage keys and test email functionality</MudText>
+    </Authorized>
+    <NotAuthorized>
+        <MudText Typo="Typo.h4" GutterBottom="true">Mail API</MudText>
+        <MudText Typo="Typo.body1" Class="mb-6">Test your email configuration</MudText>
+    </NotAuthorized>
+</AuthorizeView>
+
+@if (Model.PrfModel is { HasKeys: false, RequiresOnDemandAuth: false })
+{
+    <MudAlert Severity="Severity.Warning" Class="mb-4">
+        Please derive keys first using the authentication panel.
+    </MudAlert>
+}
+else
+{
+    <MudGrid>
+        @* Send Mail - Available to all authenticated users *@
+        <MudItem xs="12" md="6">
+            <MailSendPanel />
+        </MudItem>
+
+        @* IMAP Inbox *@
+        <MudItem xs="12" md="6">
+            <MailInboxPanel OnAcceptInviteRequested="HandleAcceptInviteAsync"
+                            OnVerifyResponseRequested="HandleVerifyResponseAsync" />
+        </MudItem>
+
+        @* Admin-only sections *@
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <AdminKeyManagementPanel OnKeysChanged="HandleKeysChanged" />
+            </Authorized>
+        </AuthorizeView>
+    </MudGrid>
+}
+
+@code {
+    protected override async Task OnContextReadyAsync()
+    {
+        // Load mail profile and auto-fetch emails
+        await Model.LoadProfileAndFetchAsync();
+
+        // Check for query params to pre-fill send form
+        ProcessQueryParams();
+    }
+
+    private void ProcessQueryParams()
+    {
+        var uri = new Uri(NavigationManager.Uri);
+        var queryParams = System.Web.HttpUtility.ParseQueryString(uri.Query);
+
+        var to = queryParams["to"];
+        var subject = queryParams["subject"];
+        var body = queryParams["body"];
+
+        if (!string.IsNullOrWhiteSpace(to) ||
+            !string.IsNullOrWhiteSpace(subject) ||
+            !string.IsNullOrWhiteSpace(body))
+        {
+            Model.PreFillSend(to, subject, body);
+        }
+    }
+
+    private void HandleKeysChanged(List<RegisteredKey> keys)
+    {
+        StateHasChanged();
+    }
+
+    private async Task HandleAcceptInviteAsync(string armoredInvite)
+    {
+        // Load profiles before opening dialog to avoid async re-renders during dialog init
+        await InviteAcceptanceModel.LoadProfileAsync();
+        if (Model.Profile is null)
+        {
+            await Model.LoadProfile.ExecuteAsync();
+        }
+
+        var parameters = new DialogParameters<AcceptInviteDialog>
+        {
+            { x => x.InitialInvite, armoredInvite }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        await DialogService.ShowAsync<AcceptInviteDialog>("Accept Invitation", parameters, options);
+    }
+
+    private async Task HandleVerifyResponseAsync(string armoredResponse)
+    {
+        var parameters = new DialogParameters<VerifyResponseDialog>
+        {
+            { x => x.InitialResponse, armoredResponse }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        await DialogService.ShowAsync<VerifyResponseDialog>("Verify Response", parameters, options);
+    }
+
+}

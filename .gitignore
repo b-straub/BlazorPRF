@@ -30,3 +30,16 @@ Docs
 BlazorPRF.BC.Crypto/wwwroot/blazor-prf.js
 BlazorPRF.Noble.Crypto/wwwroot/blazorprf-noble.js
 BaseCrypto/BlazorPRF.Wasm.Crypto/wwwroot/blazorprf-wasm-crypto.*
+
+# Sensitive files
+Site/secure/admin_keys.json
+Site/secure/data/
+Site/secure/config.php
+*.env
+*.pem
+*.pfx
+*.p12
+*.key
+*.cer
+*.db
+secrets.json

@@ -1,6 +1,5 @@
 @inherits PrfModelComponent
 @inject ISigningService SigningService
-@inject ISnackbar Snackbar
 @inject IClipboard Clipboard
 @using System.Text.Json
 
@@ -253,11 +252,11 @@
         try
         {
             await Clipboard.SetTextAsync(_armoredSignature);
-            Snackbar.Add("Signed message copied!", Severity.Success);
+            Model.StatusModel.AddSuccess("Signed message copied!");
         }
         catch
         {
-            Snackbar.Add("Failed to copy", Severity.Error);
+            Model.StatusModel.AddError("Failed to copy");
         }
     }
 }

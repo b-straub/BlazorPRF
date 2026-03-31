@@ -1,5 +1,54 @@
- <MudDialog>
+@using BlazorPRF.Mail.Models
+@inherits InviteAcceptanceModelComponent
+@inject MailApiModel MailApiModel
+
+<MudDialog>
     <DialogContent>
-        <InviteAcceptancePanel />
+        <InviteAcceptancePanel InitialInvite="@InitialInvite" />
     </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel"
+                   Variant="Variant.Text">
+            Cancel
+        </MudButton>
+        @if (Model.SignedResponse is not null)
+        {
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Send"
+                       Disabled="@(!MailApiModel.IsSmtpConfigured)"
+                       OnClick="SendAndCloseAsync">
+                @(MailApiModel.IsSmtpConfigured ? "Send & Close" : "Mail not configured")
+            </MudButton>
+        }
+    </DialogActions>
 </MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter]
+    public string? InitialInvite { get; set; }
+
+    private void Cancel()
+    {
+        MudDialog?.Cancel();
+    }
+
+    private async Task SendAndCloseAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(Model.InviterEmail) &&
+            !string.IsNullOrWhiteSpace(Model.SignedResponse))
+        {
+            MailApiModel.PreFillSend(Model.InviterEmail, "PRF Invite Response", Model.SignedResponse);
+        }
+
+        MudDialog?.Close(DialogResult.Ok(true));
+
+        if (MailApiModel.CanSendMail)
+        {
+            await MailApiModel.SendEmail.ExecuteAsync();
+        }
+    }
+}

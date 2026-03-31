@@ -1,0 +1,329 @@
+@inherits MailApiModelComponent
+
+<MudCard>
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Inbox (IMAP)</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (Model.Profile is null || !Model.IsImapConfigured)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+                IMAP not configured. Go to <MudLink Href="/settings">Settings</MudLink> to set up your mail server.
+            </MudAlert>
+        }
+        else
+        {
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
+                Using: @Model.Profile.ImapHost:@(Model.Profile.ImapPort ?? 993) (@Model.Profile.ImapUsername)
+            </MudText>
+
+            <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
+                <MudButton Color="Color.Info"
+                           Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.NetworkCheck"
+                           OnClick="@(() => Model.TestImap.ExecuteAsync())"
+                           Disabled="@Model.IsTestingImap">
+                    @if (Model.IsTestingImap)
+                    {
+                        <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                        <span>Testing...</span>
+                    }
+                    else
+                    {
+                        <span>Test Connection</span>
+                    }
+                </MudButton>
+
+                @if (Model.MailboxInfo is not null)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Info">@Model.MailboxInfo.Messages messages</MudChip>
+                    @if (Model.MailboxInfo.Unseen > 0)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">@Model.MailboxInfo.Unseen unread</MudChip>
+                    }
+                }
+            </MudStack>
+
+            <MudSelect T="string" @bind-Value="Model.ImapFilter" Label="Filter" Variant="Variant.Outlined" Class="mb-3">
+                <MudSelectItem Value="@("unseen")">Unread</MudSelectItem>
+                <MudSelectItem Value="@("new")">New (Recent & Unread)</MudSelectItem>
+                <MudSelectItem Value="@("today")">Today</MudSelectItem>
+                <MudSelectItem Value="@("week")">Last 7 Days</MudSelectItem>
+                <MudSelectItem Value="@("all")">All</MudSelectItem>
+                <MudSelectItem Value="@("flagged")">Flagged/Starred</MudSelectItem>
+            </MudSelect>
+
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Inbox"
+                       OnClick="@(() => Model.FetchEmails.ExecuteAsync())"
+                       Disabled="@Model.IsFetchingEmails">
+                @if (Model.IsFetchingEmails)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                    <span>Fetching...</span>
+                }
+                else
+                {
+                    <span>Fetch Emails</span>
+                }
+            </MudButton>
+
+            @if (Model.Emails.Count > 0)
+            {
+                <MudDivider Class="my-3" />
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
+                    Showing @Model.Emails.Count of @Model.TotalMatched emails (@Model.ImapFilter) - click to view
+                </MudText>
+                <MudList T="ImapEmail" Dense="true" Style="max-height: 300px; overflow-y: auto;">
+                    @foreach (var email in Model.Emails)
+                    {
+                        <MudListItem Value="@email" OnClick="@(() => Model.ViewEmailAsync(email))">
+                            <MudStack Spacing="0">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    @if (!email.Seen)
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.FiberNew" Size="Size.Small" Color="Color.Primary" />
+                                    }
+                                    @if (email.Flagged)
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Warning" />
+                                    }
+                                    @if (email.HasPfaArmor)
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Color="Color.Success" />
+                                    }
+                                    @if (email.HasInviteArmor)
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.Mail" Size="Size.Small" Color="Color.Secondary" />
+                                    }
+                                    @if (email.HasResponseArmor)
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.Reply" Size="Size.Small" Color="Color.Tertiary" />
+                                    }
+                                    <MudText Typo="Typo.body2" Style="@(email.Seen ? "" : "font-weight: bold;")">
+                                        @TruncateText(email.Subject, 50)
+                                    </MudText>
+                                </MudStack>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                    @TruncateText(email.From, 40) - @email.Date
+                                </MudText>
+                            </MudStack>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+        }
+    </MudCardContent>
+</MudCard>
+
+@* Email Viewer Dialog *@
+<MudDialog @bind-Visible="Model.EmailDialogVisible" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center">
+            @if (Model.SelectedEmail?.HasPfaArmor == true)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Lock" Color="Color.Success" Class="mr-2" />
+            }
+            @if (Model.SelectedEmail?.HasInviteArmor == true)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Mail" Color="Color.Secondary" Class="mr-2" />
+            }
+            @if (Model.SelectedEmail?.HasResponseArmor == true)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Reply" Color="Color.Tertiary" Class="mr-2" />
+            }
+            <MudText Typo="Typo.h6">@(Model.SelectedEmail?.Subject ?? "Email")</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @if (Model.IsLoadingEmailBody)
+        {
+            <MudStack AlignItems="AlignItems.Center" Class="py-6">
+                <MudProgressCircular Indeterminate="true" />
+                <MudText>Loading email...</MudText>
+            </MudStack>
+        }
+        else if (Model.SelectedEmail is not null)
+        {
+            <MudStack Spacing="2">
+                <MudStack Row="true" Justify="Justify.SpaceBetween">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">From: @Model.SelectedEmail.From</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@Model.SelectedEmail.Date</MudText>
+                </MudStack>
+
+                <MudDivider />
+
+                @* Invite detection - show accept button *@
+                @if (Model.SelectedEmail.HasInviteArmor)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                            <MudStack Row="true" AlignItems="AlignItems.Center">
+                                <MudIcon Icon="@Icons.Material.Filled.Mail" Size="Size.Small" />
+                                <MudText Typo="Typo.body2">This email contains a PRF invitation</MudText>
+                            </MudStack>
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.PersonAdd"
+                                       OnClick="AcceptInviteFromEmail">
+                                Accept Invite
+                            </MudButton>
+                        </MudStack>
+                    </MudAlert>
+                }
+
+                @* Response detection - show verify button *@
+                @if (Model.SelectedEmail.HasResponseArmor)
+                {
+                    <MudAlert Severity="Severity.Success" Dense="true">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                            <MudStack Row="true" AlignItems="AlignItems.Center">
+                                <MudIcon Icon="@Icons.Material.Filled.Reply" Size="Size.Small" />
+                                <MudText Typo="Typo.body2">This email contains an invite response</MudText>
+                            </MudStack>
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Tertiary"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.VerifiedUser"
+                                       OnClick="VerifyResponseFromEmail">
+                                Verify &amp; Add Contact
+                            </MudButton>
+                        </MudStack>
+                    </MudAlert>
+                }
+
+                @if (Model.SelectedEmail.HasPfaArmor && !string.IsNullOrEmpty(Model.DecryptedContent))
+                {
+                    <MudAlert Severity="Severity.Success" Dense="true">
+                        <MudStack Row="true" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.LockOpen" Size="Size.Small" />
+                            <MudText Typo="Typo.body2">Decrypted message</MudText>
+                        </MudStack>
+                    </MudAlert>
+                    <MudPaper Class="pa-3" Outlined="true" Style="white-space: pre-wrap; word-break: break-word;">
+                        <MudText>@Model.DecryptedContent</MudText>
+                    </MudPaper>
+                }
+                else if (Model.SelectedEmail.HasPfaArmor && !string.IsNullOrEmpty(Model.DecryptError))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">@Model.DecryptError</MudAlert>
+                    <MudExpansionPanels>
+                        <MudExpansionPanel Text="Show Encrypted Content">
+                            <MudPaper Class="pa-3" Outlined="true" Style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.85rem;">
+                                <MudText>@Model.SelectedEmail.Body</MudText>
+                            </MudPaper>
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                }
+                else if (Model.SelectedEmail.HasPfaArmor)
+                {
+                    <MudButton Color="Color.Primary"
+                               Variant="Variant.Filled"
+                               StartIcon="@Icons.Material.Filled.LockOpen"
+                               OnClick="@(() => Model.DecryptEmail.ExecuteAsync())"
+                               Disabled="@Model.IsDecrypting">
+                        @if (Model.IsDecrypting)
+                        {
+                            <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                            <span>Decrypting...</span>
+                        }
+                        else
+                        {
+                            <span>Decrypt Message</span>
+                        }
+                    </MudButton>
+                    <MudPaper Class="pa-3 mt-2" Outlined="true" Style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.85rem;">
+                        <MudText>@Model.SelectedEmail.Body</MudText>
+                    </MudPaper>
+                }
+                else if (!string.IsNullOrEmpty(Model.SelectedEmail.Body))
+                {
+                    <MudPaper Class="pa-3" Outlined="true" Style="white-space: pre-wrap; word-break: break-word;">
+                        <MudText>@Model.SelectedEmail.Body</MudText>
+                    </MudPaper>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">(No plain text content)</MudText>
+                }
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => Model.CloseEmailDialog())">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    /// <summary>
+    /// Called when user wants to accept an invite found in email.
+    /// Parameter is the armored invite string.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnAcceptInviteRequested { get; set; }
+
+    /// <summary>
+    /// Called when user wants to verify a response found in email.
+    /// Parameter is the armored response string.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnVerifyResponseRequested { get; set; }
+
+    private static string TruncateText(string text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
+        {
+            return text;
+        }
+        return text[..(maxLength - 3)] + "...";
+    }
+
+    private async Task AcceptInviteFromEmail()
+    {
+        if (Model.SelectedEmail?.Body is null)
+        {
+            return;
+        }
+
+        var body = Model.SelectedEmail.Body;
+        var startMarker = "-----BEGIN PFA SIGNED INVITE-----";
+        var endMarker = "-----END PFA SIGNED INVITE-----";
+
+        var startIndex = body.IndexOf(startMarker, StringComparison.Ordinal);
+        var endIndex = body.IndexOf(endMarker, StringComparison.Ordinal);
+
+        if (startIndex >= 0 && endIndex > startIndex)
+        {
+            var armoredInvite = body[startIndex..(endIndex + endMarker.Length)];
+            Model.CloseEmailDialog();
+            await OnAcceptInviteRequested.InvokeAsync(armoredInvite);
+        }
+    }
+
+    private async Task VerifyResponseFromEmail()
+    {
+        if (Model.SelectedEmail?.Body is null)
+        {
+            return;
+        }
+
+        var body = Model.SelectedEmail.Body;
+        var startMarker = "-----BEGIN PFA SIGNED RESPONSE-----";
+        var endMarker = "-----END PFA SIGNED RESPONSE-----";
+
+        var startIndex = body.IndexOf(startMarker, StringComparison.Ordinal);
+        var endIndex = body.IndexOf(endMarker, StringComparison.Ordinal);
+
+        if (startIndex >= 0 && endIndex > startIndex)
+        {
+            var armoredResponse = body[startIndex..(endIndex + endMarker.Length)];
+            Model.CloseEmailDialog();
+            await OnVerifyResponseRequested.InvokeAsync(armoredResponse);
+        }
+    }
+}

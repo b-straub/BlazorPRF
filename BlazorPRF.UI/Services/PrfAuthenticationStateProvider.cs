@@ -5,6 +5,19 @@ using Microsoft.AspNetCore.Components.Authorization;
 namespace BlazorPRF.UI.Services;
 
 /// <summary>
+/// User role for PRF authentication.
+/// </summary>
+public enum PrfUserRole
+{
+    /// <summary>Role not yet determined.</summary>
+    Unknown,
+    /// <summary>Regular authenticated user.</summary>
+    User,
+    /// <summary>Administrator with elevated privileges.</summary>
+    Admin
+}
+
+/// <summary>
 /// Authentication state provider based on PRF key derivation.
 /// User is considered authenticated when:
 /// - Keys have been derived (HasKeys = true), OR
@@ -13,21 +26,21 @@ namespace BlazorPRF.UI.Services;
 public sealed class PrfAuthenticationStateProvider : AuthenticationStateProvider
 {
     private PrfModel? _prfModel;
-    private readonly AuthenticationState _anonymous = new(new ClaimsPrincipal(new ClaimsIdentity())); 
-    
+    private readonly AuthenticationState _anonymous = new(new ClaimsPrincipal(new ClaimsIdentity()));
+
     public void UpdateAuthenticationState(PrfModel prfModel)
     {
         _prfModel = prfModel;
         NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
     }
-    
+
     public override Task<AuthenticationState> GetAuthenticationStateAsync()
     {
         if (_prfModel is null)
         {
             return Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
         }
-        
+
         // For Strategy.None user is "authenticated" (keys derived on-demand)
         var isOnDemandAuthenticated = _prfModel.RequiresOnDemandAuth;
 
@@ -43,7 +56,7 @@ public sealed class PrfAuthenticationStateProvider : AuthenticationStateProvider
         // Create authenticated identity
         var claims = new List<Claim>
         {
-            new(ClaimTypes.Name, "PRF User"),
+            new(ClaimTypes.Name, _prfModel.Role == PrfUserRole.Admin ? "Admin" : "PRF User"),
             new("CredentialId", _prfModel.CredentialId ?? string.Empty),
             new("OnDemandAuth", _prfModel.RequiresOnDemandAuth.ToString())
         };
@@ -52,6 +65,12 @@ public sealed class PrfAuthenticationStateProvider : AuthenticationStateProvider
         if (_prfModel.PublicKey is not null)
         {
             claims.Add(new Claim(ClaimTypes.NameIdentifier, _prfModel.PublicKey));
+        }
+
+        // Add role claim
+        if (_prfModel.Role != PrfUserRole.Unknown)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, _prfModel.Role.ToString()));
         }
 
         var identity = new ClaimsIdentity(claims, "PRF");

@@ -1,11 +1,5 @@
-@using BlazorPRF.Shared.Crypto.Extensions
-@using BlazorPRF.Persistence.Services
-@inherits PrfModelComponent
-@inject ISigningService SigningService
-@inject IUserProfileService UserProfileService
+@inherits InviteCreationModelComponent
 @inject IClipboard Clipboard
-@inject ISnackbar Snackbar
-@inject NavigationManager NavigationManager
 
 <MudCard>
     <MudCardHeader>
@@ -19,24 +13,32 @@
     </MudCardHeader>
 
     <MudCardContent>
-        @if (Model is { HasKeys: false, RequiresOnDemandAuth: false })
+        @if (Model.ProfileMissing)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-4">
+                Please configure your profile (name and email) in
+                <MudLink Href="settings" Underline="Underline.Always">Settings</MudLink>
+                first.
+            </MudAlert>
+        }
+        else if (Model.PrfModel is { HasKeys: false, RequiresOnDemandAuth: false })
         {
             <MudAlert Severity="Severity.Warning" Class="mb-4">
                 Please authenticate first to create signed invites.
             </MudAlert>
         }
 
-        @if (_signedInvite is null)
+        @if (Model.SignedInvite is null)
         {
             <MudText Typo="Typo.subtitle2" Class="mb-2">Your Identity (from profile)</MudText>
 
-            <MudTextField Value="_myName"
+            <MudTextField Value="Model.MyName"
                           Label="Your Name"
                           Variant="Variant.Filled"
                           Class="mb-2"
                           ReadOnly="true" />
 
-            <MudTextField Value="_myEmail"
+            <MudTextField Value="Model.MyEmail"
                           Label="Your Email"
                           Variant="Variant.Filled"
                           Class="mb-4"
@@ -46,40 +48,33 @@
 
             <MudText Typo="Typo.subtitle2" Class="mb-2">Invitee</MudText>
 
-            <EmailInput @bind-Value="_inviteeEmail"
-                       @bind-IsValid="_inviteeEmailValid"
+            <EmailInput Value="Model.InviteeEmail"
+                       ValueChanged="@(v => Model.InviteeEmail = v)"
+                       IsValid="Model.InviteeEmailValid"
+                       IsValidChanged="@(v => Model.InviteeEmailValid = v)"
                        Label="Invitee Email"
                        Placeholder="bob@example.com"
                        HelperText="Email of the person you're inviting"
-                       Disabled="@_isProcessing" />
+                       Disabled="@Model.IsProcessing" />
 
-            <MudButton Color="Color.Primary"
-                       Variant="Variant.Filled"
-                       StartIcon="@Icons.Material.Filled.Add"
-                       OnClick="CreateInviteAsync"
-                       Disabled="@(!CanCreate)">
-                @if (_isProcessing)
-                {
-                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
-                    <span>Creating...</span>
-                }
-                else
-                {
-                    <span>Create Signed Invite</span>
-                }
-            </MudButton>
+            <MudButtonAsyncRx Command="@Model.CreateInvite"
+                              Variant="Variant.Filled"
+                              Color="Color.Primary"
+                              StartIcon="@Icons.Material.Filled.Add">
+                Create Signed Invite
+            </MudButtonAsyncRx>
 
-            @if (_errorMessage is not null)
+            @if (Model.ErrorMessage is not null)
             {
                 <MudAlert Severity="Severity.Error" Class="mt-4" Variant="Variant.Outlined">
-                    @_errorMessage
+                    @Model.ErrorMessage
                 </MudAlert>
             }
         }
         else
         {
             <MudAlert Severity="Severity.Success" Class="mb-4" Icon="@Icons.Material.Filled.Check">
-                Invite created for @_inviteeEmail
+                Invite created for @Model.InviteeEmail
             </MudAlert>
 
             <MudText Typo="Typo.subtitle2" Class="mb-2">Next Steps:</MudText>
@@ -100,7 +95,7 @@
                     <div Style="flex: 1; overflow: hidden;">
                         <MudText Typo="Typo.caption" Class="mud-text-secondary">Signed Invite</MudText>
                         <MudText Typo="Typo.body2" Style="font-family: monospace; word-break: break-all; white-space: pre-wrap; font-size: 0.7rem; max-height: 120px; overflow-y: auto;">
-                            @_signedInvite
+                            @Model.SignedInvite
                         </MudText>
                     </div>
                     <MudTooltip Text="Copy to clipboard">
@@ -111,196 +106,33 @@
                 </MudStack>
             </MudPaper>
 
-            <MudButton Color="Color.Default"
-                       Variant="Variant.Text"
-                       StartIcon="@Icons.Material.Filled.Refresh"
-                       OnClick="Reset"
-                       Class="mt-4">
+            <MudButtonRx Command="@Model.Reset"
+                         Variant="Variant.Text"
+                         Color="Color.Default"
+                         StartIcon="@Icons.Material.Filled.Refresh"
+                         Class="mt-4">
                 Create Another Invite
-            </MudButton>
+            </MudButtonRx>
         }
     </MudCardContent>
 </MudCard>
 
 @code {
-    private string _myName = string.Empty;
-    private string _myEmail = string.Empty;
-    private string _inviteeEmail = string.Empty;
-    private bool _inviteeEmailValid;
-    private string? _signedInvite;
-    private string? _errorMessage;
-    private bool _isProcessing;
-    private bool _profileLoaded;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await base.OnInitializedAsync();
-        await LoadProfileAsync();
-    }
-
-    private async Task LoadProfileAsync()
-    {
-        if (_profileLoaded)
-        {
-            return;
-        }
-
-        // Try to load profile silently (don't trigger auth if not already authenticated)
-        if (!Model.HasKeys && !Model.RequiresOnDemandAuth)
-        {
-            return;
-        }
-
-        // For on-demand auth, wait until user authenticates (don't prefetch)
-        if (Model.RequiresOnDemandAuth && !Model.HasKeys)
-        {
-            return;
-        }
-
-        var result = await UserProfileService.GetAsync();
-        if (result is { Success: true, Value: not null })
-        {
-            // Check if profile has required fields
-            if (string.IsNullOrWhiteSpace(result.Value.Username) ||
-                string.IsNullOrWhiteSpace(result.Value.Email))
-            {
-                Snackbar.Add("Please configure your profile first.", Severity.Info);
-                NavigationManager.NavigateTo("settings");
-                return;
-            }
-
-            _myName = result.Value.Username;
-            _myEmail = result.Value.Email;
-            _profileLoaded = true;
-            StateHasChanged();
-        }
-        else if (result.Success && result.Value is null)
-        {
-            // No profile exists - redirect to settings
-            Snackbar.Add("Please configure your profile first.", Severity.Info);
-            NavigationManager.NavigateTo("settings");
-        }
-    }
-
-    private bool CanCreate => (Model.HasKeys || Model.RequiresOnDemandAuth)
-                              && !_isProcessing
-                              && !string.IsNullOrWhiteSpace(_myName)
-                              && !string.IsNullOrWhiteSpace(_myEmail)
-                              && _myEmail.Contains('@')
-                              && _inviteeEmailValid;
-
-    private async Task CreateInviteAsync()
-    {
-        if (!CanCreate)
-        {
-            return;
-        }
-
-        _isProcessing = true;
-        _errorMessage = null;
-        _signedInvite = null;
-
-        try
-        {
-            // Ensure keys are available (triggers WebAuthn if needed)
-            if (!await Model.EnsureKeysAsync())
-            {
-                _errorMessage = "Authentication cancelled or failed";
-                return;
-            }
-
-            // Generate random 8-character code
-            var code = GenerateRandomCode(8);
-            var timestamp = DateTimeExtensions.GetUnixSecondsNow();
-
-            // Format: INV-{code}|{inviteeEmail}|{timestamp}
-            var inviteCode = $"INV-{code}|{_inviteeEmail}|{timestamp}";
-
-            var ed25519PublicKey = Model.Ed25519PublicKey;
-            var x25519PublicKey = Model.PublicKey;
-
-            if (string.IsNullOrEmpty(ed25519PublicKey) || string.IsNullOrEmpty(x25519PublicKey))
-            {
-                _errorMessage = "Keys not available. Please authenticate.";
-                return;
-            }
-
-            // Sign the invite code
-            var signResult = await SigningService.SignAsync(inviteCode, Model.Salt);
-
-            if (signResult is { Success: true, Value: not null })
-            {
-                // Build signed invite with inviter identity for bidirectional trust
-                var signedInvite = new SignedInvite(
-                    inviteCode,
-                    signResult.Value,
-                    ed25519PublicKey,
-                    x25519PublicKey,
-                    _myName,
-                    _myEmail);
-
-                var json = System.Text.Json.JsonSerializer.Serialize(signedInvite, InviteJsonContext.Default.SignedInvite);
-                _signedInvite = PrfArmor.ArmorSignedInvite(json);
-
-                // Notify via reactive model - just set the property
-                Model.InviteModel.LastInviteCreated = new InviteCreatedEventArgs
-                {
-                    InviteCode = inviteCode,
-                    Email = _inviteeEmail,
-                    ArmoredInvite = _signedInvite,
-                    InviterEd25519PublicKey = ed25519PublicKey
-                };
-            }
-            else
-            {
-                _errorMessage = signResult.Error ?? "Failed to sign invite";
-            }
-        }
-        catch (Exception ex)
-        {
-            _errorMessage = $"Error: {ex.Message}";
-        }
-        finally
-        {
-            _isProcessing = false;
-        }
-    }
-
-    private static string GenerateRandomCode(int length)
-    {
-        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        var random = new Random();
-        var result = new char[length];
-        for (var i = 0; i < length; i++)
-        {
-            result[i] = chars[random.Next(chars.Length)];
-        }
-        return new string(result);
-    }
-
     private async Task CopyInviteAsync()
     {
-        if (string.IsNullOrEmpty(_signedInvite))
+        if (string.IsNullOrEmpty(Model.SignedInvite))
         {
             return;
         }
 
         try
         {
-            await Clipboard.SetTextAsync(_signedInvite);
-            Snackbar.Add("Signed invite copied!", Severity.Success);
+            await Clipboard.SetTextAsync(Model.SignedInvite);
+            Model.StatusModel.AddSuccess("Signed invite copied!");
         }
         catch
         {
-            Snackbar.Add("Failed to copy", Severity.Error);
+            Model.StatusModel.AddError("Failed to copy");
         }
-    }
-
-    private void Reset()
-    {
-        _inviteeEmail = string.Empty;
-        _signedInvite = null;
-        _errorMessage = null;
-        // Keep _myName and _myEmail for convenience when creating multiple invites
     }
 }

@@ -1,9 +1,12 @@
 @page "/contacts"
 @attribute [Authorize]
 @inherits ContactsModelComponent
+@using BlazorPRF.Mail.Models
+@using BlazorPRF.Persistence.Data.Models
 @inject IDialogService DialogService
-@inject ISnackbar Snackbar
-
+@inject InviteAcceptanceModel InviteAcceptanceModel
+@inject InviteCreationModel InviteCreationModel
+@inject MailApiModel MailApiModel
 <PageTitle>Contacts - BlazorPRF</PageTitle>
 
 <MudGrid Class="mb-4">
@@ -17,14 +20,15 @@
 
 <ContactsPanel OnCreateInviteRequested="OpenCreateInviteDialogAsync"
                OnAcceptInviteRequested="OpenAcceptInviteDialogAsync"
-               OnVerifyResponseRequested="OpenVerifyDialogAsync" />
+               OnVerifyResponseRequested="OpenVerifyDialogAsync"
+               OnEncryptRequested="OpenEncryptDialogAsync" />
 
 @code {
     private async Task OpenVerifyDialogAsync()
     {
         if (!await Model.PrfModel.EnsureKeysAsync())
         {
-            Snackbar.Add("Authentication required to verify responses.", Severity.Warning);
+            Model.StatusModel.AddWarning("Authentication required to verify responses.");
             return;
         }
 
@@ -32,7 +36,6 @@
         {
             MaxWidth = MaxWidth.Medium,
             FullWidth = true,
-            CloseButton = true,
             CloseOnEscapeKey = true
         };
 
@@ -44,39 +47,71 @@
     {
         if (!await Model.PrfModel.EnsureKeysAsync())
         {
-            Snackbar.Add("Authentication required to create invitations.", Severity.Warning);
+            Model.StatusModel.AddWarning("Authentication required to create invitations.");
             return;
         }
+
+        await InviteCreationModel.LoadProfileAsync();
+        await EnsureMailProfileAsync();
 
         var options = new DialogOptions
         {
             MaxWidth = MaxWidth.Medium,
             FullWidth = true,
-            CloseButton = true,
             CloseOnEscapeKey = true
         };
 
-        var dialog = await DialogService.ShowAsync<CreateInviteDialog>("Create New Invitation", options);
-        _ = await dialog.Result;
+        await DialogService.ShowAsync<CreateInviteDialog>("Create New Invitation", options);
     }
 
     private async Task OpenAcceptInviteDialogAsync()
     {
         if (!await Model.PrfModel.EnsureKeysAsync())
         {
-            Snackbar.Add("Authentication required to accept invitations.", Severity.Warning);
+            Model.StatusModel.AddWarning("Authentication required to accept invitations.");
             return;
         }
+
+        // Load profile before opening dialog to avoid async re-renders during dialog init
+        await InviteAcceptanceModel.LoadProfileAsync();
+        await EnsureMailProfileAsync();
 
         var options = new DialogOptions
         {
             MaxWidth = MaxWidth.Medium,
             FullWidth = true,
-            CloseButton = true,
             CloseOnEscapeKey = true
         };
 
-        var dialog = await DialogService.ShowAsync<AcceptInviteDialog>("Accept an Invitation", options);
-        _ = await dialog.Result;
+        await DialogService.ShowAsync<AcceptInviteDialog>("Accept an Invitation", options);
+    }
+
+    private async Task OpenEncryptDialogAsync((TrustedContact Contact, ContactUserData? UserData) args)
+    {
+        await EnsureMailProfileAsync();
+
+        var parameters = new DialogParameters<EncryptAndSendDialog>
+        {
+            { x => x.RecipientPublicKey, args.Contact.X25519PublicKey },
+            { x => x.RecipientName, args.UserData?.Username ?? "Unknown" },
+            { x => x.RecipientEmail, args.UserData?.Email }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true,
+            CloseOnEscapeKey = true
+        };
+
+        await DialogService.ShowAsync<EncryptAndSendDialog>("Encrypt & Send", parameters, options);
+    }
+
+    private async Task EnsureMailProfileAsync()
+    {
+        if (MailApiModel.Profile is null)
+        {
+            await MailApiModel.LoadProfile.ExecuteAsync();
+        }
     }
 }

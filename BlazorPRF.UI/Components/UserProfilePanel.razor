@@ -1,6 +1,5 @@
 @using BlazorPRF.Persistence.Data.Models
 @inherits UserProfileModelComponent
-@inject ISnackbar Snackbar
 
 @if (Model.Loading)
 {
@@ -51,7 +50,7 @@ else
 
             <MudDivider Class="my-4" />
 
-            <MudText Typo="Typo.subtitle2" Class="mb-2 mud-text-secondary">Email Server Settings (Future Feature)</MudText>
+            <MudText Typo="Typo.subtitle2" Class="mb-2">SMTP Settings (Outgoing Mail)</MudText>
 
             <MudGrid>
                 <MudItem xs="12" sm="8">
@@ -59,31 +58,67 @@ else
                                   Label="SMTP Host"
                                   Variant="Variant.Outlined"
                                   Placeholder="smtp.example.com"
-                                  Disabled="true"
-                                  HelperText="Coming soon" />
+                                  Disabled="@Model.Saving" />
                 </MudItem>
                 <MudItem xs="12" sm="4">
                     <MudNumericField @bind-Value="_smtpPort"
-                                     Label="SMTP Port"
+                                     Label="Port"
                                      Variant="Variant.Outlined"
-                                     Disabled="true" />
+                                     Disabled="@Model.Saving" />
                 </MudItem>
             </MudGrid>
 
             <MudGrid Class="mt-2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_smtpUsername"
+                                  Label="Username"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="user@example.com"
+                                  Disabled="@Model.Saving" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_smtpPassword"
+                                  Label="Password"
+                                  Variant="Variant.Outlined"
+                                  InputType="InputType.Password"
+                                  Disabled="@Model.Saving" />
+                </MudItem>
+            </MudGrid>
+
+            <MudDivider Class="my-4" />
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2">IMAP Settings (Incoming Mail)</MudText>
+
+            <MudGrid>
                 <MudItem xs="12" sm="8">
                     <MudTextField @bind-Value="_imapHost"
                                   Label="IMAP Host"
                                   Variant="Variant.Outlined"
                                   Placeholder="imap.example.com"
-                                  Disabled="true"
-                                  HelperText="Coming soon" />
+                                  Disabled="@Model.Saving" />
                 </MudItem>
                 <MudItem xs="12" sm="4">
                     <MudNumericField @bind-Value="_imapPort"
-                                     Label="IMAP Port"
+                                     Label="Port"
                                      Variant="Variant.Outlined"
-                                     Disabled="true" />
+                                     Disabled="@Model.Saving" />
+                </MudItem>
+            </MudGrid>
+
+            <MudGrid Class="mt-2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_imapUsername"
+                                  Label="Username"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="user@example.com"
+                                  Disabled="@Model.Saving" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_imapPassword"
+                                  Label="Password"
+                                  Variant="Variant.Outlined"
+                                  InputType="InputType.Password"
+                                  Disabled="@Model.Saving" />
                 </MudItem>
             </MudGrid>
         </MudCardContent>
@@ -109,24 +144,32 @@ else
 }
 
 @code {
+    private static readonly System.Text.RegularExpressions.Regex EmailRegex = new(
+        @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+        System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
     private string _username = string.Empty;
     private string _email = string.Empty;
     private bool _emailValid;
     private string? _smtpHost;
     private int? _smtpPort = 587;
+    private string? _smtpUsername;
+    private string? _smtpPassword;
     private string? _imapHost;
     private int? _imapPort = 993;
+    private string? _imapUsername;
+    private string? _imapPassword;
 
     private bool CanSave => !Model.Saving &&
                            !string.IsNullOrWhiteSpace(_username) &&
                            _emailValid;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private static bool IsValidEmail(string? email) =>
+        !string.IsNullOrWhiteSpace(email) && EmailRegex.IsMatch(email);
+
+    protected override async Task OnContextReadyAsync()
     {
-        if (firstRender)
-        {
-            await Model.LoadProfile.ExecuteAsync();
-        }
+        await Model.LoadProfile.ExecuteAsync();
     }
 
     /// <summary>
@@ -138,10 +181,15 @@ else
         {
             _username = Model.Profile.Username;
             _email = Model.Profile.Email;
+            _emailValid = IsValidEmail(_email);
             _smtpHost = Model.Profile.SmtpHost;
             _smtpPort = Model.Profile.SmtpPort ?? 587;
+            _smtpUsername = Model.Profile.SmtpUsername;
+            _smtpPassword = Model.Profile.SmtpPassword;
             _imapHost = Model.Profile.ImapHost;
             _imapPort = Model.Profile.ImapPort ?? 993;
+            _imapUsername = Model.Profile.ImapUsername;
+            _imapPassword = Model.Profile.ImapPassword;
             StateHasChanged();
         }
     }
@@ -153,7 +201,7 @@ else
     {
         if (Model.SuccessMessage is not null)
         {
-            Snackbar.Add(Model.SuccessMessage, Severity.Success);
+            Model.StatusModel.AddInfo(Model.SuccessMessage);
         }
     }
 
@@ -170,10 +218,12 @@ else
             Email = _email,
             SmtpHost = _smtpHost,
             SmtpPort = _smtpPort,
-            SmtpUsername = null, // Future
+            SmtpUsername = _smtpUsername,
+            SmtpPassword = _smtpPassword,
             ImapHost = _imapHost,
             ImapPort = _imapPort,
-            ImapUsername = null  // Future
+            ImapUsername = _imapUsername,
+            ImapPassword = _imapPassword
         };
 
         await Model.SaveProfile.ExecuteAsync(data);

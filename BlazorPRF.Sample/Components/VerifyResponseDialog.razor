@@ -1,36 +1,33 @@
-<MudDialog>
+<MudDialog DefaultFocus="DefaultFocus.None">
     <DialogContent>
-        <MudText Typo="Typo.body2" Class="mb-4">
-            Paste the signed response you received from someone who accepted your invitation.
-            Both signatures will be verified to establish mutual trust.
-        </MudText>
+        @if (string.IsNullOrEmpty(InitialResponse))
+        {
+            <MudText Typo="Typo.body2" Class="mb-4">
+                Paste the signed response you received from someone who accepted your invitation.
+                Both signatures will be verified to establish mutual trust.
+            </MudText>
+        }
 
         <InviteVerificationPanel @ref="_panel"
                                  ShowCard="false"
+                                 InitialResponse="@InitialResponse"
                                  SuccessActions="@SuccessActionsFragment"
                                  FailureActions="@FailureActionsFragment" />
     </DialogContent>
     <DialogActions>
-        @if (_panel?.IsVerificationComplete == true && _panel.IsVerificationSuccessful)
-        {
-            <MudButton OnClick="Reset">Verify Another</MudButton>
-            <MudButton Color="Color.Primary"
-                       Variant="Variant.Filled"
-                       StartIcon="@Icons.Material.Filled.PersonAdd"
-                       OnClick="Close">
-                Add Contact
-            </MudButton>
-        }
-        else if (_panel?.IsVerificationComplete == true)
-        {
-            <MudButton OnClick="Reset">Try Again</MudButton>
-        }
+        <MudButton OnClick="Close"
+                   Variant="Variant.Text">
+            Close
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter]
     private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public string? InitialResponse { get; set; }
 
     private InviteVerificationPanel? _panel;
 
@@ -49,11 +46,5 @@
     private void Close()
     {
         MudDialog.Close(DialogResult.Ok(true));
-    }
-
-    private void Reset()
-    {
-        _panel?.Reset();
-        StateHasChanged();
     }
 }

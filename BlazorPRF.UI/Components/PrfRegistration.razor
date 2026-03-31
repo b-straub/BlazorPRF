@@ -70,7 +70,7 @@
 
     private string? DisplayName => string.IsNullOrWhiteSpace(_displayName) ? null : _displayName;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnContextReadyAsync()
     {
         // Notify when credential is registered
         if (Model.CredentialId is not null && Model.SuccessMessage is not null)

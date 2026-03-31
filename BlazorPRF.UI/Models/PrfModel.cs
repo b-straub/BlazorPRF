@@ -6,6 +6,10 @@ using RxBlazorV2.Interface;
 using RxBlazorV2.Model;
 using R3;
 using System.Diagnostics.CodeAnalysis;
+using RxBlazorV2.MudBlazor.Components;
+
+// Re-export PrfUserRole for convenience
+using PrfUserRole = BlazorPRF.UI.Services.PrfUserRole;
 
 namespace BlazorPRF.UI.Models;
 
@@ -101,6 +105,13 @@ public partial class PrfModel : ObservableModel
     [ObservableTrigger(nameof(UpdateAuthenticationState))]
     public partial bool SessionExpired { get; set; }
 
+    /// <summary>
+    /// The user's role (Admin, User, or Unknown).
+    /// Set after checking admin status with the backend.
+    /// </summary>
+    [ObservableTrigger(nameof(UpdateAuthenticationState))]
+    public partial PrfUserRole Role { get; set; }
+
     // Commands
     [ObservableCommand(nameof(RegisterAsync), nameof(CanRegister))]
     public partial IObservableCommandAsync<string?> Register { get; }
@@ -114,9 +125,14 @@ public partial class PrfModel : ObservableModel
     [ObservableCommand(nameof(ClearKeysImpl))]
     public partial IObservableCommand ClearKeys { get; }
 
-    [SuppressMessage("RxBlazorGenerator", "RXBG050:Partial constructor parameter type may not be registered in DI", Justification = "Services registered externally")]
+    [SuppressMessage("RxBlazorGenerator", "RXBG050:Partial constructor parameter type may not be registered in DI",
+        Justification = "Services registered externally")]
     // ReSharper disable UnusedParameter.Local
-    public partial PrfModel(InviteModel inviteModel, IPrfService prfService, ICredentialHintProvider credentialHintProvider, PrfAuthenticationStateProvider stateProvider);
+    public partial PrfModel(
+        InviteModel inviteModel, IPrfService prfService,
+        ICredentialHintProvider credentialHintProvider,
+        PrfAuthenticationStateProvider stateProvider,
+        StatusModel statusModel);
     // ReSharper restore UnusedParameter.Local
     
     protected override async Task OnContextReadyAsync()
@@ -436,6 +452,7 @@ public partial class PrfModel : ObservableModel
         HasKeys = false;
         PublicKey = null;
         KeyMetadata = null;
+        Role = PrfUserRole.Unknown;
         SuccessMessage = null;
         ErrorMessage = null;
     }

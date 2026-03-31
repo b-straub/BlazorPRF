@@ -1,5 +1,6 @@
 using Blazored.LocalStorage;
 using BlazorPRF.Crypto.Extensions;
+using BlazorPRF.Mail.Extensions;
 using BlazorPRF.Persistence.Extensions;
 using BlazorPRF.Persistence.Services;
 using BlazorPRF.Sample;
@@ -40,6 +41,13 @@ BlazorPRF.UI.ObservableModels.Initialize(builder.Services);
 // RxBlazorV2.MudBlazor
 RxBlazorV2.MudBlazor.ObservableModels.Initialize(builder.Services);
 
+// Add BlazorPRF.Mail services (includes API client)
+builder.Services.AddMailServices();
+BlazorPRF.Mail.ObservableModels.Initialize(builder.Services);
+
+// Register IMailSender interface to MailApiModel (allows ContactsModel to send emails)
+builder.Services.AddSingleton<IMailSender>(sp => sp.GetRequiredService<BlazorPRF.Mail.Models.MailApiModel>());
+
 // Add PRF-based authentication state
 builder.Services.AddAuthorizationCore();
 builder.Services.AddSingleton<PrfAuthenticationStateProvider>();
@@ -47,6 +55,13 @@ builder.Services.AddSingleton<AuthenticationStateProvider>(sp => sp.GetRequiredS
 
 // Add TextCopy for clipboard support
 builder.Services.InjectClipboard();
+
+// Add HttpClient for PRF API testing
+builder.Services.AddHttpClient("PrfApi", client =>
+{
+    client.BaseAddress = new Uri("https://prf.test/api/");
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 
 // Add BlazorPRF.Persistence with SqliteWasm
 builder.Services.AddBlazorPrfPersistence(options =>

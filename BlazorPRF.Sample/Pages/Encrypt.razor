@@ -1,4 +1,6 @@
 @page "/encrypt"
+@using BlazorPRF.Mail.Models
+@inherits MailApiModelComponent
 
 <PageTitle>Encrypt Message - BlazorPRF</PageTitle>
 
@@ -9,11 +11,17 @@
 
 <MudGrid>
     <MudItem xs="12" md="8" lg="6">
-        <AsymmetricEncryptPanel InitialPublicKey="@PublicKey" />
+        <AsymmetricEncryptPanel InitialPublicKey="@PublicKey" OnSendViaEmail="HandleSendViaEmail" />
     </MudItem>
 </MudGrid>
 
 @code {
     [SupplyParameterFromQuery]
     public string? PublicKey { get; set; }
+
+    private async Task HandleSendViaEmail((string Email, string ArmoredMessage) args)
+    {
+        Model.PreFillSend(args.Email, "Encrypted Message", args.ArmoredMessage);
+        await Model.SendEmail.ExecuteAsync();
+    }
 }

@@ -87,23 +87,8 @@
 
         try
         {
-            // Check if input is armored or raw JSON
-            string? json;
-            if (PrfArmor.IsArmoredMessage(_encryptedInput))
-            {
-                json = PrfArmor.UnArmorMessage(_encryptedInput);
-                if (json is null)
-                {
-                    _errorMessage = "Invalid PFA message format";
-                    return;
-                }
-            }
-            else
-            {
-                json = _encryptedInput.Trim();
-            }
-
-            var encrypted = System.Text.Json.JsonSerializer.Deserialize(json, SharedJsonContext.Default.EncryptedMessage);
+            // Parse armored or raw JSON input
+            var encrypted = PrfArmor.ParseEncryptedMessage(_encryptedInput);
             if (encrypted is null)
             {
                 _errorMessage = "Invalid message format";

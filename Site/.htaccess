@@ -1,0 +1,39 @@
+# Deny access to sensitive directories (mod_rewrite path)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Block access to secure directory
+    RewriteRule ^secure/ - [F,L]
+
+    # Block access to data directory
+    RewriteRule ^data/ - [F,L]
+
+    # Block access to lib directory
+    RewriteRule ^lib/ - [F,L]
+
+    # Block access to actions directory
+    RewriteRule ^actions/ - [F,L]
+
+    # Block access to PrfCrypto directory
+    RewriteRule ^PrfCrypto/ - [F,L]
+</IfModule>
+
+# Prevent directory listing
+Options -Indexes
+
+# Block access to hidden files
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Block access to .json files in root
+<FilesMatch "\.json$">
+    Require all denied
+</FilesMatch>
+
+# Block direct access to PHP files in subdirectories
+<FilesMatch "\.php$">
+    <If "%{REQUEST_URI} =~ m#/(lib|actions|secure|PrfCrypto)/#">
+        Require all denied
+    </If>
+</FilesMatch>

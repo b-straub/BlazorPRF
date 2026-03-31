@@ -1,6 +1,5 @@
 @inherits PrfModelComponent
 @inject ISymmetricEncryption SymmetricEncryption
-@inject ISnackbar Snackbar
 @inject IClipboard Clipboard
 
 <MudCard>
@@ -187,23 +186,8 @@
 
         try
         {
-            // Support both armored and raw JSON input
-            string? json;
-            if (PrfArmor.IsArmoredMessage(_encryptedInput))
-            {
-                json = PrfArmor.UnArmorMessage(_encryptedInput);
-                if (json is null)
-                {
-                    _errorMessage = "Invalid armored message format";
-                    return;
-                }
-            }
-            else
-            {
-                json = _encryptedInput;
-            }
-
-            var encrypted = System.Text.Json.JsonSerializer.Deserialize(json, SharedJsonContext.Default.SymmetricEncryptedMessage);
+            // Parse armored or raw JSON input
+            var encrypted = PrfArmor.ParseSymmetricEncryptedMessage(_encryptedInput);
             if (encrypted is null)
             {
                 _errorMessage = "Invalid encrypted message format";
@@ -258,11 +242,11 @@
         try
         {
             await Clipboard.SetTextAsync(_armoredMessage);
-            Snackbar.Add("Encrypted message copied!", Severity.Success);
+            Model.StatusModel.AddSuccess("Encrypted message copied!");
         }
         catch
         {
-            Snackbar.Add("Failed to copy", Severity.Error);
+            Model.StatusModel.AddError("Failed to copy");
         }
     }
 }
