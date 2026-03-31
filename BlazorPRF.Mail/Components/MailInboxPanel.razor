@@ -10,7 +10,7 @@
         @if (Model.Profile is null || !Model.IsImapConfigured)
         {
             <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
-                IMAP not configured. Go to <MudLink Href="/settings">Settings</MudLink> to set up your mail server.
+                IMAP not configured. Go to <MudLink Href="settings">Settings</MudLink> to set up your mail server.
             </MudAlert>
         }
         else

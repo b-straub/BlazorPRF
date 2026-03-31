@@ -10,13 +10,13 @@
         @if (Model.Profile is null)
         {
             <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
-                Please configure your SMTP settings in <MudLink Href="/settings">Settings</MudLink> first.
+                Please configure your SMTP settings in <MudLink Href="settings">Settings</MudLink> first.
             </MudAlert>
         }
         else if (!Model.IsSmtpConfigured)
         {
             <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
-                SMTP not configured. Go to <MudLink Href="/settings">Settings</MudLink> to set up your mail server.
+                SMTP not configured. Go to <MudLink Href="settings">Settings</MudLink> to set up your mail server.
             </MudAlert>
         }
         else
