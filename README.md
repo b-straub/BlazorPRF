@@ -266,31 +266,60 @@ Every API request is signed with the user's PRF-derived Ed25519 private key. The
 
 ### Secure setup guide
 
+#### Recommended deployment layout
+
+The Blazor app and PHP relay share the same domain. Place the relay in an `api/` subdirectory to avoid conflicts between `index.html` (Blazor) and `index.php` (PHP):
+
+```
+/var/www/niceprf/
+  index.html              ← Blazor WASM app
+  _framework/             ← Blazor runtime files
+  _content/               ← Static web assets
+  api/                    ← PHP mail relay
+    index.php
+    .htaccess
+    lib/
+    actions/
+    PrfCrypto/
+    secure/               ← NOT in git
+      config.php
+      admin_keys.json
+      data/app.db
+```
+
+This way the relay URL is `https://your-domain.example.com/api/` — same origin, no CORS needed.
+
 #### Prerequisites
 
 - PHP 8.1+ with `sodium` and `imap` extensions
 - Apache with `mod_rewrite` (or nginx with equivalent rules)
 - HTTPS (required for signature security)
 
-#### 1. Deploy the Site/ directory
+#### 1. Publish the Blazor app and deploy the relay
 
 ```bash
-# Copy to your web server
-cp -r Site/ /var/www/mail-relay/
+# Publish Blazor WASM
+dotnet publish BlazorPRF.Sample -c Release -o ./publish
+
+# Copy Blazor app to web root
+cp -r ./publish/wwwroot/* /var/www/niceprf/
+
+# Copy PHP relay into api/ subdirectory
+cp -r Site/ /var/www/niceprf/api/
 
 # Set ownership
-chown -R www-data:www-data /var/www/mail-relay/
+chown -R www-data:www-data /var/www/niceprf/
 
 # Restrict permissions on secure directory
-chmod 700 /var/www/mail-relay/secure/
-chmod 600 /var/www/mail-relay/secure/config.php
-chmod 600 /var/www/mail-relay/secure/admin_keys.json
+chmod 700 /var/www/niceprf/api/secure/
+chmod 600 /var/www/niceprf/api/secure/config.php
+chmod 600 /var/www/niceprf/api/secure/admin_keys.json
 ```
 
 #### 2. Create the configuration
 
 ```bash
-cp /var/www/mail-relay/secure/config.php.dist /var/www/mail-relay/secure/config.php
+cp /var/www/niceprf/api/secure/config.php.dist /var/www/niceprf/api/secure/config.php
 ```
 
 Edit `config.php`:
