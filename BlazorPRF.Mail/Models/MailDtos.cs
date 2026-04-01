@@ -27,17 +27,17 @@ public sealed class ImapEmail
     public bool HasInviteArmor { get; set; }
     public bool HasResponseArmor { get; set; }
 
-    /// <summary>
-    /// Client-side flag: set after successful decryption.
-    /// </summary>
+    /// <summary>Client-side: set after successful decryption.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool Decrypted { get; set; }
 
-    /// <summary>
-    /// Client-side flag: set after failed decryption.
-    /// </summary>
+    /// <summary>Client-side: set after failed decryption.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public bool DecryptFailed { get; set; }
+
+    /// <summary>Client-side: signature verification result. null = unsigned or not yet decrypted.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool? SignatureVerified { get; set; }
 }
 
 /// <summary>

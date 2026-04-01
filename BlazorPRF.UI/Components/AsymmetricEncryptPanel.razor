@@ -1,5 +1,6 @@
 @inherits PrfModelComponent
 @inject IAsymmetricEncryption AsymmetricEncryption
+@inject ISigningService SigningService
 @inject IClipboard Clipboard
 
 <MudCard>
@@ -110,7 +111,7 @@
                        Variant="Variant.Filled"
                        StartIcon="@Icons.Material.Filled.Send"
                        Disabled="@(!CanSendViaEmail)"
-                       OnClick="HandleSendViaEmail">
+                       OnClick="HandleSendViaEmailAsync">
                 @(CanSendViaEmail ? "Send" : "Mail not configured")
             </MudButton>
         }
@@ -244,7 +245,24 @@
                 return;
             }
 
-            var result = await AsymmetricEncryption.EncryptAsync(_plaintext, base64Key);
+            // Sign + encrypt if user has keys, otherwise encrypt only
+            PrfResult<EncryptedMessage> result;
+            var ed25519Key = Model.Ed25519PublicKey;
+            if (!string.IsNullOrEmpty(ed25519Key) && (Model.HasKeys || Model.RequiresOnDemandAuth))
+            {
+                if (!await Model.EnsureKeysAsync())
+                {
+                    _errorMessage = "Authentication cancelled";
+                    return;
+                }
+
+                result = await AsymmetricEncryption.SignAndEncryptAsync(
+                    _plaintext, base64Key, SigningService, ed25519Key, Model.Salt);
+            }
+            else
+            {
+                result = await AsymmetricEncryption.EncryptAsync(_plaintext, base64Key);
+            }
 
             if (result is { Success: true, Value: not null })
             {
@@ -284,7 +302,7 @@
         }
     }
 
-    private async Task HandleSendViaEmail()
+    private async Task HandleSendViaEmailAsync()
     {
         if (_recipientMetadata?.Email is null || string.IsNullOrEmpty(_armoredMessage))
         {

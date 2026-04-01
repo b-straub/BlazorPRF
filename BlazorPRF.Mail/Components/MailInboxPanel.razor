@@ -72,7 +72,7 @@
                                     </MudText>
                                 </MudStack>
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                    @TruncateText(email.From, 40) - @email.Date
+                                    @TruncateText(email.From, 40) - @FormatDate(email.Date)
                                 </MudText>
                             </MudStack>
                         </MudListItem>
@@ -126,7 +126,7 @@
             <MudStack Spacing="2">
                 <MudStack Row="true" Justify="Justify.SpaceBetween">
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">From: @Model.SelectedEmail.From</MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@Model.SelectedEmail.Date</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@FormatDate(Model.SelectedEmail.Date)</MudText>
                 </MudStack>
 
                 <MudDivider />
@@ -144,7 +144,7 @@
                                        Color="Color.Primary"
                                        Size="Size.Small"
                                        StartIcon="@Icons.Material.Filled.PersonAdd"
-                                       OnClick="AcceptInviteFromEmail">
+                                       OnClick="AcceptInviteFromEmailAsync">
                                 Accept Invite
                             </MudButton>
                         </MudStack>
@@ -164,7 +164,7 @@
                                        Color="Color.Tertiary"
                                        Size="Size.Small"
                                        StartIcon="@Icons.Material.Filled.VerifiedUser"
-                                       OnClick="VerifyResponseFromEmail">
+                                       OnClick="VerifyResponseFromEmailAsync">
                                 Verify &amp; Add Contact
                             </MudButton>
                         </MudStack>
@@ -179,6 +179,37 @@
                             <MudText Typo="Typo.body2">Decrypted message</MudText>
                         </MudStack>
                     </MudAlert>
+
+                    @if (Model.DecryptedSignatureValid == true)
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-1">
+                            <MudStack Row="true" AlignItems="AlignItems.Center">
+                                <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Size="Size.Small" />
+                                <MudText Typo="Typo.body2">
+                                    Signed by: @(Model.DecryptedSenderName ?? $"{Model.DecryptedSenderKey?[..8]}...")
+                                </MudText>
+                            </MudStack>
+                        </MudAlert>
+                    }
+                    else if (Model.DecryptedSignatureValid == false)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-1">
+                            <MudStack Row="true" AlignItems="AlignItems.Center">
+                                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" />
+                                <MudText Typo="Typo.body2">Signature verification failed — sender identity unconfirmed</MudText>
+                            </MudStack>
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Normal" Dense="true" Class="mt-1" Variant="Variant.Outlined">
+                            <MudStack Row="true" AlignItems="AlignItems.Center">
+                                <MudIcon Icon="@Icons.Material.Filled.QuestionMark" Size="Size.Small" />
+                                <MudText Typo="Typo.body2">Not signed — sender identity unknown</MudText>
+                            </MudStack>
+                        </MudAlert>
+                    }
+
                     <MudPaper Class="pa-3" Outlined="true" Style="white-space: pre-wrap; word-break: break-word;">
                         <MudText>@Model.DecryptedContent</MudText>
                     </MudPaper>
@@ -250,9 +281,20 @@
 
     private static (string Icon, Color Color, string Tooltip)? GetEmailIcon(ImapEmail email)
     {
+        // Decrypt + signature state (written back from dialog)
+        if (email is { Decrypted: true, SignatureVerified: true })
+        {
+            return (Icons.Material.Filled.VerifiedUser, Color.Success, "Decrypted & verified");
+        }
+
+        if (email is { Decrypted: true, SignatureVerified: false })
+        {
+            return (Icons.Material.Filled.LockOpen, Color.Warning, "Decrypted, signature invalid");
+        }
+
         if (email.Decrypted)
         {
-            return (Icons.Material.Filled.LockOpen, Color.Success, "Decrypted");
+            return (Icons.Material.Filled.LockOpen, Color.Success, "Decrypted (unsigned)");
         }
 
         if (email.DecryptFailed)
@@ -260,6 +302,7 @@
             return (Icons.Material.Filled.Lock, Color.Error, "Decryption failed");
         }
 
+        // Subject-based detection
         var subject = email.Subject;
 
         if (subject.Contains(PrfArmor.SubjectEncryptedMessage, StringComparison.OrdinalIgnoreCase))
@@ -280,6 +323,16 @@
         return null;
     }
 
+    private static string FormatDate(string rawDate)
+    {
+        if (DateTimeOffset.TryParse(rawDate, out var dto))
+        {
+            return dto.LocalDateTime.ToString("g");
+        }
+
+        return rawDate;
+    }
+
     private static string TruncateText(string text, int maxLength)
     {
         if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
@@ -289,7 +342,7 @@
         return text[..(maxLength - 3)] + "...";
     }
 
-    private async Task AcceptInviteFromEmail()
+    private async Task AcceptInviteFromEmailAsync()
     {
         if (Model.SelectedEmail?.Body is null)
         {
@@ -297,8 +350,8 @@
         }
 
         var body = Model.SelectedEmail.Body;
-        var startMarker = "-----BEGIN PFA SIGNED INVITE-----";
-        var endMarker = "-----END PFA SIGNED INVITE-----";
+        const string startMarker = "-----BEGIN PFA SIGNED INVITE-----";
+        const string endMarker = "-----END PFA SIGNED INVITE-----";
 
         var startIndex = body.IndexOf(startMarker, StringComparison.Ordinal);
         var endIndex = body.IndexOf(endMarker, StringComparison.Ordinal);
@@ -311,7 +364,7 @@
         }
     }
 
-    private async Task VerifyResponseFromEmail()
+    private async Task VerifyResponseFromEmailAsync()
     {
         if (Model.SelectedEmail?.Body is null)
         {

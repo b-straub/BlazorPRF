@@ -18,14 +18,14 @@
         Please derive keys first using the authentication panel.
     </MudAlert>
 }
-else if (Model.PrfModel.Role == PrfUserRole.Unknown)
+else if (Model.PrfModel.Role == PrfUserRole.UNKNOWN)
 {
     <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="pa-8">
         <MudProgressCircular Indeterminate="true" />
         <MudText Typo="Typo.body2" Class="mud-text-secondary">Checking mail relay access...</MudText>
     </MudStack>
 }
-else if (Model.PrfModel.Role == PrfUserRole.Unregistered)
+else if (Model.PrfModel.Role == PrfUserRole.UNREGISTERED)
 {
     <MudText Typo="Typo.h4" GutterBottom="true">Mail Relay Setup</MudText>
 
@@ -214,7 +214,7 @@ else
 
     private async Task ReloadAsync()
     {
-        Model.PrfModel.Role = PrfUserRole.Unknown;
+        Model.PrfModel.Role = PrfUserRole.UNKNOWN;
         await Model.LoadProfileAndFetchAsync();
     }
 

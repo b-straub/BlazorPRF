@@ -39,7 +39,7 @@
             </MudCard>
         }
 
-        <AsymmetricEncryptPanel InitialPublicKey="@Model.SelectedPublicKey" OnSendViaEmail="HandleSendViaEmail" />
+        <AsymmetricEncryptPanel InitialPublicKey="@Model.SelectedPublicKey" OnSendViaEmail="HandleSendViaEmailAsync" />
     </MudItem>
 
     <MudItem xs="12">
@@ -91,7 +91,7 @@
         }
     }
 
-    private async Task HandleSendViaEmail((string Email, string ArmoredMessage) args)
+    private async Task HandleSendViaEmailAsync((string Email, string ArmoredMessage) args)
     {
         await Model.MailSender.SendAsync(args.Email, PrfArmor.SubjectEncryptedMessage, args.ArmoredMessage);
     }

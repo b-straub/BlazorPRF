@@ -30,7 +30,8 @@ public partial class MailApiModel : ObservableModel, IMailSender
         IUserProfileService userProfileService,
         IAsymmetricEncryption asymmetricEncryption,
         ISigningService signingService,
-        ISignedApiClient signedApiClient);
+        ISignedApiClient signedApiClient,
+        ITrustedContactService trustedContactService);
     // ReSharper restore UnusedParameter.Local
 
     // Server state
@@ -91,6 +92,21 @@ public partial class MailApiModel : ObservableModel, IMailSender
     /// Decrypted content of the selected email.
     /// </summary>
     public partial string? DecryptedContent { get; set; }
+
+    /// <summary>
+    /// Sender's Ed25519 public key from a signed encrypted message.
+    /// </summary>
+    public partial string? DecryptedSenderKey { get; set; }
+
+    /// <summary>
+    /// Resolved sender display name from contacts (e.g., "Alice &lt;alice@example.com&gt;").
+    /// </summary>
+    public partial string? DecryptedSenderName { get; set; }
+
+    /// <summary>
+    /// Whether the sender's signature was verified. null = unsigned message.
+    /// </summary>
+    public partial bool? DecryptedSignatureValid { get; set; }
 
     /// <summary>
     /// Error message from decryption attempt.
@@ -347,7 +363,7 @@ public partial class MailApiModel : ObservableModel, IMailSender
         await CheckAdminStatusAsync();
 
         // Only fetch emails if user is registered on the server
-        if (PrfModel.Role is PrfUserRole.Admin or PrfUserRole.User)
+        if (PrfModel.Role is PrfUserRole.ADMIN or PrfUserRole.USER)
         {
             await AutoFetchEmailsAsync();
         }
@@ -360,7 +376,7 @@ public partial class MailApiModel : ObservableModel, IMailSender
     /// </summary>
     public async Task CheckAdminStatusAsync()
     {
-        if (PrfModel.Role != PrfUserRole.Unknown)
+        if (PrfModel.Role != PrfUserRole.UNKNOWN)
         {
             return;
         }
@@ -379,7 +395,7 @@ public partial class MailApiModel : ObservableModel, IMailSender
             {
                 // Server unreachable or returned error — show setup instructions
                 ServerHasAdmin = null;
-                PrfModel.Role = PrfUserRole.Unregistered;
+                PrfModel.Role = PrfUserRole.UNREGISTERED;
                 return;
             }
 
@@ -394,7 +410,7 @@ public partial class MailApiModel : ObservableModel, IMailSender
             {
                 // Auto-register admin's own key as a user so mail operations work
                 await EnsureAdminRegisteredAsUserAsync(context);
-                PrfModel.Role = PrfUserRole.Admin;
+                PrfModel.Role = PrfUserRole.ADMIN;
                 return;
             }
 
@@ -410,18 +426,18 @@ public partial class MailApiModel : ObservableModel, IMailSender
             // "Public key not registered" = not registered
             if (userResult.Success || (userResult.Error is not null && !userResult.Error.Contains("not registered")))
             {
-                PrfModel.Role = PrfUserRole.User;
+                PrfModel.Role = PrfUserRole.USER;
             }
             else
             {
-                PrfModel.Role = PrfUserRole.Unregistered;
+                PrfModel.Role = PrfUserRole.UNREGISTERED;
             }
         }
         catch
         {
             // Server unreachable
             ServerHasAdmin = null;
-            PrfModel.Role = PrfUserRole.Unregistered;
+            PrfModel.Role = PrfUserRole.UNREGISTERED;
         }
     }
 
@@ -522,7 +538,56 @@ public partial class MailApiModel : ObservableModel, IMailSender
         EmailDialogVisible = false;
         SelectedEmail = null;
         DecryptedContent = null;
+        DecryptedSenderKey = null;
+        DecryptedSenderName = null;
+        DecryptedSignatureValid = null;
         DecryptError = null;
+    }
+
+    /// <summary>
+    /// Resolve sender Ed25519 key to a display name from contacts.
+    /// </summary>
+    private async Task<string?> ResolveSenderNameAsync(string? ed25519PublicKey)
+    {
+        if (string.IsNullOrEmpty(ed25519PublicKey))
+        {
+            return null;
+        }
+
+        try
+        {
+            // Get contact with decrypted user data
+            var contact = await TrustedContactService.GetByEd25519PublicKeyAsync(ed25519PublicKey);
+            if (contact is null)
+            {
+                return null;
+            }
+
+            // Use GetByIdAsync which returns decrypted user data
+            var result = await TrustedContactService.GetByIdAsync(contact.Id);
+            if (result is not { Success: true, Value: not null })
+            {
+                return null;
+            }
+
+            var userData = result.Value.Value.UserData;
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(userData.Username))
+            {
+                parts.Add(userData.Username);
+            }
+
+            if (!string.IsNullOrWhiteSpace(userData.Email))
+            {
+                parts.Add($"<{userData.Email}>");
+            }
+
+            return parts.Count > 0 ? string.Join(" ", parts) : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private async Task DecryptEmailAsync()
@@ -534,6 +599,8 @@ public partial class MailApiModel : ObservableModel, IMailSender
 
         IsDecrypting = true;
         DecryptedContent = null;
+        DecryptedSenderKey = null;
+        DecryptedSignatureValid = null;
         DecryptError = null;
 
         try
@@ -552,12 +619,18 @@ public partial class MailApiModel : ObservableModel, IMailSender
                 return;
             }
 
-            var result = await AsymmetricEncryption.DecryptAsync(encryptedMessage, PrfModel.Salt);
+            // Decrypt and verify signature if present
+            var result = await AsymmetricEncryption.DecryptAndVerifyAsync(
+                encryptedMessage, PrfModel.Salt, SigningService);
             if (result.Success && result.Value is not null)
             {
-                DecryptedContent = result.Value;
+                DecryptedContent = result.Value.Plaintext;
+                DecryptedSenderKey = result.Value.SenderEd25519PublicKey;
+                DecryptedSignatureValid = result.Value.SignatureValid;
+                DecryptedSenderName = await ResolveSenderNameAsync(result.Value.SenderEd25519PublicKey);
                 SelectedEmail.Decrypted = true;
                 SelectedEmail.DecryptFailed = false;
+                SelectedEmail.SignatureVerified = result.Value.SignatureValid;
             }
             else
             {

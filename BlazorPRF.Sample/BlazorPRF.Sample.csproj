@@ -6,6 +6,7 @@
     <OverrideHtmlAssetPlaceholders>false</OverrideHtmlAssetPlaceholders>
     <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
     <WasmFingerprintAssets>false</WasmFingerprintAssets>
+    <BlazorWebAssemblyLoadAllGlobalization>true</BlazorWebAssemblyLoadAllGlobalization>
     <NoWarn>WASM0001;IL2037</NoWarn>
   </PropertyGroup>
   

@@ -2,6 +2,7 @@
 @using BlazorPRF.Shared.Crypto.Formatting
 @using BlazorPRF.Shared.Crypto.Json
 @inject IAsymmetricEncryption AsymmetricEncryption
+@inject ISigningService SigningService
 @inject MailApiModel MailApiModel
 
 <MudDialog>
@@ -97,7 +98,25 @@
 
         try
         {
-            var result = await AsymmetricEncryption.EncryptAsync(_message, RecipientPublicKey);
+            // Ensure keys are available for signing
+            if (!await MailApiModel.PrfModel.EnsureKeysAsync())
+            {
+                _errorMessage = "Authentication required for signing";
+                return;
+            }
+
+            var ed25519Key = MailApiModel.PrfModel.Ed25519PublicKey;
+            var salt = MailApiModel.PrfModel.Salt;
+
+            if (string.IsNullOrEmpty(ed25519Key) || string.IsNullOrEmpty(salt))
+            {
+                _errorMessage = "Signing keys not available";
+                return;
+            }
+
+            // Sign and encrypt
+            var result = await AsymmetricEncryption.SignAndEncryptAsync(
+                _message, RecipientPublicKey, SigningService, ed25519Key, salt);
 
             if (result is not { Success: true, Value: not null })
             {

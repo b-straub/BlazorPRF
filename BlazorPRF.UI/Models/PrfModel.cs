@@ -452,7 +452,7 @@ public partial class PrfModel : ObservableModel
         HasKeys = false;
         PublicKey = null;
         KeyMetadata = null;
-        Role = PrfUserRole.Unknown;
+        Role = PrfUserRole.UNKNOWN;
         SuccessMessage = null;
         ErrorMessage = null;
     }

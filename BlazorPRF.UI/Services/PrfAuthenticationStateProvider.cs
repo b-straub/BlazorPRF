@@ -10,13 +10,13 @@ namespace BlazorPRF.UI.Services;
 public enum PrfUserRole
 {
     /// <summary>Role not yet determined.</summary>
-    Unknown,
+    UNKNOWN,
     /// <summary>Key not registered on the mail relay server.</summary>
-    Unregistered,
+    UNREGISTERED,
     /// <summary>Regular authenticated user (key registered).</summary>
-    User,
+    USER,
     /// <summary>Administrator with elevated privileges.</summary>
-    Admin
+    ADMIN
 }
 
 /// <summary>
@@ -58,7 +58,7 @@ public sealed class PrfAuthenticationStateProvider : AuthenticationStateProvider
         // Create authenticated identity
         var claims = new List<Claim>
         {
-            new(ClaimTypes.Name, _prfModel.Role == PrfUserRole.Admin ? "Admin" : "PRF User"),
+            new(ClaimTypes.Name, _prfModel.Role == PrfUserRole.ADMIN ? "Admin" : "PRF User"),
             new("CredentialId", _prfModel.CredentialId ?? string.Empty),
             new("OnDemandAuth", _prfModel.RequiresOnDemandAuth.ToString())
         };
@@ -70,7 +70,7 @@ public sealed class PrfAuthenticationStateProvider : AuthenticationStateProvider
         }
 
         // Add role claim
-        if (_prfModel.Role != PrfUserRole.Unknown)
+        if (_prfModel.Role != PrfUserRole.UNKNOWN)
         {
             claims.Add(new Claim(ClaimTypes.Role, _prfModel.Role.ToString()));
         }
