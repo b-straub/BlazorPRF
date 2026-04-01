@@ -94,6 +94,7 @@ public partial class PrfModel : ObservableModel
     /// <summary>
     /// Success message from last operation, if any.
     /// </summary>
+    [ObservableComponentTrigger]
     public partial string? SuccessMessage { get; set; }
 
     /// <summary>
@@ -202,7 +203,9 @@ public partial class PrfModel : ObservableModel
             {
                 CredentialId = result.Value.Id;
                 DiscoverableCancelled = false;
-                SuccessMessage = "Passkey registered successfully!";
+                SuccessMessage = string.IsNullOrWhiteSpace(displayName)
+                    ? "Passkey registered successfully!"
+                    : $"Passkey \"{displayName}\" registered successfully!";
                 // Store passkey name in metadata for better error messages
                 if (!string.IsNullOrWhiteSpace(displayName))
                 {

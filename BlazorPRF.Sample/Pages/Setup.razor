@@ -10,10 +10,10 @@
 
 <MudGrid>
     <MudItem xs="12" md="6">
-        <PrfRegistration OnRegistered="HandleRegistered" />
+        <PrfRegistration />
     </MudItem>
     <MudItem xs="12">
-        <MudButton Href=""
+        <MudButton OnClick="NavigateHome"
                    Variant="Variant.Text"
                    Color="Color.Primary"
                    StartIcon="@Icons.Material.Filled.ArrowBack">
@@ -23,9 +23,8 @@
 </MudGrid>
 
 @code {
-    private void HandleRegistered(string credentialId)
+    private void NavigateHome()
     {
-        // After registration, navigate to home to authenticate
-        NavigationManager.NavigateTo("./");
+        NavigationManager.NavigateTo("", forceLoad: false);
     }
 }

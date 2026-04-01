@@ -70,12 +70,11 @@
 
     private string? DisplayName => string.IsNullOrWhiteSpace(_displayName) ? null : _displayName;
 
-    protected override async Task OnContextReadyAsync()
+    protected override void OnSuccessMessageChanged()
     {
-        // Notify when credential is registered
-        if (Model.CredentialId is not null && Model.SuccessMessage is not null)
+        if (Model.SuccessMessage is not null)
         {
-            await OnRegistered.InvokeAsync(Model.CredentialId);
+            _displayName = string.Empty;
         }
     }
 }
