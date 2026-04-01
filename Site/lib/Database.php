@@ -91,12 +91,17 @@ class Database
         return $result->fetchArray() !== false;
     }
 
-    public function storeNonce(string $nonce, int $timestamp): void
+    /**
+     * Atomically store a nonce. Returns false if nonce already exists (race condition safe).
+     */
+    public function storeNonceAtomic(string $nonce, int $timestamp): bool
     {
-        $stmt = $this->db->prepare('INSERT INTO nonces (nonce, created) VALUES (:nonce, :created)');
+        $stmt = $this->db->prepare('INSERT OR IGNORE INTO nonces (nonce, created) VALUES (:nonce, :created)');
         $stmt->bindValue(':nonce', $nonce, SQLITE3_TEXT);
         $stmt->bindValue(':created', $timestamp, SQLITE3_INTEGER);
         $stmt->execute();
+
+        return $this->db->changes() > 0;
     }
 
     public function cleanExpiredNonces(int $maxAge = 300): int

@@ -2,20 +2,17 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Block access to secure directory
+    # Only allow index.php — block all other PHP files and sensitive directories
     RewriteRule ^secure/ - [F,L]
-
-    # Block access to data directory
     RewriteRule ^data/ - [F,L]
-
-    # Block access to lib directory
     RewriteRule ^lib/ - [F,L]
-
-    # Block access to actions directory
     RewriteRule ^actions/ - [F,L]
-
-    # Block access to PrfCrypto directory
     RewriteRule ^PrfCrypto/ - [F,L]
+
+    # Block direct access to any PHP file except index.php
+    RewriteCond %{REQUEST_FILENAME} \.php$ [NC]
+    RewriteCond %{REQUEST_URI} !^/index\.php$
+    RewriteRule .* - [F,L]
 </IfModule>
 
 # Prevent directory listing
@@ -26,14 +23,7 @@ Options -Indexes
     Require all denied
 </FilesMatch>
 
-# Block access to .json files in root
+# Block access to .json files
 <FilesMatch "\.json$">
     Require all denied
-</FilesMatch>
-
-# Block direct access to PHP files in subdirectories
-<FilesMatch "\.php$">
-    <If "%{REQUEST_URI} =~ m#/(lib|actions|secure|PrfCrypto)/#">
-        Require all denied
-    </If>
 </FilesMatch>

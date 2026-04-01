@@ -13,21 +13,27 @@ public sealed record EncryptedMessage(
     string EphemeralPublicKey,
     string Ciphertext,
     string Nonce,
-    EncryptionAlgorithm? Algorithm = null,
-    string? Signature = null,
-    string? SenderEd25519PublicKey = null
+    EncryptionAlgorithm? Algorithm = null
 )
 {
     /// <summary>
     /// Gets the effective algorithm (defaults to ChaCha20Poly1305 for backward compatibility).
     /// </summary>
     public EncryptionAlgorithm EffectiveAlgorithm => Algorithm ?? EncryptionAlgorithm.CHA_CHA20_POLY1305;
-
-    /// <summary>
-    /// Whether this message includes a sender signature (sign + encrypt).
-    /// </summary>
-    public bool IsSigned => Signature is not null && SenderEd25519PublicKey is not null;
 }
+
+/// <summary>
+/// Inner envelope for sign+encrypt: signed plaintext bundled with sender identity.
+/// This entire object is encrypted — signature cannot be stripped or substituted.
+/// </summary>
+/// <param name="Message">The original plaintext message.</param>
+/// <param name="Signature">Ed25519 signature of Message (Base64).</param>
+/// <param name="SenderEd25519PublicKey">Sender's Ed25519 public key (Base64).</param>
+public sealed record SignedEnvelope(
+    string Message,
+    string Signature,
+    string SenderEd25519PublicKey
+);
 
 /// <summary>
 /// Result of decrypting a message that may include sender verification.

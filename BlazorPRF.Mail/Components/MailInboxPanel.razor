@@ -200,15 +200,6 @@
                             </MudStack>
                         </MudAlert>
                     }
-                    else
-                    {
-                        <MudAlert Severity="Severity.Normal" Dense="true" Class="mt-1" Variant="Variant.Outlined">
-                            <MudStack Row="true" AlignItems="AlignItems.Center">
-                                <MudIcon Icon="@Icons.Material.Filled.QuestionMark" Size="Size.Small" />
-                                <MudText Typo="Typo.body2">Not signed — sender identity unknown</MudText>
-                            </MudStack>
-                        </MudAlert>
-                    }
 
                     <MudPaper Class="pa-3" Outlined="true" Style="white-space: pre-wrap; word-break: break-word;">
                         <MudText>@Model.DecryptedContent</MudText>

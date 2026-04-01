@@ -72,16 +72,16 @@ class SendMail
             $replyTo = str_replace(["\r", "\n"], '', $replyTo);
         }
 
-        // Block SSRF via private/reserved IP ranges
+        // Block SSRF via private/reserved IP ranges and use resolved IP for connection
         $resolvedIp = gethostbyname($smtpHost);
         if ($this->isPrivateIp($resolvedIp)) {
             return ['success' => false, 'error' => 'SMTP host resolves to a private/reserved IP address'];
         }
 
-        // Send via SMTP
+        // Send via SMTP — connect using resolved IP to prevent DNS rebinding
         try {
             $result = $this->sendSmtp(
-                $smtpHost,
+                $resolvedIp,
                 $smtpPort,
                 $smtpUsername,
                 $smtpPassword,
@@ -91,14 +91,15 @@ class SendMail
                 $subject,
                 $body,
                 $replyTo,
-                $keyId
+                $keyId,
+                $smtpHost
             );
 
             return $result;
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'error' => 'Send failed: ' . $e->getMessage()
+                'error' => 'Send failed'
             ];
         }
     }
@@ -117,9 +118,12 @@ class SendMail
         string $subject,
         string $body,
         ?string $replyTo,
-        string $keyId
+        string $keyId,
+        string $tlsHostname = ''
     ): array {
         $timeout = 30;
+        // Use original hostname for TLS cert validation (host may be resolved IP)
+        $peerName = !empty($tlsHostname) ? $tlsHostname : $host;
 
         // Connect
         $useSsl = $port === 465;
@@ -129,7 +133,7 @@ class SendMail
             'ssl' => [
                 'verify_peer' => true,
                 'verify_peer_name' => true,
-                'peer_name' => $host,
+                'peer_name' => $peerName,
             ]
         ]);
 

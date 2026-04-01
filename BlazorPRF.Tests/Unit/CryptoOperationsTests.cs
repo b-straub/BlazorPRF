@@ -1,4 +1,6 @@
+using System.Text.Json;
 using BlazorPRF.BC.Crypto;
+using BlazorPRF.Shared.Crypto.Json;
 using BlazorPRF.Shared.Crypto.Models;
 
 namespace BlazorPRF.Tests.Unit;
@@ -352,6 +354,131 @@ public class CryptoOperationsTests
 
         var isValid = CryptoOperations.Verify(message, signResult.Value, dualKeys.Ed25519PublicKey);
         Assert.True(isValid);
+    }
+
+    // ============================================================
+    // SIGN+ENCRYPT TESTS (SignedEnvelope inside encrypted payload)
+    // ============================================================
+
+    [Fact]
+    public void SignedEnvelope_SerializationRoundTrip()
+    {
+        // Arrange
+        var envelope = new SignedEnvelope("Hello!", "sig123", "pubkey456");
+
+        // Act
+        var json = JsonSerializer.Serialize(envelope, SharedJsonContext.Default.SignedEnvelope);
+        var deserialized = JsonSerializer.Deserialize(json, SharedJsonContext.Default.SignedEnvelope);
+
+        // Assert
+        Assert.NotNull(deserialized);
+        Assert.Equal(envelope.Message, deserialized.Message);
+        Assert.Equal(envelope.Signature, deserialized.Signature);
+        Assert.Equal(envelope.SenderEd25519PublicKey, deserialized.SenderEd25519PublicKey);
+    }
+
+    [Fact]
+    public void SignAndEncrypt_DecryptAndVerify_RoundTrip()
+    {
+        // Arrange
+        var seed = new byte[32];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(seed);
+        var senderKeys = KeyGenerator.DeriveDualKeyPair(seed);
+
+        var recipientX25519 = KeyGenerator.GenerateKeyPair();
+        const string plaintext = "Secret signed message";
+
+        // Sign
+        var signResult = CryptoOperations.Sign(plaintext, senderKeys.Ed25519PrivateKey);
+        Assert.True(signResult.Success);
+
+        // Bundle into envelope and encrypt
+        var envelope = new SignedEnvelope(plaintext, signResult.Value!, senderKeys.Ed25519PublicKey);
+        var envelopeJson = JsonSerializer.Serialize(envelope, SharedJsonContext.Default.SignedEnvelope);
+        var encryptResult = CryptoOperations.EncryptAsymmetric(envelopeJson, recipientX25519.PublicKeyBase64);
+        Assert.True(encryptResult.Success);
+
+        // Decrypt
+        var decryptResult = CryptoOperations.DecryptAsymmetric(encryptResult.Value!, recipientX25519.PrivateKeyBase64);
+        Assert.True(decryptResult.Success);
+
+        // Parse envelope and verify
+        var decryptedEnvelope = JsonSerializer.Deserialize(decryptResult.Value!, SharedJsonContext.Default.SignedEnvelope);
+        Assert.NotNull(decryptedEnvelope);
+        Assert.Equal(plaintext, decryptedEnvelope.Message);
+
+        var isValid = CryptoOperations.Verify(
+            decryptedEnvelope.Message,
+            decryptedEnvelope.Signature,
+            decryptedEnvelope.SenderEd25519PublicKey);
+        Assert.True(isValid);
+    }
+
+    [Fact]
+    public void SignAndEncrypt_WrongSenderKey_VerificationFails()
+    {
+        // Arrange
+        var senderKeys = KeyGenerator.GenerateEd25519KeyPair();
+        var attackerKeys = KeyGenerator.GenerateEd25519KeyPair();
+        var recipientX25519 = KeyGenerator.GenerateKeyPair();
+        const string plaintext = "Signed message";
+
+        // Sign with sender's key
+        var signResult = CryptoOperations.Sign(plaintext, senderKeys.PrivateKeyBase64);
+        Assert.True(signResult.Success);
+
+        // Bundle with ATTACKER's public key (substitution attempt)
+        var envelope = new SignedEnvelope(plaintext, signResult.Value!, attackerKeys.PublicKeyBase64);
+        var envelopeJson = JsonSerializer.Serialize(envelope, SharedJsonContext.Default.SignedEnvelope);
+        var encryptResult = CryptoOperations.EncryptAsymmetric(envelopeJson, recipientX25519.PublicKeyBase64);
+        Assert.True(encryptResult.Success);
+
+        // Decrypt and verify — should fail because signature doesn't match attacker's key
+        var decryptResult = CryptoOperations.DecryptAsymmetric(encryptResult.Value!, recipientX25519.PrivateKeyBase64);
+        Assert.True(decryptResult.Success);
+
+        var decryptedEnvelope = JsonSerializer.Deserialize(decryptResult.Value!, SharedJsonContext.Default.SignedEnvelope);
+        Assert.NotNull(decryptedEnvelope);
+
+        var isValid = CryptoOperations.Verify(
+            decryptedEnvelope.Message,
+            decryptedEnvelope.Signature,
+            decryptedEnvelope.SenderEd25519PublicKey);
+        Assert.False(isValid);
+    }
+
+    [Fact]
+    public void SignedEnvelope_CannotBeStripped_FromEncryptedPayload()
+    {
+        // Arrange
+        var senderKeys = KeyGenerator.GenerateEd25519KeyPair();
+        var recipientX25519 = KeyGenerator.GenerateKeyPair();
+        const string plaintext = "Cannot strip my signature";
+
+        var signResult = CryptoOperations.Sign(plaintext, senderKeys.PrivateKeyBase64);
+        Assert.True(signResult.Success);
+
+        var envelope = new SignedEnvelope(plaintext, signResult.Value!, senderKeys.PublicKeyBase64);
+        var envelopeJson = JsonSerializer.Serialize(envelope, SharedJsonContext.Default.SignedEnvelope);
+        var encryptResult = CryptoOperations.EncryptAsymmetric(envelopeJson, recipientX25519.PublicKeyBase64);
+        Assert.True(encryptResult.Success);
+
+        // The EncryptedMessage has no Signature field — it's inside the ciphertext
+        // An attacker cannot strip it without decrypting first
+        var encrypted = encryptResult.Value!;
+        Assert.NotNull(encrypted.EphemeralPublicKey);
+        Assert.NotNull(encrypted.Ciphertext);
+        Assert.NotNull(encrypted.Nonce);
+
+        // Decrypt — envelope is intact inside
+        var decryptResult = CryptoOperations.DecryptAsymmetric(encrypted, recipientX25519.PrivateKeyBase64);
+        Assert.True(decryptResult.Success);
+
+        var decryptedEnvelope = JsonSerializer.Deserialize(decryptResult.Value!, SharedJsonContext.Default.SignedEnvelope);
+        Assert.NotNull(decryptedEnvelope);
+        Assert.NotNull(decryptedEnvelope.Signature);
+        Assert.NotNull(decryptedEnvelope.SenderEd25519PublicKey);
+        Assert.Equal(plaintext, decryptedEnvelope.Message);
     }
 
     [Fact]

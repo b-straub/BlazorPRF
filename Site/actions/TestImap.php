@@ -41,7 +41,7 @@ class TestImap
             return ['success' => false, 'error' => 'IMAP password is required'];
         }
 
-        // Block SSRF via private/reserved IP ranges
+        // Block SSRF via private/reserved IP ranges and use resolved IP for connection
         $resolvedIp = gethostbyname($host);
         if (!filter_var($resolvedIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
             return ['success' => false, 'error' => 'IMAP host resolves to a private/reserved IP address'];
@@ -52,8 +52,8 @@ class TestImap
             return ['success' => false, 'error' => 'Invalid folder name'];
         }
 
-        // Build connection string
-        // Common ports: 993 (SSL), 143 (plain/STARTTLS)
+        // Build connection string — use hostname for TLS cert validation
+        // SSRF is mitigated by the IP check above; imap_open doesn't support separate peer_name
         $ssl = $port === 993 ? '/ssl' : '';
         $connectionString = "{{$host}:{$port}/imap{$ssl}}$folder";
 

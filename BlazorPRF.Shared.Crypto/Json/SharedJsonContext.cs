@@ -11,6 +11,7 @@ namespace BlazorPRF.Shared.Crypto.Json;
     JsonSerializerDefaults.Web,
     UseStringEnumConverter = true)]
 [JsonSerializable(typeof(EncryptedMessage))]
+[JsonSerializable(typeof(SignedEnvelope))]
 [JsonSerializable(typeof(SymmetricEncryptedMessage))]
 [JsonSerializable(typeof(SignedMessage))]
 [JsonSerializable(typeof(KeyPair))]

@@ -8,6 +8,10 @@
 
 PRF-based deterministic encryption for Blazor WebAssembly using the WebAuthn PRF extension.
 
+## Breaking Change: Mandatory Sign+Encrypt
+
+Asymmetric encryption now always uses **sign+encrypt** — the sender's Ed25519 signature is embedded inside the encrypted payload (`SignedEnvelope`). This prevents signature stripping, sender substitution, and cross-message replay attacks. Messages encrypted with previous versions cannot be decrypted by this version. Re-encrypt any existing data.
+
 ## Security Disclaimer
 
 > **This is an experimental project and has NOT been audited for security vulnerabilities.**

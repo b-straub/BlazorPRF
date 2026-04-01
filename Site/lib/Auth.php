@@ -97,8 +97,10 @@ class Auth
             return new VerificationResult(false, 'Invalid signature');
         }
 
-        // Store nonce after successful verification
-        $this->db->storeNonce($nonce, $requestTime);
+        // Atomically store nonce (prevents race condition with concurrent requests)
+        if (!$this->db->storeNonceAtomic($nonce, $requestTime)) {
+            return new VerificationResult(false, 'Nonce already used');
+        }
 
         return new VerificationResult(true, null, $publicKey, null);
     }
@@ -163,8 +165,10 @@ class Auth
             return new VerificationResult(false, 'Invalid admin signature');
         }
 
-        // Store nonce after successful verification
-        $this->db->storeNonce($nonce, $requestTime);
+        // Atomically store nonce (prevents race condition with concurrent requests)
+        if (!$this->db->storeNonceAtomic($nonce, $requestTime)) {
+            return new VerificationResult(false, 'Nonce already used');
+        }
 
         return new VerificationResult(true, null, 'admin', null);
     }

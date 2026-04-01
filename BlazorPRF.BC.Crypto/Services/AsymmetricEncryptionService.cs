@@ -78,19 +78,12 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
             return PrfResult<EncryptedMessage>.Fail(signResult.ErrorCode ?? PrfErrorCode.SIGNING_FAILED);
         }
 
-        var encryptResult = await _cryptoProvider.EncryptAsymmetricAsync(message, recipientPublicKey, _defaultAlgorithm);
-        if (!encryptResult.Success || encryptResult.Value is null)
-        {
-            return encryptResult;
-        }
+        // Bundle into signed envelope — this entire envelope gets encrypted
+        var envelope = new SignedEnvelope(message, signResult.Value, senderEd25519PublicKey);
+        var envelopeJson = System.Text.Json.JsonSerializer.Serialize(envelope,
+            Shared.Crypto.Json.SharedJsonContext.Default.SignedEnvelope);
 
-        var signed = encryptResult.Value with
-        {
-            Signature = signResult.Value,
-            SenderEd25519PublicKey = senderEd25519PublicKey
-        };
-
-        return PrfResult<EncryptedMessage>.Ok(signed);
+        return await _cryptoProvider.EncryptAsymmetricAsync(envelopeJson, recipientPublicKey, _defaultAlgorithm);
     }
 
        public async ValueTask<PrfResult<DecryptedMessage>> DecryptAndVerifyAsync(
@@ -104,20 +97,31 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
             return PrfResult<DecryptedMessage>.Fail(decryptResult.ErrorCode ?? PrfErrorCode.DECRYPTION_FAILED);
         }
 
-        if (encrypted.IsSigned)
+        SignedEnvelope? envelope;
+        try
         {
-            var signatureValid = await signingService.VerifyAsync(
-                decryptResult.Value,
-                encrypted.Signature!,
-                encrypted.SenderEd25519PublicKey!);
-
-            return PrfResult<DecryptedMessage>.Ok(new DecryptedMessage(
-                decryptResult.Value,
-                encrypted.SenderEd25519PublicKey,
-                signatureValid));
+            envelope = System.Text.Json.JsonSerializer.Deserialize(decryptResult.Value,
+                Shared.Crypto.Json.SharedJsonContext.Default.SignedEnvelope);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return PrfResult<DecryptedMessage>.Fail(PrfErrorCode.INCOMPATIBLE_FORMAT);
         }
 
-        return PrfResult<DecryptedMessage>.Ok(new DecryptedMessage(decryptResult.Value));
+        if (envelope is null)
+        {
+            return PrfResult<DecryptedMessage>.Fail(PrfErrorCode.INCOMPATIBLE_FORMAT);
+        }
+
+        var signatureValid = await signingService.VerifyAsync(
+            envelope.Message,
+            envelope.Signature,
+            envelope.SenderEd25519PublicKey);
+
+        return PrfResult<DecryptedMessage>.Ok(new DecryptedMessage(
+            envelope.Message,
+            envelope.SenderEd25519PublicKey,
+            signatureValid));
     }
 
     private PrfResult<string> DecryptWithAlgorithm(

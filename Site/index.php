@@ -4,6 +4,9 @@
  * Single entry point for all API requests.
  */
 
+// Suppress xdebug HTML output in API responses
+ini_set('html_errors', '0');
+
 require_once __DIR__ . '/lib/Database.php';
 require_once __DIR__ . '/lib/Auth.php';
 require_once __DIR__ . '/lib/Response.php';

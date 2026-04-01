@@ -34,13 +34,13 @@ class TestSmtp
             return ['success' => false, 'error' => 'SMTP password is required'];
         }
 
-        // Block SSRF via private/reserved IP ranges
+        // Block SSRF via private/reserved IP ranges and use resolved IP for connection
         $resolvedIp = gethostbyname($host);
         if (!filter_var($resolvedIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
             return ['success' => false, 'error' => 'SMTP host resolves to a private/reserved IP address'];
         }
 
-        // Test SMTP connection
+        // Test SMTP connection — connect using resolved IP to prevent DNS rebinding
         $timeout = 10;
         $context = stream_context_create([
             'ssl' => [
@@ -57,7 +57,7 @@ class TestSmtp
 
             if ($useSsl) {
                 $socket = @stream_socket_client(
-                    "ssl://$host:$port",
+                    "ssl://$resolvedIp:$port",
                     $errno,
                     $errstr,
                     $timeout,
@@ -66,7 +66,7 @@ class TestSmtp
                 );
             } else {
                 $socket = @stream_socket_client(
-                    "tcp://$host:$port",
+                    "tcp://$resolvedIp:$port",
                     $errno,
                     $errstr,
                     $timeout,

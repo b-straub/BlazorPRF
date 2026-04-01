@@ -19,6 +19,7 @@ public enum PrfErrorCode
     INVALID_PRIVATE_KEY,
     SIGNING_FAILED,
     VERIFICATION_FAILED,
+    INCOMPATIBLE_FORMAT,
 }
 
 /// <summary>
@@ -57,6 +58,8 @@ public static class PrfErrorMessages
             "Signing failed. Please try again.",
         PrfErrorCode.VERIFICATION_FAILED =>
             "Signature verification failed. The signature is invalid or the data has been tampered with.",
+        PrfErrorCode.INCOMPATIBLE_FORMAT =>
+            "This message was encrypted with an older version and cannot be decrypted. Please ask the sender to re-encrypt.",
         _ =>
             "An unknown error occurred."
     };
