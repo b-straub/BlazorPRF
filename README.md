@@ -32,6 +32,7 @@ BlazorPRF enables client-side encryption in Blazor WebAssembly applications usin
 - **Symmetric Encryption**: Encrypt data for yourself using ChaCha20-Poly1305 or AES-GCM
 - **Asymmetric Encryption**: Share your public key; others can encrypt messages only you can decrypt (ECIES with X25519)
 - **Digital Signatures**: Sign and verify messages with Ed25519 for authentication and integrity
+- **Sign + Encrypt**: Sign plaintext with Ed25519 before encrypting — recipient can verify sender identity after decryption (like PGP sign+encrypt)
 - **Identity Verification**: Establish trust through dual-signed invites (like PGP "full trust")
 - **Secure Key Storage**: Keys cached in JS, cryptographically zeroed on disposal
 
@@ -146,6 +147,7 @@ PRF Seed (32 bytes)
 This enables:
 - **X25519**: Asymmetric encryption (ECIES) - share public key, receive encrypted messages
 - **Ed25519**: Digital signatures - sign messages to prove identity/integrity
+- **Sign + Encrypt**: Messages are signed with Ed25519 before encryption. The signature and sender's public key are included in the encrypted payload. On decryption, the sender's identity is verified against trusted contacts.
 
 ## Identity Verification (Signed Invites)
 
@@ -210,6 +212,7 @@ See [BlazorPRF.Sample](./BlazorPRF.Sample/) for a complete example application d
 - Symmetric encryption/decryption
 - Asymmetric encryption with public key sharing
 - Digital signatures (sign and verify)
+- Sign + encrypt with sender verification on decrypt
 - Identity verification via signed invites
 - Session management with different caching strategies
 - Encrypted mail sending via PRF-authenticated mail relay
