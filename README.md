@@ -385,21 +385,40 @@ Once you have admin access:
 
 #### 6. Configure your web server
 
-**Apache** (`.htaccess` is included, ensure `AllowOverride All`):
+The web root serves both the Blazor SPA (static files) and the PHP relay (in `api/`). Blazor WASM is a single-page app — all non-file routes must fall back to `index.html`.
+
+**Apache** (ensure `AllowOverride All` for `.htaccess` support):
+
+Create `/var/www/niceprf/.htaccess` in the web root:
+
+```apache
+RewriteEngine On
+
+# Let api/ handle its own routing via its own .htaccess
+RewriteRule ^api/ - [L]
+
+# Blazor SPA fallback — serve index.html for all non-file, non-directory routes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule .* index.html [L]
+```
+
+The `api/` subdirectory already has its own `.htaccess` (from `Site/`) for PHP routing and security.
 
 ```apache
 <VirtualHost *:443>
-    ServerName mail-relay.example.com
-    DocumentRoot /var/www/mail-relay
+    ServerName niceprf.example.com
+    DocumentRoot /var/www/niceprf
 
-    # Ensure .htaccess is respected
-    <Directory /var/www/mail-relay>
+    <Directory /var/www/niceprf>
         AllowOverride All
         Require all granted
     </Directory>
 
-    # URL rewriting for single entry point
-    FallbackResource /index.php
+    # PHP for api/ subdirectory
+    <Directory /var/www/niceprf/api>
+        FallbackResource /api/index.php
+    </Directory>
 
     SSLEngine on
     SSLCertificateFile /path/to/cert.pem
@@ -412,23 +431,29 @@ Once you have admin access:
 ```nginx
 server {
     listen 443 ssl;
-    server_name mail-relay.example.com;
-    root /var/www/mail-relay;
+    server_name niceprf.example.com;
+    root /var/www/niceprf;
 
-    # Block access to sensitive directories
-    location ~ ^/(secure|lib|actions|PrfCrypto)/ {
-        deny all;
-    }
+    # PHP relay in api/ subdirectory
+    location ^~ /api/ {
+        # Block sensitive directories
+        location ~ ^/api/(secure|lib|actions|PrfCrypto)/ {
+            deny all;
+        }
 
-    # Route all requests to index.php
-    location / {
-        try_files $uri /index.php?path=$uri&$args;
+        # Route all api/ requests to api/index.php
+        try_files $uri /api/index.php?path=$uri&$args;
     }
 
     location ~ \.php$ {
         fastcgi_pass unix:/run/php/php-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         include fastcgi_params;
+    }
+
+    # Blazor SPA fallback
+    location / {
+        try_files $uri $uri/ /index.html;
     }
 
     ssl_certificate /path/to/cert.pem;

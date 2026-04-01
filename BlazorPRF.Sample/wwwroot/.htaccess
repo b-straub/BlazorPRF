@@ -1,0 +1,9 @@
+RewriteEngine On
+
+# Let api/ handle its own routing
+RewriteRule ^api/ - [L]
+
+# Blazor SPA fallback — serve index.html for all non-file, non-directory routes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule .* index.html [L]
