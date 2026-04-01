@@ -43,3 +43,6 @@ Site/secure/config.php
 *.cer
 *.db
 secrets.json
+
+# Test settings (contains local server URLs)
+*.runsettings

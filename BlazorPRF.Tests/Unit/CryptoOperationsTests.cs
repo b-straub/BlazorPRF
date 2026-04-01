@@ -481,6 +481,173 @@ public class CryptoOperationsTests
         Assert.Equal(plaintext, decryptedEnvelope.Message);
     }
 
+    // ============================================================
+    // ATTACK SIMULATION TESTS
+    // ============================================================
+
+    [Fact]
+    public void Attack_CiphertextTampering_DetectedByAead()
+    {
+        // An attacker modifies the ciphertext — AEAD tag mismatch detects it
+        var recipientKeys = KeyGenerator.GenerateKeyPair();
+        var encryptResult = CryptoOperations.EncryptAsymmetric("Secret", recipientKeys.PublicKeyBase64);
+        Assert.True(encryptResult.Success);
+
+        // Tamper with ciphertext
+        var ciphertextBytes = Convert.FromBase64String(encryptResult.Value!.Ciphertext);
+        ciphertextBytes[0] ^= 0xFF;
+        var tampered = encryptResult.Value with { Ciphertext = Convert.ToBase64String(ciphertextBytes) };
+
+        var decryptResult = CryptoOperations.DecryptAsymmetric(tampered, recipientKeys.PrivateKeyBase64);
+        Assert.False(decryptResult.Success);
+        Assert.Equal(PrfErrorCode.AUTHENTICATION_TAG_MISMATCH, decryptResult.ErrorCode);
+    }
+
+    [Fact]
+    public void Attack_NonceTampering_DetectedByAead()
+    {
+        // An attacker modifies the nonce — decryption fails
+        var recipientKeys = KeyGenerator.GenerateKeyPair();
+        var encryptResult = CryptoOperations.EncryptAsymmetric("Secret", recipientKeys.PublicKeyBase64);
+        Assert.True(encryptResult.Success);
+
+        var nonceBytes = Convert.FromBase64String(encryptResult.Value!.Nonce);
+        nonceBytes[0] ^= 0xFF;
+        var tampered = encryptResult.Value with { Nonce = Convert.ToBase64String(nonceBytes) };
+
+        var decryptResult = CryptoOperations.DecryptAsymmetric(tampered, recipientKeys.PrivateKeyBase64);
+        Assert.False(decryptResult.Success);
+    }
+
+    [Fact]
+    public void Attack_EphemeralKeySwap_DetectedByAead()
+    {
+        // An attacker replaces the ephemeral public key — derived shared secret differs
+        var recipientKeys = KeyGenerator.GenerateKeyPair();
+        var attackerKeys = KeyGenerator.GenerateKeyPair();
+        var encryptResult = CryptoOperations.EncryptAsymmetric("Secret", recipientKeys.PublicKeyBase64);
+        Assert.True(encryptResult.Success);
+
+        // Replace ephemeral key with attacker's key
+        var tampered = encryptResult.Value! with { EphemeralPublicKey = attackerKeys.PublicKeyBase64 };
+
+        var decryptResult = CryptoOperations.DecryptAsymmetric(tampered, recipientKeys.PrivateKeyBase64);
+        Assert.False(decryptResult.Success);
+        Assert.Equal(PrfErrorCode.AUTHENTICATION_TAG_MISMATCH, decryptResult.ErrorCode);
+    }
+
+    [Fact]
+    public void Attack_SignatureForgedWithDifferentKey_Detected()
+    {
+        // An attacker signs the same message with their own key — verification against original key fails
+        var legitimateKeys = KeyGenerator.GenerateEd25519KeyPair();
+        var attackerKeys = KeyGenerator.GenerateEd25519KeyPair();
+        const string message = "Transfer $1000";
+
+        var attackerSignature = CryptoOperations.Sign(message, attackerKeys.PrivateKeyBase64);
+        Assert.True(attackerSignature.Success);
+
+        // Verify against legitimate key — fails
+        var isValid = CryptoOperations.Verify(message, attackerSignature.Value!, legitimateKeys.PublicKeyBase64);
+        Assert.False(isValid);
+    }
+
+    [Fact]
+    public void Attack_SignedEnvelope_MessageTampering_Detected()
+    {
+        // An attacker decrypts, modifies the message, re-encrypts — signature check fails
+        var senderKeys = KeyGenerator.GenerateEd25519KeyPair();
+        var recipientKeys = KeyGenerator.GenerateKeyPair();
+        const string originalMessage = "Transfer $100";
+
+        // Sender creates signed envelope
+        var signResult = CryptoOperations.Sign(originalMessage, senderKeys.PrivateKeyBase64);
+        Assert.True(signResult.Success);
+
+        // Attacker creates tampered envelope with original signature
+        var tamperedEnvelope = new SignedEnvelope("Transfer $10000", signResult.Value!, senderKeys.PublicKeyBase64);
+        var tamperedJson = JsonSerializer.Serialize(tamperedEnvelope, SharedJsonContext.Default.SignedEnvelope);
+        var encryptResult = CryptoOperations.EncryptAsymmetric(tamperedJson, recipientKeys.PublicKeyBase64);
+        Assert.True(encryptResult.Success);
+
+        // Recipient decrypts and verifies — signature doesn't match tampered message
+        var decryptResult = CryptoOperations.DecryptAsymmetric(encryptResult.Value!, recipientKeys.PrivateKeyBase64);
+        Assert.True(decryptResult.Success);
+
+        var envelope = JsonSerializer.Deserialize(decryptResult.Value!, SharedJsonContext.Default.SignedEnvelope);
+        Assert.NotNull(envelope);
+
+        var isValid = CryptoOperations.Verify(envelope.Message, envelope.Signature, envelope.SenderEd25519PublicKey);
+        Assert.False(isValid);
+    }
+
+    [Fact]
+    public void Attack_SignedEnvelope_CrossMessageReplay_Detected()
+    {
+        // An attacker takes a signed envelope from one message and puts it in another encryption
+        // Since the envelope is inside the ciphertext, this only works if attacker can decrypt
+        // But even then, the envelope contains the original message — recipient sees the original, not a forged one
+        var senderKeys = KeyGenerator.GenerateEd25519KeyPair();
+        var recipientKeys = KeyGenerator.GenerateKeyPair();
+
+        // Message 1
+        var signResult1 = CryptoOperations.Sign("Approve request A", senderKeys.PrivateKeyBase64);
+        Assert.True(signResult1.Success);
+        var envelope1 = new SignedEnvelope("Approve request A", signResult1.Value!, senderKeys.PublicKeyBase64);
+
+        // Message 2 — attacker tries to use envelope1's signature for a different message
+        var envelope2 = new SignedEnvelope("Approve request B", signResult1.Value!, senderKeys.PublicKeyBase64);
+        var json2 = JsonSerializer.Serialize(envelope2, SharedJsonContext.Default.SignedEnvelope);
+        var encryptResult = CryptoOperations.EncryptAsymmetric(json2, recipientKeys.PublicKeyBase64);
+        Assert.True(encryptResult.Success);
+
+        var decryptResult = CryptoOperations.DecryptAsymmetric(encryptResult.Value!, recipientKeys.PrivateKeyBase64);
+        Assert.True(decryptResult.Success);
+
+        var envelope = JsonSerializer.Deserialize(decryptResult.Value!, SharedJsonContext.Default.SignedEnvelope);
+        Assert.NotNull(envelope);
+
+        // Signature was for "Approve request A" but message says "Approve request B" — fails
+        var isValid = CryptoOperations.Verify(envelope.Message, envelope.Signature, envelope.SenderEd25519PublicKey);
+        Assert.False(isValid);
+    }
+
+    [Fact]
+    public void Attack_SymmetricKeyReuse_DifferentNonces()
+    {
+        // Verify that encrypting the same plaintext twice produces different ciphertexts (random nonce)
+        var keys = KeyGenerator.GenerateKeyPair();
+        const string plaintext = "Same message twice";
+
+        var result1 = CryptoOperations.EncryptSymmetric(plaintext, keys.PrivateKeyBase64);
+        var result2 = CryptoOperations.EncryptSymmetric(plaintext, keys.PrivateKeyBase64);
+        Assert.True(result1.Success);
+        Assert.True(result2.Success);
+
+        // Nonces must differ
+        Assert.NotEqual(result1.Value!.Nonce, result2.Value!.Nonce);
+        // Ciphertexts must differ (different nonce → different ciphertext)
+        Assert.NotEqual(result1.Value.Ciphertext, result2.Value.Ciphertext);
+    }
+
+    [Fact]
+    public void Attack_DifferentSeedsDifferentKeys()
+    {
+        // Two different PRF seeds must produce completely different key material
+        var seed1 = new byte[32];
+        var seed2 = new byte[32];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(seed1);
+        System.Security.Cryptography.RandomNumberGenerator.Fill(seed2);
+
+        var keys1 = KeyGenerator.DeriveDualKeyPair(seed1);
+        var keys2 = KeyGenerator.DeriveDualKeyPair(seed2);
+
+        Assert.NotEqual(keys1.X25519PublicKey, keys2.X25519PublicKey);
+        Assert.NotEqual(keys1.Ed25519PublicKey, keys2.Ed25519PublicKey);
+        Assert.NotEqual(keys1.X25519PrivateKey, keys2.X25519PrivateKey);
+        Assert.NotEqual(keys1.Ed25519PrivateKey, keys2.Ed25519PrivateKey);
+    }
+
     [Fact]
     public void DualKeyPair_PublicKeysProperty_ReturnsCorrectKeys()
     {

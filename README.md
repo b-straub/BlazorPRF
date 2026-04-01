@@ -514,6 +514,51 @@ Site/
     .htaccess                # Deny all access
 ```
 
+## Testing
+
+### Unit tests
+
+```bash
+dotnet test BlazorPRF.Tests/
+```
+
+Runs 62+ crypto unit and attack simulation tests (no server required):
+- Key derivation, symmetric/asymmetric encryption round-trips
+- Sign+encrypt with SignedEnvelope integrity
+- Attack simulations: ciphertext tampering, nonce tampering, ephemeral key swap, signature forgery, sender substitution, cross-message replay, nonce reuse detection
+
+### API integration tests
+
+Requires a running mail relay. Tests are skipped automatically when no server is configured.
+
+```bash
+# Against local dev server (Herd/Valet)
+PRF_API_URL="https://prf.test/api/" dotnet test BlazorPRF.Tests/
+
+# Against production
+PRF_API_URL="https://your-relay.example.com/api/" dotnet test BlazorPRF.Tests/
+
+# Or use a .runsettings file (not committed, see .gitignore)
+dotnet test --settings BlazorPRF.Tests/test.runsettings
+```
+
+API tests cover:
+- **Auth attacks**: missing headers, invalid signature, unregistered key, expired timestamp, body tampering, method tampering, admin privilege escalation
+- **Access control**: sensitive directories (`secure/`, `lib/`, `actions/`, `PrfCrypto/`), config files, database, PHP source code, `.htaccess`, path traversal
+
+To create a `.runsettings` file:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <RunConfiguration>
+    <EnvironmentVariables>
+      <PRF_API_URL>https://prf.test/api/</PRF_API_URL>
+    </EnvironmentVariables>
+  </RunConfiguration>
+</RunSettings>
+```
+
 ## License
 
 MIT License - see [LICENSE](./LICENSE) for details.
