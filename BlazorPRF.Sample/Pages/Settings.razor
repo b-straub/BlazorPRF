@@ -1,5 +1,7 @@
 @page "/settings"
 @attribute [Authorize]
+@using BlazorPRF.Mail.Models
+@inject MailApiModel MailApiModel
 
 <PageTitle>Settings - BlazorPRF</PageTitle>
 
@@ -7,9 +9,37 @@
     <MudItem xs="12" sm="8">
         <MudText Typo="Typo.h4" GutterBottom="true">User Settings</MudText>
         <MudText Typo="Typo.body1">
-            Configure your profile. This data is encrypted with your PRF-derived key.
+            Configure your profile. This data is encrypted with your PRF-derived key
+            and synced to the mail relay for cross-device access.
         </MudText>
     </MudItem>
 </MudGrid>
 
-<UserProfilePanel />
+<UserProfilePanel OnSyncRequested="SyncFromServerAsync"
+                  OnProfileSaved="SyncToServerAsync" />
+
+@code {
+    [Inject]
+    private UserProfileModel UserProfileModel { get; set; } = default!;
+
+    private async Task SyncFromServerAsync(string relayUrl)
+    {
+        // Set the relay URL before syncing so the API client uses it
+        var url = relayUrl.Trim();
+        if (!url.EndsWith('/'))
+        {
+            url += '/';
+        }
+
+        MailApiModel.SignedApiClient.BaseUrl = url;
+        await MailApiModel.SyncProfileFromServerAsync();
+
+        // Reload the profile panel with restored data
+        await UserProfileModel.LoadProfile.ExecuteAsync();
+    }
+
+    private async Task SyncToServerAsync()
+    {
+        await MailApiModel.SyncProfileToServerAsync();
+    }
+}

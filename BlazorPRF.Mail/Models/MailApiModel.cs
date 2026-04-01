@@ -1,8 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
 using BlazorPRF.Api.Services;
 using BlazorPRF.Mail.Services;
+using BlazorPRF.Persistence.Data;
 using BlazorPRF.Persistence.Data.Models;
 using BlazorPRF.Persistence.Services;
+using Microsoft.EntityFrameworkCore;
 using BlazorPRF.Shared.Crypto.Formatting;
 using BlazorPRF.Shared.Crypto.Services;
 using BlazorPRF.UI.Models;
@@ -31,7 +33,8 @@ public partial class MailApiModel : ObservableModel, IMailSender
         IAsymmetricEncryption asymmetricEncryption,
         ISigningService signingService,
         ISignedApiClient signedApiClient,
-        ITrustedContactService trustedContactService);
+        ITrustedContactService trustedContactService,
+        IDbContextFactory<PrfDbContext> dbContextFactory);
     // ReSharper restore UnusedParameter.Local
 
     // Server state
@@ -236,6 +239,115 @@ public partial class MailApiModel : ObservableModel, IMailSender
         // result.Success && result.Value is null → no profile exists yet, not an error
     }
 
+    /// <summary>
+    /// Push the current encrypted profile to the server for sync.
+    /// Called after saving profile locally.
+    /// </summary>
+    public async Task SyncProfileToServerAsync()
+    {
+        try
+        {
+            // Get the raw encrypted blob from local storage — don't upload empty profiles
+            var localProfile = await GetLocalEncryptedProfileAsync();
+            if (string.IsNullOrWhiteSpace(localProfile))
+            {
+                return;
+            }
+
+            var body = System.Text.Json.JsonSerializer.Serialize(
+                new { encryptedProfile = localProfile });
+            var context = CreateSigningContext();
+            await SignedApiClient.SendUserSignedAsync("profile", body, "POST", context);
+        }
+        catch
+        {
+            // Sync failure is non-critical — local profile is the source of truth
+        }
+    }
+
+    /// <summary>
+    /// Pull encrypted profile from server and save locally if no local profile exists.
+    /// Called on login to restore settings on new devices.
+    /// </summary>
+    public async Task SyncProfileFromServerAsync()
+    {
+        try
+        {
+            var context = CreateSigningContext();
+            var result = await SignedApiClient.SendUserSignedAsync("profile", "", "GET", context);
+
+            if (!result.Success || result.Value is null)
+            {
+                return;
+            }
+
+            var doc = System.Text.Json.JsonDocument.Parse(result.Value);
+            if (!doc.RootElement.TryGetProperty("profile", out var profileProp) || profileProp.ValueKind == System.Text.Json.JsonValueKind.Null)
+            {
+                return;
+            }
+
+            if (!profileProp.TryGetProperty("encryptedProfile", out var encryptedProp))
+            {
+                return;
+            }
+
+            var encryptedProfile = encryptedProp.GetString();
+            if (string.IsNullOrEmpty(encryptedProfile))
+            {
+                return;
+            }
+
+            // Save the encrypted blob directly to local storage
+            await SaveLocalEncryptedProfileAsync(encryptedProfile);
+            StatusModel.AddSuccess("Profile restored from server");
+
+            // Reload to decrypt
+            await LoadProfileAsync();
+        }
+        catch
+        {
+            // Sync failure is non-critical
+        }
+    }
+
+    /// <summary>
+    /// Get the raw encrypted profile blob from local SQLite.
+    /// </summary>
+    private async Task<string?> GetLocalEncryptedProfileAsync()
+    {
+        await using var db = await DbContextFactory.CreateDbContextAsync();
+        var profile = await db.UserProfiles.SingleOrDefaultAsync();
+        return profile?.EncryptedData;
+    }
+
+    /// <summary>
+    /// Save a raw encrypted profile blob to local SQLite.
+    /// </summary>
+    private async Task SaveLocalEncryptedProfileAsync(string encryptedData)
+    {
+        await using var db = await DbContextFactory.CreateDbContextAsync();
+        var existing = await db.UserProfiles.SingleOrDefaultAsync();
+
+        if (existing is null)
+        {
+            var profile = new Persistence.Data.Models.UserProfile
+            {
+                Id = Guid.NewGuid(),
+                EncryptedData = encryptedData,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await db.UserProfiles.AddAsync(profile);
+        }
+        else
+        {
+            existing.EncryptedData = encryptedData;
+            existing.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync();
+    }
+
     private async Task TestSmtpAsync()
     {
         if (Profile is null)
@@ -368,9 +480,15 @@ public partial class MailApiModel : ObservableModel, IMailSender
         await LoadProfileAsync();
         await CheckAdminStatusAsync();
 
-        // Only fetch emails if user is registered on the server
+        // Only proceed if user is registered on the server
         if (PrfModel.Role is PrfUserRole.ADMIN or PrfUserRole.USER)
         {
+            // Try to restore profile from server if no local profile
+            if (Profile is null)
+            {
+                await SyncProfileFromServerAsync();
+            }
+
             await AutoFetchEmailsAsync();
         }
     }

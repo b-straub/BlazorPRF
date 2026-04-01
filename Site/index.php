@@ -67,6 +67,10 @@ switch ($endpoint) {
         handleKeys($auth, $db, $method, $headers, $body);
         break;
 
+    case 'profile':
+        handleProfile($auth, $db, $method, $headers, $body);
+        break;
+
     default:
         // All other endpoints require user authentication
         handleAction($auth, $db, $endpoint, $method, $headers, $body);
@@ -158,6 +162,47 @@ function handleKeys(Auth $auth, Database $db, string $method, array $headers, st
         Response::success([
             'success' => $revoked,
             'keyId' => $keyId
+        ]);
+    }
+
+    Response::error('Method not allowed', 405);
+}
+
+/**
+ * Sync encrypted profile (user authenticated).
+ * GET = retrieve, POST = save (last write wins).
+ * The profile is encrypted client-side — server only stores the blob.
+ */
+function handleProfile(Auth $auth, Database $db, string $method, array $headers, string $body): void
+{
+    // Verify user auth
+    $result = $auth->verifyRequest($headers, $method, $body);
+    if (!$result->success) {
+        Response::error($result->error ?? 'Authentication required', 401);
+    }
+
+    if ($method === 'GET') {
+        $profile = $db->getProfile($result->keyId);
+        Response::success([
+            'profile' => $profile
+        ]);
+    }
+
+    if ($method === 'POST') {
+        $request = json_decode($body, true);
+        if ($request === null || empty($request['encryptedProfile'])) {
+            Response::error('encryptedProfile required', 400);
+        }
+
+        // Minimum sanity check — encrypted profile should be valid JSON (SymmetricEncryptedMessage)
+        $profileData = $request['encryptedProfile'];
+        if (strlen($profileData) < 50 || json_decode($profileData) === null) {
+            Response::error('Invalid profile data', 400);
+        }
+
+        $saved = $db->saveProfile($result->keyId, $profileData);
+        Response::success([
+            'success' => $saved
         ]);
     }
 

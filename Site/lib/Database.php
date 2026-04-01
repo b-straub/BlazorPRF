@@ -42,6 +42,20 @@ class Database
         $this->db->exec('
             CREATE INDEX IF NOT EXISTS idx_nonces_created ON nonces(created)
         ');
+
+        // Add encrypted_profile column if not exists (migration)
+        $result = $this->db->query("PRAGMA table_info(public_keys)");
+        $hasProfile = false;
+        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            if ($row['name'] === 'encrypted_profile') {
+                $hasProfile = true;
+                break;
+            }
+        }
+        if (!$hasProfile) {
+            $this->db->exec('ALTER TABLE public_keys ADD COLUMN encrypted_profile TEXT DEFAULT NULL');
+            $this->db->exec('ALTER TABLE public_keys ADD COLUMN profile_updated INTEGER DEFAULT NULL');
+        }
     }
 
     public function getPublicKey(string $keyId): ?string
@@ -99,6 +113,48 @@ class Database
         $stmt = $this->db->prepare('INSERT OR IGNORE INTO nonces (nonce, created) VALUES (:nonce, :created)');
         $stmt->bindValue(':nonce', $nonce, SQLITE3_TEXT);
         $stmt->bindValue(':created', $timestamp, SQLITE3_INTEGER);
+        $stmt->execute();
+
+        return $this->db->changes() > 0;
+    }
+
+    /**
+     * Get encrypted profile for a registered key.
+     */
+    public function getProfile(string $keyId): ?array
+    {
+        $stmt = $this->db->prepare('
+            SELECT encrypted_profile, profile_updated
+            FROM public_keys
+            WHERE key_id = :key_id AND revoked_at IS NULL AND encrypted_profile IS NOT NULL
+        ');
+        $stmt->bindValue(':key_id', $keyId, SQLITE3_TEXT);
+        $result = $stmt->execute();
+        $row = $result->fetchArray(SQLITE3_ASSOC);
+
+        if ($row === false || $row['encrypted_profile'] === null) {
+            return null;
+        }
+
+        return [
+            'encryptedProfile' => $row['encrypted_profile'],
+            'updatedAt' => $row['profile_updated']
+        ];
+    }
+
+    /**
+     * Store encrypted profile for a registered key (last write wins).
+     */
+    public function saveProfile(string $keyId, string $encryptedProfile): bool
+    {
+        $stmt = $this->db->prepare('
+            UPDATE public_keys
+            SET encrypted_profile = :profile, profile_updated = :updated
+            WHERE key_id = :key_id AND revoked_at IS NULL
+        ');
+        $stmt->bindValue(':key_id', $keyId, SQLITE3_TEXT);
+        $stmt->bindValue(':profile', $encryptedProfile, SQLITE3_TEXT);
+        $stmt->bindValue(':updated', time(), SQLITE3_INTEGER);
         $stmt->execute();
 
         return $this->db->changes() > 0;

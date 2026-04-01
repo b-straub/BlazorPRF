@@ -1,5 +1,6 @@
 @using BlazorPRF.Persistence.Data.Models
 @inherits UserProfileModelComponent
+@inject NavigationManager NavigationManager
 
 @if (Model.Loading)
 {
@@ -32,6 +33,30 @@ else
             </CardHeaderContent>
         </MudCardHeader>
         <MudCardContent>
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Mail Relay</MudText>
+
+            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+                <MudTextField @bind-Value="_mailRelayUrl"
+                              Label="Mail Relay URL"
+                              Variant="Variant.Outlined"
+                              Placeholder="https://your-relay.example.com/api/"
+                              HelperText="Required for encrypted mail. Save profile to apply."
+                              Disabled="@Model.Saving"
+                              Style="flex: 1;" />
+                @if (OnSyncRequested.HasDelegate)
+                {
+                    <MudTooltip Text="Restore profile from server">
+                        <MudIconButton Icon="@Icons.Material.Filled.CloudDownload"
+                                       Color="Color.Primary"
+                                       OnClick="@(() => OnSyncRequested.InvokeAsync(_mailRelayUrl ?? DefaultRelayUrl))" />
+                    </MudTooltip>
+                }
+            </MudStack>
+
+            <MudDivider Class="my-4" />
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Profile</MudText>
+
             <MudTextField @bind-Value="_username"
                           Label="Display Name"
                           Variant="Variant.Outlined"
@@ -47,18 +72,6 @@ else
                        Placeholder="user@example.com"
                        HelperText="Your email address"
                        Disabled="@Model.Saving" />
-
-            <MudDivider Class="my-4" />
-
-            <MudText Typo="Typo.subtitle2" Class="mb-2">Mail Relay</MudText>
-
-            <MudTextField @bind-Value="_mailRelayUrl"
-                          Label="Mail Relay URL"
-                          Variant="Variant.Outlined"
-                          Placeholder="https://your-relay.example.com/api/"
-                          HelperText="Leave empty to use the app's base address"
-                          Class="mb-4"
-                          Disabled="@Model.Saving" />
 
             <MudDivider Class="my-4" />
 
@@ -160,10 +173,27 @@ else
         @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
         System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
+    /// <summary>Callback when user clicks sync (restore from server). Parameter is the relay URL.</summary>
+    [Parameter]
+    public EventCallback<string> OnSyncRequested { get; set; }
+
+    /// <summary>Callback after profile is saved locally (for server upload).</summary>
+    [Parameter]
+    public EventCallback OnProfileSaved { get; set; }
+
     private string _username = string.Empty;
     private string _email = string.Empty;
     private bool _emailValid;
     private string? _mailRelayUrl;
+
+    private string DefaultRelayUrl
+    {
+        get
+        {
+            var baseUri = NavigationManager.BaseUri.TrimEnd('/');
+            return $"{baseUri}/api/";
+        }
+    }
     private string? _smtpHost;
     private int? _smtpPort = 587;
     private string? _smtpUsername;
@@ -182,6 +212,8 @@ else
 
     protected override async Task OnContextReadyAsync()
     {
+        // Prefill relay URL for new profiles
+        _mailRelayUrl ??= DefaultRelayUrl;
         await Model.LoadProfile.ExecuteAsync();
     }
 
@@ -195,7 +227,7 @@ else
             _username = Model.Profile.Username;
             _email = Model.Profile.Email;
             _emailValid = IsValidEmail(_email);
-            _mailRelayUrl = Model.Profile.MailRelayUrl;
+            _mailRelayUrl = Model.Profile.MailRelayUrl ?? DefaultRelayUrl;
             _smtpHost = Model.Profile.SmtpHost;
             _smtpPort = Model.Profile.SmtpPort ?? 587;
             _smtpUsername = Model.Profile.SmtpUsername;
@@ -242,5 +274,11 @@ else
         };
 
         await Model.SaveProfile.ExecuteAsync(data);
+
+        // Upload to server for cross-device sync
+        if (OnProfileSaved.HasDelegate)
+        {
+            await OnProfileSaved.InvokeAsync();
+        }
     }
 }
