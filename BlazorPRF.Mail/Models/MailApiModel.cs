@@ -217,10 +217,16 @@ public partial class MailApiModel : ObservableModel, IMailSender
         {
             Profile = result.Value;
 
-            // Update API client base URL from profile
+            // Update API client base URL from profile (must end with / for correct URI resolution)
             if (!string.IsNullOrWhiteSpace(result.Value.MailRelayUrl))
             {
-                SignedApiClient.BaseUrl = result.Value.MailRelayUrl;
+                var url = result.Value.MailRelayUrl.Trim();
+                if (!url.EndsWith('/'))
+                {
+                    url += '/';
+                }
+
+                SignedApiClient.BaseUrl = url;
             }
         }
         else if (!result.Success)

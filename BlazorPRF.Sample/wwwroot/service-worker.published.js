@@ -43,11 +43,15 @@ async function onActivate(event) {
 }
 
 async function onFetch(event) {
+    // Exclude API requests — let them pass through to the server
+    if (event.request.url.includes('/api/')) {
+        return fetch(event.request);
+    }
+
     let cachedResponse = null;
     if (event.request.method === 'GET') {
         // For all navigation requests, try to serve index.html from cache,
         // unless that request is for an offline resource.
-        // If you need some URLs to be server-rendered, edit the following check to exclude those URLs
         const shouldServeIndexHtml = event.request.mode === 'navigate'
             && !manifestUrlList.some(url => url === event.request.url);
 
