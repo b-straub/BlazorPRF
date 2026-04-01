@@ -23,6 +23,12 @@ public interface ISignedApiClient
         SigningContext context);
 
     /// <summary>
+    /// Override the base URL for API requests.
+    /// When set, overrides the HttpClient's configured base address.
+    /// </summary>
+    string? BaseUrl { get; set; }
+
+    /// <summary>
     /// Send an unauthenticated GET request.
     /// </summary>
     /// <param name="endpoint">API endpoint</param>

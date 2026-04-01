@@ -50,7 +50,37 @@ else if (Model.PrfModel.Role == PrfUserRole.Unregistered)
         </MudCardContent>
     </MudCard>
 
-    @if (Model.ServerHasAdmin == false)
+    @if (Model.ServerHasAdmin is null)
+    {
+        @* Server unreachable — show relay URL config *@
+        <MudCard Class="mb-4">
+            <MudCardHeader>
+                <CardHeaderAvatar>
+                    <MudIcon Icon="@Icons.Material.Filled.CloudOff" Color="Color.Error" />
+                </CardHeaderAvatar>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Mail Relay Unreachable</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Cannot connect to the mail relay server</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudText Typo="Typo.body2" Class="mb-3">
+                    Configure the Mail Relay URL in
+                    <MudLink Href="settings" Underline="Underline.Always">Settings</MudLink>
+                    to point to your PHP mail relay server.
+                </MudText>
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Color="Color.Primary"
+                           Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="ReloadAsync">
+                    Reload
+                </MudButton>
+            </MudCardActions>
+        </MudCard>
+    }
+    else if (Model.ServerHasAdmin == false)
     {
         @* No admin configured — first-time setup *@
         <MudCard>
@@ -135,13 +165,36 @@ else
     </AuthorizeView>
 
     <MudGrid>
-        <MudItem xs="12" md="6">
-            <MailSendPanel />
-        </MudItem>
-
-        <MudItem xs="12" md="6">
+        <MudItem xs="12">
             <MailInboxPanel OnAcceptInviteRequested="HandleAcceptInviteAsync"
                             OnVerifyResponseRequested="HandleVerifyResponseAsync" />
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudExpansionPanels>
+                <MudExpansionPanel Text="Debug Tools">
+                    <MudStack Spacing="4">
+                        <MudButton Color="Color.Info"
+                                   Variant="Variant.Outlined"
+                                   StartIcon="@Icons.Material.Filled.NetworkCheck"
+                                   OnClick="@(() => Model.TestImap.ExecuteAsync())"
+                                   Disabled="@Model.IsTestingImap">
+                            @(Model.IsTestingImap ? "Testing IMAP..." : "Test IMAP Connection")
+                        </MudButton>
+                        @if (Model.MailboxInfo is not null)
+                        {
+                            <MudStack Row="true">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info">@Model.MailboxInfo.Messages messages</MudChip>
+                                @if (Model.MailboxInfo.Unseen > 0)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning">@Model.MailboxInfo.Unseen unread</MudChip>
+                                }
+                            </MudStack>
+                        }
+                        <MailSendPanel />
+                    </MudStack>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
         </MudItem>
 
         <AuthorizeView Roles="Admin">

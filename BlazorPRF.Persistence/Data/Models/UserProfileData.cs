@@ -16,6 +16,14 @@ public sealed class UserProfileData
     /// </summary>
     public string Email { get; set; } = string.Empty;
 
+    // Mail relay configuration
+
+    /// <summary>
+    /// Mail relay API URL (e.g., https://prf.test/api/).
+    /// When null, uses the app's base address.
+    /// </summary>
+    public string? MailRelayUrl { get; set; }
+
     // SMTP configuration
 
     /// <summary>

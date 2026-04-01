@@ -90,39 +90,20 @@
                 }
             }
 
-            <MudDivider Class="my-6" Style="width: 100%;" />
+            @if (!string.IsNullOrWhiteSpace(Model.CredentialId) || Model.DiscoverableCancelled)
+            {
+                <MudDivider Class="my-6" Style="width: 100%;" />
 
-            <MudStack Row="true" Spacing="4" Justify="Justify.Center" AlignItems="AlignItems.Center">
-                @if (!string.IsNullOrWhiteSpace(Model.CredentialId) || Model.DiscoverableCancelled)
-                {
-                    @* Offer to register additional passkey or use different one *@
-                    <div>
-                        <MudText Typo="Typo.h6" Align="Align.Center" GutterBottom="true">
-                            @(Model.DiscoverableCancelled ? "Need a passkey?" : "Different passkey?")
-                        </MudText>
-                        <MudButton Href="setup"
-                                   Variant="Variant.Outlined"
-                                   Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.PersonAdd">
-                            Setup
-                        </MudButton>
-                    </div>
-
-                    <MudDivider Vertical="true" FlexItem="true" />
-                }
-
-                <div>
-                    <MudText Typo="Typo.h6" Align="Align.Center" GutterBottom="true">
-                        Have a public key?
-                    </MudText>
-                    <MudButton Href="encrypt"
-                               Variant="Variant.Outlined"
-                               Color="Color.Secondary"
-                               StartIcon="@Icons.Material.Filled.Lock">
-                        Encrypt a Message
-                    </MudButton>
-                </div>
-            </MudStack>
+                <MudText Typo="Typo.h6" Align="Align.Center" GutterBottom="true">
+                    @(Model.DiscoverableCancelled ? "Need a passkey?" : "Different passkey?")
+                </MudText>
+                <MudButton Href="setup"
+                           Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.PersonAdd">
+                    Setup
+                </MudButton>
+            }
 
             <MudText Typo="Typo.caption" Class="mt-6 mud-text-secondary">
                 Build: @_buildTime
@@ -135,115 +116,78 @@
 
         @if (Model.RequiresOnDemandAuth)
         {
-            <MudText Typo="Typo.body1" Class="mb-4">
-                Ready to encrypt. Choose a method below.
-            </MudText>
             <MudAlert Severity="Severity.Info" Class="mb-6" Variant="Variant.Outlined" Dense="true">
                 <strong>On-demand authentication</strong> — You'll be prompted each time you encrypt or decrypt.
             </MudAlert>
         }
-        else
-        {
-            <MudText Typo="Typo.body1" Class="mb-6">
-                Your keys are derived and ready. Choose an encryption method below.
-            </MudText>
-        }
 
         <MudGrid>
-            <MudItem xs="12" md="6">
-                <MudCard Class="cursor-pointer" @onclick="@(() => NavigationManager.NavigateTo("symmetric"))">
+            <MudItem xs="12" md="4">
+                <MudCard Class="cursor-pointer" Style="height: 100%;" @onclick="@(() => NavigationManager.NavigateTo("mail-api"))">
                     <MudCardHeader>
                         <CardHeaderAvatar>
-                            <MudIcon Icon="@Icons.Material.Filled.Lock" Color="Color.Primary" />
+                            <MudIcon Icon="@Icons.Material.Filled.Email" Color="Color.Primary" />
                         </CardHeaderAvatar>
                         <CardHeaderContent>
-                            <MudText Typo="Typo.h6">Symmetric Encryption</MudText>
-                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Encrypt for yourself</MudText>
+                            <MudText Typo="Typo.h6">Mail</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Encrypted email</MudText>
                         </CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent>
                         <MudText Typo="Typo.body2">
-                            Encrypt and decrypt data using your PRF-derived symmetric key.
-                            Only you can decrypt this data using your passkey.
+                            Send and receive encrypted messages via your mail relay.
                         </MudText>
                     </MudCardContent>
                     <MudCardActions>
-                        <MudButton Href="symmetric" Variant="Variant.Text" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward">
+                        <MudButton Href="mail-api" Variant="Variant.Text" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward">
                             Open
                         </MudButton>
                     </MudCardActions>
                 </MudCard>
             </MudItem>
 
-            <MudItem xs="12" md="6">
-                <MudCard Class="cursor-pointer" @onclick="@(() => NavigationManager.NavigateTo("asymmetric"))">
+            <MudItem xs="12" md="4">
+                <MudCard Class="cursor-pointer" Style="height: 100%;" @onclick="@(() => NavigationManager.NavigateTo("contacts"))">
                     <MudCardHeader>
                         <CardHeaderAvatar>
-                            <MudIcon Icon="@Icons.Material.Filled.Send" Color="Color.Secondary" />
+                            <MudIcon Icon="@Icons.Material.Filled.Contacts" Color="Color.Secondary" />
                         </CardHeaderAvatar>
                         <CardHeaderContent>
-                            <MudText Typo="Typo.h6">Asymmetric Encryption</MudText>
-                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Share with others</MudText>
+                            <MudText Typo="Typo.h6">Contacts</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Trusted identities</MudText>
                         </CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent>
                         <MudText Typo="Typo.body2">
-                            Share your public key with others. They can encrypt messages
-                            that only you can decrypt.
+                            Manage verified contacts, create invitations, and encrypt messages to contacts.
                         </MudText>
                     </MudCardContent>
                     <MudCardActions>
-                        <MudButton Href="asymmetric" Variant="Variant.Text" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.ArrowForward">
+                        <MudButton Href="contacts" Variant="Variant.Text" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.ArrowForward">
                             Open
                         </MudButton>
                     </MudCardActions>
                 </MudCard>
             </MudItem>
 
-            <MudItem xs="12" md="6">
-                <MudCard Class="cursor-pointer" @onclick="@(() => NavigationManager.NavigateTo("signing"))">
+            <MudItem xs="12" md="4">
+                <MudCard Class="cursor-pointer" Style="height: 100%;" @onclick="@(() => NavigationManager.NavigateTo("settings"))">
                     <MudCardHeader>
                         <CardHeaderAvatar>
-                            <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Color="Color.Tertiary" />
+                            <MudIcon Icon="@Icons.Material.Filled.Settings" Color="Color.Default" />
                         </CardHeaderAvatar>
                         <CardHeaderContent>
-                            <MudText Typo="Typo.h6">Digital Signatures</MudText>
-                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Prove authenticity</MudText>
+                            <MudText Typo="Typo.h6">Settings</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Profile & mail config</MudText>
                         </CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent>
                         <MudText Typo="Typo.body2">
-                            Sign messages with your Ed25519 key to prove authenticity.
-                            Others can verify your signature using your public key.
+                            Configure your profile, SMTP/IMAP settings, and mail relay URL.
                         </MudText>
                     </MudCardContent>
                     <MudCardActions>
-                        <MudButton Href="signing" Variant="Variant.Text" Color="Color.Tertiary" EndIcon="@Icons.Material.Filled.ArrowForward">
-                            Open
-                        </MudButton>
-                    </MudCardActions>
-                </MudCard>
-            </MudItem>
-
-            <MudItem xs="12" md="6">
-                <MudCard Class="cursor-pointer" @onclick="@(() => NavigationManager.NavigateTo("invite"))">
-                    <MudCardHeader>
-                        <CardHeaderAvatar>
-                            <MudIcon Icon="@Icons.Material.Filled.GroupAdd" Color="Color.Info" />
-                        </CardHeaderAvatar>
-                        <CardHeaderContent>
-                            <MudText Typo="Typo.h6">Identity Verification</MudText>
-                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Establish trust</MudText>
-                        </CardHeaderContent>
-                    </MudCardHeader>
-                    <MudCardContent>
-                        <MudText Typo="Typo.body2">
-                            Verify user identities through signed invite acceptance.
-                            Like PGP "full trust" - cryptographically prove who you're talking to.
-                        </MudText>
-                    </MudCardContent>
-                    <MudCardActions>
-                        <MudButton Href="invite" Variant="Variant.Text" Color="Color.Info" EndIcon="@Icons.Material.Filled.ArrowForward">
+                        <MudButton Href="settings" Variant="Variant.Text" Color="Color.Default" EndIcon="@Icons.Material.Filled.ArrowForward">
                             Open
                         </MudButton>
                     </MudCardActions>
@@ -257,7 +201,10 @@
             </MudItem>
 
             <MudItem xs="12">
-                <MudStack Row="true" Justify="Justify.FlexEnd">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                        Build: @_buildTime
+                    </MudText>
                     <MudButtonRx Command="@Model.ClearKeys"
                                  Variant="Variant.Outlined"
                                  Color="Color.Error"
@@ -266,12 +213,6 @@
                         Sign Out
                     </MudButtonRx>
                 </MudStack>
-            </MudItem>
-
-            <MudItem xs="12">
-                <MudText Typo="Typo.caption" Align="Align.Right" Class="mud-text-secondary">
-                    Build: @_buildTime
-                </MudText>
             </MudItem>
         </MudGrid>
     </Authorized>

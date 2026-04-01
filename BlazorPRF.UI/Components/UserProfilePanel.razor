@@ -50,6 +50,18 @@ else
 
             <MudDivider Class="my-4" />
 
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Mail Relay</MudText>
+
+            <MudTextField @bind-Value="_mailRelayUrl"
+                          Label="Mail Relay URL"
+                          Variant="Variant.Outlined"
+                          Placeholder="https://your-relay.example.com/api/"
+                          HelperText="Leave empty to use the app's base address"
+                          Class="mb-4"
+                          Disabled="@Model.Saving" />
+
+            <MudDivider Class="my-4" />
+
             <MudText Typo="Typo.subtitle2" Class="mb-2">SMTP Settings (Outgoing Mail)</MudText>
 
             <MudGrid>
@@ -151,6 +163,7 @@ else
     private string _username = string.Empty;
     private string _email = string.Empty;
     private bool _emailValid;
+    private string? _mailRelayUrl;
     private string? _smtpHost;
     private int? _smtpPort = 587;
     private string? _smtpUsername;
@@ -182,6 +195,7 @@ else
             _username = Model.Profile.Username;
             _email = Model.Profile.Email;
             _emailValid = IsValidEmail(_email);
+            _mailRelayUrl = Model.Profile.MailRelayUrl;
             _smtpHost = Model.Profile.SmtpHost;
             _smtpPort = Model.Profile.SmtpPort ?? 587;
             _smtpUsername = Model.Profile.SmtpUsername;
@@ -216,6 +230,7 @@ else
         {
             Username = _username,
             Email = _email,
+            MailRelayUrl = string.IsNullOrWhiteSpace(_mailRelayUrl) ? null : _mailRelayUrl.Trim(),
             SmtpHost = _smtpHost,
             SmtpPort = _smtpPort,
             SmtpUsername = _smtpUsername,

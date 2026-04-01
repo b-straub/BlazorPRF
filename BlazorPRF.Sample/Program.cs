@@ -56,10 +56,10 @@ builder.Services.AddSingleton<AuthenticationStateProvider>(sp => sp.GetRequiredS
 // Add TextCopy for clipboard support
 builder.Services.InjectClipboard();
 
-// Add HttpClient for PRF API testing
+// Add HttpClient for PRF API (default base address, overridden by profile's MailRelayUrl)
 builder.Services.AddHttpClient("PrfApi", client =>
 {
-    client.BaseAddress = new Uri("https://prf.test/api/");
+    client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress);
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 

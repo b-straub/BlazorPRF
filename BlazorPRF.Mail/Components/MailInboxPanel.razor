@@ -15,38 +15,6 @@
         }
         else
         {
-            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
-                Using: @Model.Profile.ImapHost:@(Model.Profile.ImapPort ?? 993) (@Model.Profile.ImapUsername)
-            </MudText>
-
-            <MudStack Row="true" Class="mb-3" AlignItems="AlignItems.Center">
-                <MudButton Color="Color.Info"
-                           Variant="Variant.Outlined"
-                           Size="Size.Small"
-                           StartIcon="@Icons.Material.Filled.NetworkCheck"
-                           OnClick="@(() => Model.TestImap.ExecuteAsync())"
-                           Disabled="@Model.IsTestingImap">
-                    @if (Model.IsTestingImap)
-                    {
-                        <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
-                        <span>Testing...</span>
-                    }
-                    else
-                    {
-                        <span>Test Connection</span>
-                    }
-                </MudButton>
-
-                @if (Model.MailboxInfo is not null)
-                {
-                    <MudChip T="string" Size="Size.Small" Color="Color.Info">@Model.MailboxInfo.Messages messages</MudChip>
-                    @if (Model.MailboxInfo.Unseen > 0)
-                    {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Warning">@Model.MailboxInfo.Unseen unread</MudChip>
-                    }
-                }
-            </MudStack>
-
             <MudSelect T="string" @bind-Value="Model.ImapFilter" Label="Filter" Variant="Variant.Outlined" Class="mb-3">
                 <MudSelectItem Value="@("unseen")">Unread</MudSelectItem>
                 <MudSelectItem Value="@("new")">New (Recent & Unread)</MudSelectItem>

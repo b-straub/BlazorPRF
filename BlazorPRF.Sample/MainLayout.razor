@@ -45,12 +45,14 @@
                 </MudDrawerHeader>
                 <MudNavMenu>
                     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
-                    <MudNavLink Href="symmetric" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Lock">Symmetric</MudNavLink>
-                    <MudNavLink Href="asymmetric" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Send">Asymmetric</MudNavLink>
-                    <MudNavLink Href="signing" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.VerifiedUser">Signing</MudNavLink>
                     <MudNavLink Href="contacts" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Contacts">Contacts</MudNavLink>
                     <MudNavLink Href="mail-api" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Email">Mail API</MudNavLink>
                     <MudNavLink Href="settings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Settings">Settings</MudNavLink>
+                    <MudNavGroup Title="Development" @bind-Expanded=_develop>
+                        <MudNavLink Href="symmetric" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Lock">Symmetric</MudNavLink>
+                        <MudNavLink Href="asymmetric" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Send">Asymmetric</MudNavLink>
+                        <MudNavLink Href="signing" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.VerifiedUser">Signing</MudNavLink>
+                    </MudNavGroup>
                 </MudNavMenu>
             </MudDrawer>
         </Authorized>
@@ -65,5 +67,6 @@
 
 @code {
     private bool _drawerOpen = true;
+    private bool _develop;
     private bool _isDarkMode = true;
 }

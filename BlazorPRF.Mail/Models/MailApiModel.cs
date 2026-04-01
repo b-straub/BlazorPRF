@@ -200,11 +200,18 @@ public partial class MailApiModel : ObservableModel, IMailSender
         if (result.Success && result.Value is not null)
         {
             Profile = result.Value;
+
+            // Update API client base URL from profile
+            if (!string.IsNullOrWhiteSpace(result.Value.MailRelayUrl))
+            {
+                SignedApiClient.BaseUrl = result.Value.MailRelayUrl;
+            }
         }
-        else
+        else if (!result.Success)
         {
             StatusModel.AddError(result.Error ?? "Failed to load profile");
         }
+        // result.Success && result.Value is null → no profile exists yet, not an error
     }
 
     private async Task TestSmtpAsync()
@@ -366,13 +373,18 @@ public partial class MailApiModel : ObservableModel, IMailSender
 
         try
         {
-            // Check if server has an admin configured (unauthenticated)
+            // Check if server is reachable and has an admin configured (unauthenticated)
             var setupResult = await SignedApiClient.GetAsync("admin-setup");
-            if (setupResult is { Success: true, Value: not null })
+            if (!setupResult.Success)
             {
-                var doc = System.Text.Json.JsonDocument.Parse(setupResult.Value);
-                ServerHasAdmin = doc.RootElement.TryGetProperty("hasAdmin", out var ha) && ha.GetBoolean();
+                // Server unreachable or returned error — show setup instructions
+                ServerHasAdmin = null;
+                PrfModel.Role = PrfUserRole.Unregistered;
+                return;
             }
+
+            var doc = System.Text.Json.JsonDocument.Parse(setupResult.Value!);
+            ServerHasAdmin = doc.RootElement.TryGetProperty("hasAdmin", out var ha) && ha.GetBoolean();
 
             var context = CreateSigningContext();
 
@@ -407,6 +419,8 @@ public partial class MailApiModel : ObservableModel, IMailSender
         }
         catch
         {
+            // Server unreachable
+            ServerHasAdmin = null;
             PrfModel.Role = PrfUserRole.Unregistered;
         }
     }

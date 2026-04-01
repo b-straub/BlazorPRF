@@ -12,6 +12,9 @@ public sealed class SignedApiClient : ISignedApiClient
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly string _httpClientName;
 
+    /// <inheritdoc />
+    public string? BaseUrl { get; set; }
+
     /// <summary>
     /// Creates a new signed API client.
     /// </summary>
@@ -23,21 +26,36 @@ public sealed class SignedApiClient : ISignedApiClient
         _httpClientName = httpClientName;
     }
 
+    private HttpClient CreateClient()
+    {
+        var client = _httpClientFactory.CreateClient(_httpClientName);
+        if (!string.IsNullOrEmpty(BaseUrl))
+        {
+            client.BaseAddress = new Uri(BaseUrl);
+        }
+        return client;
+    }
+
     /// <inheritdoc />
     public async Task<ApiResult<string>> GetAsync(string endpoint)
     {
         try
         {
-            var client = _httpClientFactory.CreateClient(_httpClientName);
-            var response = await client.GetAsync(endpoint);
-            var responseBody = await response.Content.ReadAsStringAsync();
+            var client = CreateClient();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var response = await client.GetAsync(endpoint, cts.Token);
+            var responseBody = await response.Content.ReadAsStringAsync(cts.Token);
 
             if (response.IsSuccessStatusCode)
             {
                 return ApiResult<string>.Ok(responseBody);
             }
 
-            return ApiResult<string>.Failure($"Request failed ({response.StatusCode}): {responseBody}");
+            return ApiResult<string>.Failure($"Request failed ({response.StatusCode})");
+        }
+        catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
+        {
+            return ApiResult<string>.Failure("Server unreachable (timeout)");
         }
         catch (Exception ex)
         {
@@ -90,7 +108,7 @@ public sealed class SignedApiClient : ISignedApiClient
             return ApiResult<string>.Failure(signResult.Error ?? "Signing failed");
         }
 
-        var httpClient = _httpClientFactory.CreateClient(_httpClientName);
+        var httpClient = CreateClient();
         using var request = new HttpRequestMessage(new HttpMethod(method), endpoint);
 
         if (method is "POST" or "PUT" or "PATCH")
