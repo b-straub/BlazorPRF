@@ -1,72 +1,48 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace BlazorPRF.Persistence.Data.Models;
 
 /// <summary>
 /// User profile data stored in encrypted form.
 /// Contains personal information and email server configuration.
+/// Validation attributes drive MudForm validation in the UI.
 /// </summary>
 public sealed class UserProfileData
 {
-    /// <summary>
-    /// User's display name.
-    /// </summary>
+    [Required(ErrorMessage = "Display name is required")]
     public string Username { get; set; } = string.Empty;
 
-    /// <summary>
-    /// User's email address.
-    /// </summary>
+    [Required(ErrorMessage = "Email is required")]
+    [EmailAddress(ErrorMessage = "Invalid email address")]
     public string Email { get; set; } = string.Empty;
 
-    // Mail relay configuration
-
-    /// <summary>
-    /// Mail relay API URL (e.g., https://prf.test/api/).
-    /// When null, uses the app's base address.
-    /// </summary>
+    [Required(ErrorMessage = "Mail relay URL is required")]
+    [Url(ErrorMessage = "Invalid URL")]
     public string? MailRelayUrl { get; set; }
 
-    // SMTP configuration
-
-    /// <summary>
-    /// SMTP server hostname.
-    /// </summary>
+    [Required(ErrorMessage = "SMTP host is required")]
     public string? SmtpHost { get; set; }
 
-    /// <summary>
-    /// SMTP server port (default: 587 for TLS).
-    /// </summary>
-    public int? SmtpPort { get; set; }
+    [Required(ErrorMessage = "SMTP port is required")]
+    [Range(1, 65535, ErrorMessage = "Port must be between 1 and 65535")]
+    public int? SmtpPort { get; set; } = 587;
 
-    /// <summary>
-    /// SMTP authentication username.
-    /// </summary>
+    [Required(ErrorMessage = "SMTP username is required")]
     public string? SmtpUsername { get; set; }
 
-    /// <summary>
-    /// SMTP authentication password.
-    /// Stored encrypted with PRF-derived key.
-    /// </summary>
+    [Required(ErrorMessage = "SMTP password is required")]
     public string? SmtpPassword { get; set; }
 
-    // IMAP configuration
-
-    /// <summary>
-    /// IMAP server hostname.
-    /// </summary>
+    [Required(ErrorMessage = "IMAP host is required")]
     public string? ImapHost { get; set; }
 
-    /// <summary>
-    /// IMAP server port (default: 993 for SSL).
-    /// </summary>
-    public int? ImapPort { get; set; }
+    [Required(ErrorMessage = "IMAP port is required")]
+    [Range(1, 65535, ErrorMessage = "Port must be between 1 and 65535")]
+    public int? ImapPort { get; set; } = 993;
 
-    /// <summary>
-    /// IMAP authentication username.
-    /// </summary>
+    [Required(ErrorMessage = "IMAP username is required")]
     public string? ImapUsername { get; set; }
 
-    /// <summary>
-    /// IMAP authentication password.
-    /// Stored encrypted with PRF-derived key.
-    /// </summary>
+    [Required(ErrorMessage = "IMAP password is required")]
     public string? ImapPassword { get; set; }
 }

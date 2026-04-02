@@ -28,7 +28,9 @@ class Database
                 public_key TEXT NOT NULL,
                 user_id TEXT,
                 created INTEGER NOT NULL,
-                revoked_at INTEGER DEFAULT NULL
+                revoked_at INTEGER DEFAULT NULL,
+                encrypted_profile TEXT DEFAULT NULL,
+                profile_updated INTEGER DEFAULT NULL
             )
         ');
 
@@ -42,20 +44,6 @@ class Database
         $this->db->exec('
             CREATE INDEX IF NOT EXISTS idx_nonces_created ON nonces(created)
         ');
-
-        // Add encrypted_profile column if not exists (migration)
-        $result = $this->db->query("PRAGMA table_info(public_keys)");
-        $hasProfile = false;
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-            if ($row['name'] === 'encrypted_profile') {
-                $hasProfile = true;
-                break;
-            }
-        }
-        if (!$hasProfile) {
-            $this->db->exec('ALTER TABLE public_keys ADD COLUMN encrypted_profile TEXT DEFAULT NULL');
-            $this->db->exec('ALTER TABLE public_keys ADD COLUMN profile_updated INTEGER DEFAULT NULL');
-        }
     }
 
     public function getPublicKey(string $keyId): ?string
@@ -73,9 +61,14 @@ class Database
 
     public function storePublicKey(string $keyId, string $publicKey, string $userId): void
     {
+        // Insert if new, or un-revoke and update if re-registering
         $stmt = $this->db->prepare('
-            INSERT OR REPLACE INTO public_keys (key_id, public_key, user_id, created)
+            INSERT INTO public_keys (key_id, public_key, user_id, created)
             VALUES (:key_id, :public_key, :user_id, :created)
+            ON CONFLICT(key_id) DO UPDATE SET
+                public_key = :public_key,
+                user_id = :user_id,
+                revoked_at = NULL
         ');
         $stmt->bindValue(':key_id', $keyId, SQLITE3_TEXT);
         $stmt->bindValue(':public_key', $publicKey, SQLITE3_TEXT);

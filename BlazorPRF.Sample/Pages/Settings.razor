@@ -1,45 +1,244 @@
 @page "/settings"
 @attribute [Authorize]
 @using BlazorPRF.Mail.Models
-@inject MailApiModel MailApiModel
+@inherits MailApiModelComponent
+@inject TextCopy.IClipboard Clipboard
+@inject NavigationManager NavigationManager
 
 <PageTitle>Settings - BlazorPRF</PageTitle>
 
-<MudGrid Class="mb-4">
-    <MudItem xs="12" sm="8">
-        <MudText Typo="Typo.h4" GutterBottom="true">User Settings</MudText>
-        <MudText Typo="Typo.body1">
-            Configure your profile. This data is encrypted with your PRF-derived key
-            and synced to the mail relay for cross-device access.
-        </MudText>
-    </MudItem>
-</MudGrid>
+@if (Model.SetupRequired)
+{
+    <MudText Typo="Typo.h4" GutterBottom="true">Setup</MudText>
 
-<UserProfilePanel OnSyncRequested="SyncFromServerAsync"
-                  OnProfileSaved="SyncToServerAsync" />
+    @switch (_step)
+    {
+        case SetupStep.RelayUrl:
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderAvatar><MudIcon Icon="@Icons.Material.Filled.Cloud" Color="Color.Primary" /></CardHeaderAvatar>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Step 1: Mail Relay</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Enter your mail relay server URL</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudTextField @bind-Value="Model.RelayUrl"
+                                  Label="Mail Relay URL"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="https://your-site.example.com/api/"
+                                  Required="true"
+                                  RequiredError="Mail relay URL is required"
+                                  Immediate="true" />
+                </MudCardContent>
+                <MudCardActions>
+                    <MudSpacer />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               Disabled="@(string.IsNullOrWhiteSpace(Model.RelayUrl) || _verifying)"
+                               OnClick="VerifyAndAdvanceAsync">
+                        @if (_verifying)
+                        {
+                            <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                            <span>Checking...</span>
+                        }
+                        else
+                        {
+                            <span>Next</span>
+                        }
+                    </MudButton>
+                </MudCardActions>
+            </MudCard>
+            break;
+
+        case SetupStep.RegisterKey:
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderAvatar><MudIcon Icon="@Icons.Material.Filled.Key" Color="Color.Secondary" /></CardHeaderAvatar>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Step 2: Register Key</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudTextField Value="@Model.PrfModel.Ed25519PublicKey"
+                                  Label="Your Ed25519 Public Key"
+                                  Variant="Variant.Filled"
+                                  ReadOnly="true"
+                                  Style="font-family: monospace;"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                                  OnAdornmentClick="CopyKeyAsync"
+                                  Class="mb-4" />
+
+                    @if (Model.ServerHasAdmin == false)
+                    {
+                        <MudText Typo="Typo.body1" Class="mb-4">
+                            No admin configured. Install your key on the server via SSH:
+                        </MudText>
+                        <MudText Typo="Typo.body2" Style="font-family: monospace;" Class="pa-2 mb-4 mud-background-gray rounded">
+                            { "admin": "@Model.PrfModel.Ed25519PublicKey" }
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body1" Class="mb-4">
+                            Copy your key and ask your admin to register it on the Mail page.
+                        </MudText>
+                    }
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton Variant="Variant.Text" OnClick="@(() => _step = SetupStep.RelayUrl)">Back</MudButton>
+                    <MudSpacer />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               Disabled="@_verifying"
+                               OnClick="VerifyRegistrationAsync">
+                        @if (_verifying)
+                        {
+                            <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                            <span>Checking...</span>
+                        }
+                        else
+                        {
+                            <span>Verify & Continue</span>
+                        }
+                    </MudButton>
+                </MudCardActions>
+            </MudCard>
+            break;
+
+        case SetupStep.Profile:
+            <MudText Typo="Typo.body1" Class="mb-4">
+                Step 3: Complete your profile and mail settings.
+            </MudText>
+            <UserProfilePanel InitialRelayUrl="@Model.RelayUrl" />
+            break;
+    }
+}
+else
+{
+    <MudText Typo="Typo.h4" GutterBottom="true">User Settings</MudText>
+    <MudText Typo="Typo.body1" Class="mb-4">
+        Your profile is encrypted and synced to the mail relay.
+    </MudText>
+
+    <MudStack Row="true" Spacing="2" Class="mb-4">
+        <MudButtonAsyncRx Command="@Model.VerifyRelay"
+                          Variant="Variant.Outlined"
+                          Color="Color.Primary"
+                          StartIcon="@Icons.Material.Filled.CloudDownload">
+            Restore from Server
+        </MudButtonAsyncRx>
+        <MudButtonAsyncRx Command="@Model.ResetProfile"
+                          Variant="Variant.Outlined"
+                          Color="Color.Error"
+                          StartIcon="@Icons.Material.Filled.DeleteForever">
+            Reset Profile
+        </MudButtonAsyncRx>
+    </MudStack>
+
+    <UserProfilePanel />
+}
 
 @code {
-    [Inject]
-    private UserProfileModel UserProfileModel { get; set; } = default!;
+    private enum SetupStep { RelayUrl, RegisterKey, Profile }
 
-    private async Task SyncFromServerAsync(string relayUrl)
+    private SetupStep _step = SetupStep.RelayUrl;
+    private bool _verifying;
+
+    protected override async Task OnContextReadyAsync()
     {
-        // Set the relay URL before syncing so the API client uses it
-        var url = relayUrl.Trim();
-        if (!url.EndsWith('/'))
+        if (string.IsNullOrEmpty(Model.RelayUrl))
         {
-            url += '/';
+            var baseUri = NavigationManager.BaseUri.TrimEnd('/');
+            Model.RelayUrl = $"{baseUri}/api/";
         }
 
-        MailApiModel.SignedApiClient.BaseUrl = url;
-        await MailApiModel.SyncProfileFromServerAsync();
-
-        // Reload the profile panel with restored data
-        await UserProfileModel.LoadProfile.ExecuteAsync();
+        // Load profile so SetupRequired is correct
+        if (Model.Profile is null)
+        {
+            await Model.LoadProfile.ExecuteAsync();
+        }
     }
 
-    private async Task SyncToServerAsync()
+    private async Task VerifyAndAdvanceAsync()
     {
-        await MailApiModel.SyncProfileToServerAsync();
+        _verifying = true;
+
+        try
+        {
+            await Model.VerifyRelay.ExecuteAsync();
+
+            // Profile restored from server → setup done (reactive)
+            if (!Model.SetupRequired)
+            {
+                return;
+            }
+
+            // Registered but no profile → skip to profile form
+            if (Model.PrfModel.Role is PrfUserRole.ADMIN or PrfUserRole.USER)
+            {
+                _step = SetupStep.Profile;
+                return;
+            }
+
+            // Not registered → show register key step
+            if (Model.PrfModel.Role == PrfUserRole.UNREGISTERED)
+            {
+                _step = SetupStep.RegisterKey;
+                return;
+            }
+
+            // UNKNOWN = relay unreachable or empty URL → stay (error already shown)
+        }
+        finally
+        {
+            _verifying = false;
+        }
+    }
+
+    private async Task VerifyRegistrationAsync()
+    {
+        _verifying = true;
+
+        try
+        {
+            Model.PrfModel.Role = PrfUserRole.UNKNOWN;
+            await Model.VerifyRelay.ExecuteAsync();
+
+            if (!Model.SetupRequired)
+            {
+                return;
+            }
+
+            if (Model.PrfModel.Role is PrfUserRole.ADMIN or PrfUserRole.USER)
+            {
+                _step = SetupStep.Profile;
+            }
+            else
+            {
+                Model.StatusModel.AddError("Key not registered yet.");
+            }
+        }
+        finally
+        {
+            _verifying = false;
+        }
+    }
+
+    private async Task CopyKeyAsync()
+    {
+        if (string.IsNullOrEmpty(Model.PrfModel.Ed25519PublicKey))
+        {
+            return;
+        }
+
+        try
+        {
+            await Clipboard.SetTextAsync(Model.PrfModel.Ed25519PublicKey);
+            Model.StatusModel.AddSuccess("Key copied!");
+        }
+        catch
+        {
+            Model.StatusModel.AddError("Failed to copy");
+        }
     }
 }

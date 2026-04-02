@@ -69,10 +69,14 @@ public sealed class PrfAuthenticationStateProvider : AuthenticationStateProvider
             claims.Add(new Claim(ClaimTypes.NameIdentifier, _prfModel.PublicKey));
         }
 
-        // Add role claim
-        if (_prfModel.Role != PrfUserRole.UNKNOWN)
+        // Add role claim — use PascalCase to match AuthorizeView Roles="Admin"
+        if (_prfModel.Role == PrfUserRole.ADMIN)
         {
-            claims.Add(new Claim(ClaimTypes.Role, _prfModel.Role.ToString()));
+            claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+        }
+        else if (_prfModel.Role == PrfUserRole.USER)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, "User"));
         }
 
         var identity = new ClaimsIdentity(claims, "PRF");

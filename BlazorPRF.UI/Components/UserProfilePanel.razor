@@ -1,6 +1,5 @@
 @using BlazorPRF.Persistence.Data.Models
 @inherits UserProfileModelComponent
-@inject NavigationManager NavigationManager
 
 @if (Model.Loading)
 {
@@ -13,236 +12,194 @@ else if (Model.ErrorMessage is not null)
 {
     <MudAlert Severity="Severity.Warning" Class="mb-4" Variant="Variant.Outlined">
         @Model.ErrorMessage
-        <MudStack Row="true" Class="mt-2">
-            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => Model.LoadProfile.ExecuteAsync())">
-                Retry
-            </MudButton>
-        </MudStack>
     </MudAlert>
 }
 else
 {
-    <MudCard>
-        <MudCardHeader>
-            <CardHeaderAvatar>
-                <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Primary" />
-            </CardHeaderAvatar>
-            <CardHeaderContent>
-                <MudText Typo="Typo.h6">Your Profile</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">Personal information used for invitations</MudText>
-            </CardHeaderContent>
-        </MudCardHeader>
-        <MudCardContent>
-            <MudText Typo="Typo.subtitle2" Class="mb-2">Mail Relay</MudText>
+    <EditForm Model="_profileData" OnValidSubmit="OnValidSubmitAsync">
+        <DataAnnotationsValidator />
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderAvatar>
+                    <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Primary" />
+                </CardHeaderAvatar>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Your Profile</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Personal information and mail configuration</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Profile</MudText>
 
-            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
-                <MudTextField @bind-Value="_mailRelayUrl"
+                <MudTextField @bind-Value="_profileData.Username"
+                              Label="Display Name"
+                              Variant="Variant.Outlined"
+                              Placeholder="user"
+                              For="@(() => _profileData.Username)"
+                              Class="mb-4"
+                              Disabled="@Model.Saving" />
+
+                <MudTextField @bind-Value="_profileData.Email"
+                              Label="Email Address"
+                              Variant="Variant.Outlined"
+                              Placeholder="user@example.com"
+                              For="@(() => _profileData.Email)"
+                              Class="mb-4"
+                              Disabled="@Model.Saving" />
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Mail Relay</MudText>
+
+                <MudTextField @bind-Value="_profileData.MailRelayUrl"
                               Label="Mail Relay URL"
                               Variant="Variant.Outlined"
                               Placeholder="https://your-relay.example.com/api/"
-                              HelperText="Required for encrypted mail. Save profile to apply."
-                              Disabled="@Model.Saving"
-                              Style="flex: 1;" />
-                @if (OnSyncRequested.HasDelegate)
-                {
-                    <MudTooltip Text="Restore profile from server">
-                        <MudIconButton Icon="@Icons.Material.Filled.CloudDownload"
-                                       Color="Color.Primary"
-                                       OnClick="@(() => OnSyncRequested.InvokeAsync(_mailRelayUrl ?? DefaultRelayUrl))" />
-                    </MudTooltip>
-                }
-            </MudStack>
+                              For="@(() => _profileData.MailRelayUrl)"
+                              Class="mb-4"
+                              Disabled="@Model.Saving" />
 
-            <MudDivider Class="my-4" />
+                <MudDivider Class="my-4" />
 
-            <MudText Typo="Typo.subtitle2" Class="mb-2">Profile</MudText>
+                <MudText Typo="Typo.subtitle2" Class="mb-2">SMTP Settings (Outgoing Mail)</MudText>
 
-            <MudTextField @bind-Value="_username"
-                          Label="Display Name"
-                          Variant="Variant.Outlined"
-                          Class="mb-4"
-                          Placeholder="user"
-                          HelperText="Your name shown to contacts"
-                          Immediate="true"
-                          Disabled="@Model.Saving" />
+                <MudGrid>
+                    <MudItem xs="12" sm="8">
+                        <MudTextField @bind-Value="_profileData.SmtpHost"
+                                      Label="SMTP Host"
+                                      Variant="Variant.Outlined"
+                                      Placeholder="smtp.example.com"
+                                      For="@(() => _profileData.SmtpHost)"
+                                      Disabled="@Model.Saving" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField @bind-Value="_profileData.SmtpPort"
+                                         Label="Port"
+                                         Variant="Variant.Outlined"
+                                         For="@(() => _profileData.SmtpPort)"
+                                         Disabled="@Model.Saving" />
+                    </MudItem>
+                </MudGrid>
 
-            <EmailInput @bind-Value="_email"
-                       @bind-IsValid="_emailValid"
-                       Label="Email Address"
-                       Placeholder="user@example.com"
-                       HelperText="Your email address"
-                       Disabled="@Model.Saving" />
+                <MudGrid Class="mt-2">
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_profileData.SmtpUsername"
+                                      Label="Username"
+                                      Variant="Variant.Outlined"
+                                      Placeholder="user@example.com"
+                                      For="@(() => _profileData.SmtpUsername)"
+                                      Disabled="@Model.Saving" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_profileData.SmtpPassword"
+                                      Label="Password"
+                                      Variant="Variant.Outlined"
+                                      InputType="InputType.Password"
+                                      For="@(() => _profileData.SmtpPassword)"
+                                      Disabled="@Model.Saving" />
+                    </MudItem>
+                </MudGrid>
 
-            <MudDivider Class="my-4" />
+                <MudDivider Class="my-4" />
 
-            <MudText Typo="Typo.subtitle2" Class="mb-2">SMTP Settings (Outgoing Mail)</MudText>
+                <MudText Typo="Typo.subtitle2" Class="mb-2">IMAP Settings (Incoming Mail)</MudText>
 
-            <MudGrid>
-                <MudItem xs="12" sm="8">
-                    <MudTextField @bind-Value="_smtpHost"
-                                  Label="SMTP Host"
-                                  Variant="Variant.Outlined"
-                                  Placeholder="smtp.example.com"
-                                  Disabled="@Model.Saving" />
-                </MudItem>
-                <MudItem xs="12" sm="4">
-                    <MudNumericField @bind-Value="_smtpPort"
-                                     Label="Port"
-                                     Variant="Variant.Outlined"
-                                     Disabled="@Model.Saving" />
-                </MudItem>
-            </MudGrid>
+                <MudGrid>
+                    <MudItem xs="12" sm="8">
+                        <MudTextField @bind-Value="_profileData.ImapHost"
+                                      Label="IMAP Host"
+                                      Variant="Variant.Outlined"
+                                      Placeholder="imap.example.com"
+                                      For="@(() => _profileData.ImapHost)"
+                                      Disabled="@Model.Saving" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField @bind-Value="_profileData.ImapPort"
+                                         Label="Port"
+                                         Variant="Variant.Outlined"
+                                         For="@(() => _profileData.ImapPort)"
+                                         Disabled="@Model.Saving" />
+                    </MudItem>
+                </MudGrid>
 
-            <MudGrid Class="mt-2">
-                <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_smtpUsername"
-                                  Label="Username"
-                                  Variant="Variant.Outlined"
-                                  Placeholder="user@example.com"
-                                  Disabled="@Model.Saving" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_smtpPassword"
-                                  Label="Password"
-                                  Variant="Variant.Outlined"
-                                  InputType="InputType.Password"
-                                  Disabled="@Model.Saving" />
-                </MudItem>
-            </MudGrid>
-
-            <MudDivider Class="my-4" />
-
-            <MudText Typo="Typo.subtitle2" Class="mb-2">IMAP Settings (Incoming Mail)</MudText>
-
-            <MudGrid>
-                <MudItem xs="12" sm="8">
-                    <MudTextField @bind-Value="_imapHost"
-                                  Label="IMAP Host"
-                                  Variant="Variant.Outlined"
-                                  Placeholder="imap.example.com"
-                                  Disabled="@Model.Saving" />
-                </MudItem>
-                <MudItem xs="12" sm="4">
-                    <MudNumericField @bind-Value="_imapPort"
-                                     Label="Port"
-                                     Variant="Variant.Outlined"
-                                     Disabled="@Model.Saving" />
-                </MudItem>
-            </MudGrid>
-
-            <MudGrid Class="mt-2">
-                <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_imapUsername"
-                                  Label="Username"
-                                  Variant="Variant.Outlined"
-                                  Placeholder="user@example.com"
-                                  Disabled="@Model.Saving" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_imapPassword"
-                                  Label="Password"
-                                  Variant="Variant.Outlined"
-                                  InputType="InputType.Password"
-                                  Disabled="@Model.Saving" />
-                </MudItem>
-            </MudGrid>
-        </MudCardContent>
-        <MudCardActions>
-            <MudSpacer />
-            <MudButton Color="Color.Primary"
-                       Variant="Variant.Filled"
-                       StartIcon="@Icons.Material.Filled.Save"
-                       OnClick="SaveProfileAsync"
-                       Disabled="@(!CanSave)">
-                @if (Model.Saving)
-                {
-                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
-                    <span>Saving...</span>
-                }
-                else
-                {
-                    <span>Save Profile</span>
-                }
-            </MudButton>
-        </MudCardActions>
-    </MudCard>
+                <MudGrid Class="mt-2">
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_profileData.ImapUsername"
+                                      Label="Username"
+                                      Variant="Variant.Outlined"
+                                      Placeholder="user@example.com"
+                                      For="@(() => _profileData.ImapUsername)"
+                                      Disabled="@Model.Saving" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_profileData.ImapPassword"
+                                      Label="Password"
+                                      Variant="Variant.Outlined"
+                                      InputType="InputType.Password"
+                                      For="@(() => _profileData.ImapPassword)"
+                                      Disabled="@Model.Saving" />
+                    </MudItem>
+                </MudGrid>
+            </MudCardContent>
+            <MudCardActions>
+                <MudSpacer />
+                <MudButton ButtonType="ButtonType.Submit"
+                           Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           StartIcon="@Icons.Material.Filled.Save"
+                           Disabled="@Model.Saving">
+                    @if (Model.Saving)
+                    {
+                        <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <span>Save Profile</span>
+                    }
+                </MudButton>
+            </MudCardActions>
+        </MudCard>
+    </EditForm>
 }
 
 @code {
-    private static readonly System.Text.RegularExpressions.Regex EmailRegex = new(
-        @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
-        System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-    /// <summary>Callback when user clicks sync (restore from server). Parameter is the relay URL.</summary>
+    /// <summary>
+    /// Default relay URL for new profiles (set by parent page from MailApiModel.RelayUrl).
+    /// </summary>
     [Parameter]
-    public EventCallback<string> OnSyncRequested { get; set; }
+    public string? InitialRelayUrl { get; set; }
 
-    /// <summary>Callback after profile is saved locally (for server upload).</summary>
-    [Parameter]
-    public EventCallback OnProfileSaved { get; set; }
-
-    private string _username = string.Empty;
-    private string _email = string.Empty;
-    private bool _emailValid;
-    private string? _mailRelayUrl;
-
-    private string DefaultRelayUrl
-    {
-        get
-        {
-            var baseUri = NavigationManager.BaseUri.TrimEnd('/');
-            return $"{baseUri}/api/";
-        }
-    }
-    private string? _smtpHost;
-    private int? _smtpPort = 587;
-    private string? _smtpUsername;
-    private string? _smtpPassword;
-    private string? _imapHost;
-    private int? _imapPort = 993;
-    private string? _imapUsername;
-    private string? _imapPassword;
-
-    private bool CanSave => !Model.Saving &&
-                           !string.IsNullOrWhiteSpace(_username) &&
-                           _emailValid;
-
-    private static bool IsValidEmail(string? email) =>
-        !string.IsNullOrWhiteSpace(email) && EmailRegex.IsMatch(email);
+    private UserProfileData _profileData = new();
 
     protected override async Task OnContextReadyAsync()
     {
-        // Prefill relay URL for new profiles
-        _mailRelayUrl ??= DefaultRelayUrl;
+        _profileData.MailRelayUrl = InitialRelayUrl;
         await Model.LoadProfile.ExecuteAsync();
     }
 
-    /// <summary>
-    /// Called reactively when ProfileLoaded changes.
-    /// </summary>
     protected override void OnProfileLoadedChanged()
     {
         if (Model.ProfileLoaded && Model.Profile is not null)
         {
-            _username = Model.Profile.Username;
-            _email = Model.Profile.Email;
-            _emailValid = IsValidEmail(_email);
-            _mailRelayUrl = Model.Profile.MailRelayUrl ?? DefaultRelayUrl;
-            _smtpHost = Model.Profile.SmtpHost;
-            _smtpPort = Model.Profile.SmtpPort ?? 587;
-            _smtpUsername = Model.Profile.SmtpUsername;
-            _smtpPassword = Model.Profile.SmtpPassword;
-            _imapHost = Model.Profile.ImapHost;
-            _imapPort = Model.Profile.ImapPort ?? 993;
-            _imapUsername = Model.Profile.ImapUsername;
-            _imapPassword = Model.Profile.ImapPassword;
+            _profileData = new UserProfileData
+            {
+                Username = Model.Profile.Username,
+                Email = Model.Profile.Email,
+                MailRelayUrl = Model.Profile.MailRelayUrl ?? InitialRelayUrl,
+                SmtpHost = Model.Profile.SmtpHost,
+                SmtpPort = Model.Profile.SmtpPort ?? 587,
+                SmtpUsername = Model.Profile.SmtpUsername,
+                SmtpPassword = Model.Profile.SmtpPassword,
+                ImapHost = Model.Profile.ImapHost,
+                ImapPort = Model.Profile.ImapPort ?? 993,
+                ImapUsername = Model.Profile.ImapUsername,
+                ImapPassword = Model.Profile.ImapPassword
+            };
             StateHasChanged();
         }
     }
 
-    /// <summary>
-    /// Called reactively when SuccessMessage changes.
-    /// </summary>
     protected override void OnSuccessMessageChanged()
     {
         if (Model.SuccessMessage is not null)
@@ -251,34 +208,9 @@ else
         }
     }
 
-    private async Task SaveProfileAsync()
+    private async Task OnValidSubmitAsync()
     {
-        if (!CanSave)
-        {
-            return;
-        }
-
-        var data = new UserProfileData
-        {
-            Username = _username,
-            Email = _email,
-            MailRelayUrl = string.IsNullOrWhiteSpace(_mailRelayUrl) ? null : _mailRelayUrl.Trim(),
-            SmtpHost = _smtpHost,
-            SmtpPort = _smtpPort,
-            SmtpUsername = _smtpUsername,
-            SmtpPassword = _smtpPassword,
-            ImapHost = _imapHost,
-            ImapPort = _imapPort,
-            ImapUsername = _imapUsername,
-            ImapPassword = _imapPassword
-        };
-
-        await Model.SaveProfile.ExecuteAsync(data);
-
-        // Upload to server for cross-device sync
-        if (OnProfileSaved.HasDelegate)
-        {
-            await OnProfileSaved.InvokeAsync();
-        }
+        await Model.SaveProfile.ExecuteAsync(_profileData);
+        // MailApiModel auto-syncs via internal observer — no callback needed
     }
 }

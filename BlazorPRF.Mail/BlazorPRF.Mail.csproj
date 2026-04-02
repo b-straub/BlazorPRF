@@ -11,7 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="RxBlazorV2.MudBlazor" Version="1.1.3" />
+    <PackageReference Include="RxBlazorV2.MudBlazor" Version="1.1.4" />
   </ItemGroup>
 
   <ItemGroup>

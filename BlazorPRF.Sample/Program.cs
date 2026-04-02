@@ -59,7 +59,8 @@ builder.Services.InjectClipboard();
 // Add HttpClient for PRF API (default base address, overridden by profile's MailRelayUrl)
 builder.Services.AddHttpClient("PrfApi", client =>
 {
-    client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress);
+    var baseUri = builder.HostEnvironment.BaseAddress.TrimEnd('/');
+    client.BaseAddress = new Uri($"{baseUri}/api/");
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
