@@ -84,21 +84,12 @@
                 <div class="mb-4"></div>
             }
 
-            <MudButton Color="Color.Secondary"
-                       Variant="Variant.Filled"
-                       StartIcon="@Icons.Material.Filled.Create"
-                       OnClick="@(() => Model.SignAcceptance.ExecuteAsync())"
-                       Disabled="@(!Model.CanSign)">
-                @if (Model.IsProcessing)
-                {
-                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
-                    <span>Signing...</span>
-                }
-                else
-                {
-                    <span>Sign Acceptance</span>
-                }
-            </MudButton>
+            <MudButtonAsyncRx Command="Model.SignAcceptance"
+                              Color="Color.Secondary"
+                              Variant="Variant.Filled"
+                              StartIcon="@Icons.Material.Filled.Create">
+                Sign Acceptance
+            </MudButtonAsyncRx>
 
             @if (Model.ErrorMessage is not null)
             {
@@ -139,13 +130,13 @@
                 </MudStack>
             </MudPaper>
 
-            <MudButton Color="Color.Default"
-                       Variant="Variant.Text"
-                       StartIcon="@Icons.Material.Filled.Refresh"
-                       OnClick="@(() => Model.Reset.Execute())"
-                       Class="mt-4">
+            <MudButtonRx Command="Model.Reset"
+                         Color="Color.Default"
+                         Variant="Variant.Text"
+                         StartIcon="@Icons.Material.Filled.Refresh"
+                         Class="mt-4">
                 Accept Another Invite
-            </MudButton>
+            </MudButtonRx>
         }
     </MudCardContent>
 </MudCard>

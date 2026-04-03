@@ -12,22 +12,14 @@
                 <MudText Typo="Typo.body1" Style="white-space: pre-line;">
                     @Model.ErrorMessage
                 </MudText>
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Warning"
-                           OnClick="@(() => Model.ResetDatabase.ExecuteAsync())"
-                           StartIcon="@Icons.Material.Filled.RestartAlt"
-                           Disabled="Model.IsResetting"
-                           FullWidth="true">
-                    @if (Model.IsResetting)
-                    {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                        <span>Resetting...</span>
-                    }
-                    else
-                    {
-                        <span>Reset Database</span>
-                    }
-                </MudButton>
+                <MudButtonAsyncRx Command="Model.ResetDatabase"
+                                  Variant="Variant.Filled"
+                                  Color="Color.Warning"
+                                  StartIcon="@Icons.Material.Filled.RestartAlt"
+                                  CancelText="Cancel"
+                                  FullWidth="true">
+                    Reset Database
+                </MudButtonAsyncRx>
             </MudStack>
         </MudPaper>
     </MudOverlay>

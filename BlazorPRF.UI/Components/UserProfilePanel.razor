@@ -196,7 +196,7 @@ else
                 ImapUsername = Model.Profile.ImapUsername,
                 ImapPassword = Model.Profile.ImapPassword
             };
-            StateHasChanged();
+            // No StateHasChanged() needed - RenderAndHook trigger already re-renders
         }
     }
 

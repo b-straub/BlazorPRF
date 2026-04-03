@@ -25,23 +25,14 @@
                 Using: @Model.Profile.SmtpHost:@(Model.Profile.SmtpPort ?? 587) (@Model.Profile.SmtpUsername)
             </MudText>
 
-            <MudButton Color="Color.Info"
-                       Variant="Variant.Outlined"
-                       Size="Size.Small"
-                       StartIcon="@Icons.Material.Filled.NetworkCheck"
-                       OnClick="@(() => Model.TestSmtp.ExecuteAsync())"
-                       Disabled="@Model.IsTestingSmtp"
-                       Class="mb-3">
-                @if (Model.IsTestingSmtp)
-                {
-                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
-                    <span>Testing...</span>
-                }
-                else
-                {
-                    <span>Test SMTP Connection</span>
-                }
-            </MudButton>
+            <MudButtonAsyncRx Command="Model.TestSmtp"
+                              Color="Color.Info"
+                              Variant="Variant.Outlined"
+                              Size="Size.Small"
+                              StartIcon="@Icons.Material.Filled.NetworkCheck"
+                              Class="mb-3">
+                Test SMTP Connection
+            </MudButtonAsyncRx>
         }
 
         <MudTextField @bind-Value="Model.SendTo"
@@ -66,20 +57,11 @@
                       Class="mb-3"
                       Disabled="@(!Model.IsSmtpConfigured)" />
 
-        <MudButton Color="Color.Primary"
-                   Variant="Variant.Filled"
-                   StartIcon="@Icons.Material.Filled.Send"
-                   OnClick="@(() => Model.SendEmail.ExecuteAsync())"
-                   Disabled="@(Model.IsSending || !Model.CanSendMail)">
-            @if (Model.IsSending)
-            {
-                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
-                <span>Sending...</span>
-            }
-            else
-            {
-                <span>Send Email</span>
-            }
-        </MudButton>
+        <MudButtonAsyncRx Command="Model.SendEmail"
+                          Color="Color.Primary"
+                          Variant="Variant.Filled"
+                          StartIcon="@Icons.Material.Filled.Send">
+            Send Email
+        </MudButtonAsyncRx>
     </MudCardContent>
 </MudCard>

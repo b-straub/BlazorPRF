@@ -17,30 +17,25 @@ else if (Model.ErrorMessage is not null)
         <MudStack Row="true" Class="mt-2">
             @if (Model.IsDecryptionError)
             {
-                <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => Model.SignOut.Execute())">
+                <MudButtonRx Command="Model.SignOut"
+                             Variant="Variant.Text"
+                             Color="Color.Primary">
                     Sign Out
-                </MudButton>
-                <MudButton Variant="Variant.Text"
-                           Color="Color.Error"
-                           OnClick="@(() => Model.ResetDatabase.ExecuteAsync())"
-                           Disabled="Model.ResetDatabase.Executing">
-                    @if (Model.ResetDatabase.Executing)
-                    {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2"/>
-                        <span>Resetting...</span>
-                    }
-                    else
-                    {
-                        <span>Reset Database</span>
-                    }
-                </MudButton>
+                </MudButtonRx>
+                <MudButtonAsyncRx Command="Model.ResetDatabase"
+                                  Variant="Variant.Text"
+                                  Color="Color.Error"
+                                  CancelText="Cancel">
+                    Reset Database
+                </MudButtonAsyncRx>
             }
             else
             {
-                <MudButton Variant="Variant.Text" Color="Color.Primary"
-                           OnClick="@(() => Model.LoadContacts.ExecuteAsync())">
+                <MudButtonAsyncRx Command="Model.LoadContacts"
+                                  Variant="Variant.Text"
+                                  Color="Color.Primary">
                     Retry
-                </MudButton>
+                </MudButtonAsyncRx>
             }
         </MudStack>
     </MudAlert>
@@ -89,10 +84,12 @@ else
                                    OnClick="@(() => OnEncryptRequested.InvokeAsync((context.Contact, context.UserData)))"/>
                 </MudTooltip>
                 <MudTooltip Text="Delete contact">
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                   Size="Size.Small"
-                                   Color="Color.Error"
-                                   OnClick="@(() => Model.DeleteContact.ExecuteAsync(context.Contact.Id))"/>
+                    <MudIconButtonAsyncRxOf T="Guid"
+                                       Command="Model.DeleteContact"
+                                       Parameter="context.Contact.Id"
+                                       Icon="@Icons.Material.Filled.Delete"
+                                       Size="Size.Small"
+                                       Color="Color.Error" />
                 </MudTooltip>
             </MudTd>
         </RowTemplate>
@@ -120,13 +117,12 @@ else
                OnClick="@(() => OnVerifyResponseRequested.InvokeAsync())">
         Add via Response
     </MudButton>
-    <MudButton Variant="Variant.Outlined"
-               Color="Color.Default"
-               StartIcon="@Icons.Material.Filled.Refresh"
-               OnClick="@(() => Model.LoadContacts.ExecuteAsync())"
-               Disabled="@Model.Loading">
+    <MudButtonAsyncRx Command="Model.LoadContacts"
+                      Variant="Variant.Outlined"
+                      Color="Color.Default"
+                      StartIcon="@Icons.Material.Filled.Refresh">
         Refresh
-    </MudButton>
+    </MudButtonAsyncRx>
 </MudStack>
 
 @code {

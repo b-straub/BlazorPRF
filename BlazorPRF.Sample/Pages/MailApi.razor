@@ -1,7 +1,6 @@
 @page "/mail-api"
 @attribute [Authorize]
 @inherits MailApiModelComponent
-@using BlazorPRF.Api.Models
 @using BlazorPRF.Mail.Components
 @using BlazorPRF.Mail.Models
 @using BlazorPRF.Sample.Components
@@ -55,7 +54,7 @@ else
                 <MudItem xs="12">
                     <MudExpansionPanels>
                         <MudExpansionPanel Text="Administration">
-                            <AdminKeyManagementPanel OnKeysChanged="HandleKeysChanged" />
+                            <AdminKeyManagementPanel />
                         </MudExpansionPanel>
                     </MudExpansionPanels>
                 </MudItem>
@@ -66,13 +65,12 @@ else
             <MudExpansionPanels>
                 <MudExpansionPanel Text="Debug Tools">
                     <MudStack Spacing="4">
-                        <MudButton Color="Color.Info"
-                                   Variant="Variant.Outlined"
-                                   StartIcon="@Icons.Material.Filled.NetworkCheck"
-                                   OnClick="@(() => Model.TestImap.ExecuteAsync())"
-                                   Disabled="@Model.IsTestingImap">
-                            @(Model.IsTestingImap ? "Testing IMAP..." : "Test IMAP Connection")
-                        </MudButton>
+                        <MudButtonAsyncRx Command="Model.TestImap"
+                                          Color="Color.Info"
+                                          Variant="Variant.Outlined"
+                                          StartIcon="@Icons.Material.Filled.NetworkCheck">
+                            Test IMAP Connection
+                        </MudButtonAsyncRx>
                         @if (Model.MailboxInfo is not null)
                         {
                             <MudStack Row="true">
@@ -113,11 +111,6 @@ else
         {
             Model.PreFillSend(to, subject, body);
         }
-    }
-
-    private void HandleKeysChanged(List<RegisteredKey> keys)
-    {
-        StateHasChanged();
     }
 
     private async Task HandleAcceptInviteAsync(string armoredInvite)

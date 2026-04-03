@@ -21,7 +21,7 @@ public partial class InviteAcceptanceModel : ObservableModel
     [SuppressMessage("RxBlazorGenerator", "RXBG050:Partial constructor parameter type may not be registered in DI", Justification = "Services registered externally")]
     #pragma warning disable CS9113 // Parameter is unread
     // ReSharper disable UnusedParameter.Local
-    public partial InviteAcceptanceModel(PrfModel prfModel, ISigningService signingService, IUserProfileService userProfileService, StatusModel statusModel);
+    public partial InviteAcceptanceModel(PrfModel prfModel, InviteModel inviteModel, ISigningService signingService, IUserProfileService userProfileService, StatusModel statusModel);
     // ReSharper restore UnusedParameter.Local
     #pragma warning restore CS9113
 
@@ -355,7 +355,7 @@ public partial class InviteAcceptanceModel : ObservableModel
                 SignedResponse = PrfArmor.ArmorSignedResponse(json);
 
                 // Notify via reactive model - just set the property
-                PrfModel.InviteModel.LastInviteAccepted = new InviteAcceptedEventArgs
+                InviteModel.LastInviteAccepted = new InviteAcceptedEventArgs
                 {
                     InviteCode = ParsedInviteCode,
                     InviterEd25519PublicKey = InviterEd25519PublicKey,

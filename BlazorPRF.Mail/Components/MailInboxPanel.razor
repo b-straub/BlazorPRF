@@ -24,21 +24,12 @@
                 <MudSelectItem Value="@("flagged")">Flagged/Starred</MudSelectItem>
             </MudSelect>
 
-            <MudButton Color="Color.Primary"
-                       Variant="Variant.Filled"
-                       StartIcon="@Icons.Material.Filled.Inbox"
-                       OnClick="@(() => Model.FetchEmails.ExecuteAsync())"
-                       Disabled="@Model.IsFetchingEmails">
-                @if (Model.IsFetchingEmails)
-                {
-                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
-                    <span>Fetching...</span>
-                }
-                else
-                {
-                    <span>Fetch Emails</span>
-                }
-            </MudButton>
+            <MudButtonAsyncRx Command="Model.FetchEmails"
+                              Color="Color.Primary"
+                              Variant="Variant.Filled"
+                              StartIcon="@Icons.Material.Filled.Inbox">
+                Fetch Emails
+            </MudButtonAsyncRx>
 
             @if (Model.Emails.Count > 0)
             {
@@ -218,21 +209,12 @@
                 }
                 else if (Model.SelectedEmail.HasPfaArmor)
                 {
-                    <MudButton Color="Color.Primary"
-                               Variant="Variant.Filled"
-                               StartIcon="@Icons.Material.Filled.LockOpen"
-                               OnClick="@(() => Model.DecryptEmail.ExecuteAsync())"
-                               Disabled="@Model.IsDecrypting">
-                        @if (Model.IsDecrypting)
-                        {
-                            <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
-                            <span>Decrypting...</span>
-                        }
-                        else
-                        {
-                            <span>Decrypt Message</span>
-                        }
-                    </MudButton>
+                    <MudButtonAsyncRx Command="Model.DecryptEmail"
+                                      Color="Color.Primary"
+                                      Variant="Variant.Filled"
+                                      StartIcon="@Icons.Material.Filled.LockOpen">
+                        Decrypt Message
+                    </MudButtonAsyncRx>
                     <MudPaper Class="pa-3 mt-2" Outlined="true" Style="white-space: pre-wrap; word-break: break-word; font-family: monospace; font-size: 0.85rem;">
                         <MudText>@Model.SelectedEmail.Body</MudText>
                     </MudPaper>
