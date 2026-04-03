@@ -371,7 +371,6 @@ public partial class InviteAcceptanceModel : ObservableModel
             else if (signResult.ErrorCode == PrfErrorCode.KEY_DERIVATION_FAILED)
             {
                 PrfModel.OnKeyDerivationFailed();
-                ErrorMessage = "Keys expired. Please try again.";
             }
             else
             {

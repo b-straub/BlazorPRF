@@ -381,9 +381,14 @@ public partial class PrfModel : ObservableModel
             return true;
         }
 
-        // Keys expired or not present - need to re-derive
-        HasKeys = false; // Update reactive state
-        return await DeriveKeysInternalAsync();
+        // Keys expired or not present - trigger session expired modal
+        using (SuspendNotifications("SessionState"))
+        {
+            HasKeys = false;
+            SessionExpired = true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -445,8 +450,11 @@ public partial class PrfModel : ObservableModel
     /// </summary>
     public void OnKeyDerivationFailed()
     {
-        HasKeys = false;
-        ErrorMessage = "Keys expired. Please authenticate again.";
+        using (SuspendNotifications("SessionState"))
+        {
+            HasKeys = false;
+            SessionExpired = true;
+        }
     }
 
     private void ClearKeysImpl()

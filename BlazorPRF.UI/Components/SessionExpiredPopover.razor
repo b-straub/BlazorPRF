@@ -1,11 +1,10 @@
 @inherits PrfModelComponent
 @inject NavigationManager NavigationManager
 
-<MudPopover Open="Model.SessionExpired"
-            Fixed="true"
-            AnchorOrigin="Origin.CenterCenter"
-            TransformOrigin="Origin.CenterCenter"
-            Paper="false">
+<MudOverlay Visible="Model.SessionExpired"
+            DarkBackground="true"
+            ZIndex="2000"
+            LockScroll="true">
     <MudAlert Severity="Severity.Warning"
               Variant="Variant.Filled"
               NoIcon="true"
@@ -48,7 +47,7 @@
             </MudStack>
         </MudStack>
     </MudAlert>
-</MudPopover>
+</MudOverlay>
 
 @code {
     private bool _isAuthenticating;

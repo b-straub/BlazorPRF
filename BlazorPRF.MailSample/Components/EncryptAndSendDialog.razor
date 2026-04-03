@@ -98,10 +98,8 @@
 
         try
         {
-            // Ensure keys are available for signing
             if (!await MailApiModel.PrfModel.EnsureKeysAsync())
             {
-                _errorMessage = "Authentication required for signing";
                 return;
             }
 

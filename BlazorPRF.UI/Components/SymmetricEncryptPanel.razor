@@ -138,10 +138,8 @@
 
         try
         {
-            // Ensure keys are available (triggers WebAuthn if needed)
             if (!await Model.EnsureKeysAsync())
             {
-                _errorMessage = "Authentication cancelled or failed";
                 return;
             }
 
@@ -154,9 +152,7 @@
             }
             else if (result.ErrorCode == PrfErrorCode.KEY_DERIVATION_FAILED)
             {
-                // Keys expired between EnsureKeysAsync and operation - notify model
                 Model.OnKeyDerivationFailed();
-                _errorMessage = "Keys expired. Please try again.";
             }
             else
             {
@@ -194,10 +190,8 @@
                 return;
             }
 
-            // Ensure keys are available (triggers WebAuthn if needed)
             if (!await Model.EnsureKeysAsync())
             {
-                _errorMessage = "Authentication cancelled or failed";
                 return;
             }
 
@@ -209,9 +203,7 @@
             }
             else if (result.ErrorCode == PrfErrorCode.KEY_DERIVATION_FAILED)
             {
-                // Keys expired between EnsureKeysAsync and operation - notify model
                 Model.OnKeyDerivationFailed();
-                _errorMessage = "Keys expired. Please try again.";
             }
             else
             {
