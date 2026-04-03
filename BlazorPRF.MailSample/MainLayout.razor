@@ -7,6 +7,7 @@
 <MudSnackbarProvider />
 <SessionExpiredPopover />
 <ServiceWorkerUpdateNotification />
+<DatabaseErrorAlert />
 
 <MudLayout>
     <MudAppBar Elevation="1">
@@ -24,7 +25,7 @@
                                Href="./" />
             </NotAuthorized>
         </AuthorizeView>
-        <MudText Typo="Typo.h5" Class="ml-3">BlazorPRF Demo</MudText>
+        <MudText Typo="Typo.h5" Class="ml-3">BlazorPRF Mail</MudText>
         <MudSpacer />
         <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
                        Color="Color.Inherit"
@@ -44,9 +45,9 @@
                 </MudDrawerHeader>
                 <MudNavMenu>
                     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
-                    <MudNavLink Href="symmetric" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Lock">Symmetric</MudNavLink>
-                    <MudNavLink Href="asymmetric" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Send">Asymmetric</MudNavLink>
-                    <MudNavLink Href="signing" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.VerifiedUser">Signing</MudNavLink>
+                    <MudNavLink Href="contacts" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Contacts">Contacts</MudNavLink>
+                    <MudNavLink Href="mail-api" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Email">Mail API</MudNavLink>
+                    <MudNavLink Href="settings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Settings">Settings</MudNavLink>
                 </MudNavMenu>
             </MudDrawer>
         </Authorized>

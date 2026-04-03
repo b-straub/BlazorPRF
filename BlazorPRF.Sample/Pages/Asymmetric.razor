@@ -1,7 +1,5 @@
 @page "/asymmetric"
 @attribute [Authorize]
-@inherits ContactsModelComponent
-@inject NavigationManager NavigationManager
 
 <PageTitle>Asymmetric Encryption - BlazorPRF</PageTitle>
 
@@ -12,87 +10,10 @@
 
 <MudGrid>
     <MudItem xs="12" md="6">
-        @if (!Model.Loading && Model.Contacts.Count > 0)
-        {
-            <MudCard Class="mb-4">
-                <MudCardContent>
-                    <MudText Typo="Typo.subtitle2" Class="mb-2">
-                        <MudIcon Icon="@Icons.Material.Filled.Contacts" Size="Size.Small" Class="mr-1"/>
-                        Select from Trusted Contacts
-                    </MudText>
-                    <MudSelect T="Guid?"
-                               Value="Model.SelectedContactId"
-                               ValueChanged="Model.SelectContact"
-                               Label="Recipient"
-                               Variant="Variant.Outlined"
-                               Placeholder="Choose a contact..."
-                               Clearable="true"
-                               Dense="true">
-                        @foreach (var (contact, userData) in Model.Contacts)
-                        {
-                            <MudSelectItem Value="@((Guid?)contact.Id)">
-                                @userData.Username (@userData.Email)
-                            </MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudCardContent>
-            </MudCard>
-        }
-
-        <AsymmetricEncryptPanel InitialPublicKey="@Model.SelectedPublicKey" OnSendViaEmail="HandleSendViaEmailAsync" />
+        <AsymmetricEncryptPanel />
     </MudItem>
 
     <MudItem xs="12">
-        <AsymmetricDecryptPanel/>
+        <AsymmetricDecryptPanel />
     </MudItem>
 </MudGrid>
-
-@code {
-    private bool _queryStringProcessed;
-
-    protected override async Task OnContextReadyAsync()
-    {
-        // Trigger contact loading if not already loaded
-        if (Model.Contacts.Count == 0 && !Model.Loading)
-        {
-            await Model.LoadContacts.ExecuteAsync();
-        }
-
-        // Process query string after contacts are loaded
-        if (!_queryStringProcessed && !Model.Loading && Model.Contacts.Count > 0)
-        {
-            _queryStringProcessed = true;
-            ProcessQueryString();
-        }
-    }
-
-    private void ProcessQueryString()
-    {
-        var uri = new Uri(NavigationManager.Uri);
-        var queryParams = System.Web.HttpUtility.ParseQueryString(uri.Query);
-        var keyParam = queryParams["key"];
-
-        if (string.IsNullOrWhiteSpace(keyParam))
-        {
-            return;
-        }
-
-        // Try to match with a contact's public key
-        var matchedContact = Model.Contacts.FirstOrDefault(c => c.Contact.X25519PublicKey == keyParam);
-        if (matchedContact.Contact is not null)
-        {
-            // Found a matching contact - select it
-            Model.SelectContact(matchedContact.Contact.Id);
-        }
-        else
-        {
-            // No matching contact - use raw key directly
-            Model.SelectedPublicKey = keyParam;
-        }
-    }
-
-    private async Task HandleSendViaEmailAsync((string Email, string ArmoredMessage) args)
-    {
-        await Model.MailSender.SendAsync(args.Email, PrfArmor.SubjectEncryptedMessage, args.ArmoredMessage);
-    }
-}

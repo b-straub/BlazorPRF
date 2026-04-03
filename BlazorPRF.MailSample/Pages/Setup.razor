@@ -1,0 +1,30 @@
+@page "/setup"
+@inject NavigationManager NavigationManager
+
+<PageTitle>Setup - BlazorPRF</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Passkey Setup</MudText>
+<MudText Typo="Typo.body1" Class="mb-6">
+    Register a new passkey to enable PRF-based encryption.
+</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="6">
+        <PrfRegistration />
+    </MudItem>
+    <MudItem xs="12">
+        <MudButton OnClick="NavigateHome"
+                   Variant="Variant.Text"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.ArrowBack">
+            Back to Home
+        </MudButton>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private void NavigateHome()
+    {
+        NavigationManager.NavigateTo("", forceLoad: false);
+    }
+}

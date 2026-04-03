@@ -3,7 +3,7 @@ using BlazorPRF.Persistence.Services;
 using BlazorPRF.Shared.Crypto.Formatting;
 using BlazorPRF.UI.Services;
 
-namespace BlazorPRF.Sample.Services;
+namespace BlazorPRF.MailSample.Services;
 
 /// <summary>
 /// Provides credential hints by checking DB first (authoritative), then LocalStorage (fallback).

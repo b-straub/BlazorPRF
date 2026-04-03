@@ -2,11 +2,12 @@ using BlazorPRF.Persistence.Data;
 using BlazorPRF.Persistence.Data.Models;
 using BlazorPRF.Persistence.Services;
 using BlazorPRF.Shared.Crypto.Models;
+using BlazorPRF.Mail.Services;
 using BlazorPRF.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using SqliteWasmBlazor;
 
-namespace BlazorPRF.Sample.Services;
+namespace BlazorPRF.MailSample.Services;
 
 /// <summary>
 /// Service for managing contacts with enhanced error handling and PRF integration.

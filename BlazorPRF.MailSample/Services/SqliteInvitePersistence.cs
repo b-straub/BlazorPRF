@@ -1,9 +1,10 @@
 using BlazorPRF.Persistence.Data.Models;
 using BlazorPRF.Persistence.Services;
-using BlazorPRF.UI.Models;
+using BlazorPRF.Mail.Models;
+using BlazorPRF.Mail.Services;
 using BlazorPRF.UI.Services;
 
-namespace BlazorPRF.Sample.Services;
+namespace BlazorPRF.MailSample.Services;
 
 /// <summary>
 /// SQLite implementation of IInvitePersistence.

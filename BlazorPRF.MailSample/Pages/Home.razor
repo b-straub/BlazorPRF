@@ -123,23 +123,23 @@
 
         <MudGrid>
             <MudItem xs="12" md="4">
-                <MudCard Class="cursor-pointer" Style="height: 100%;" @onclick="@(() => NavigationManager.NavigateTo("symmetric"))">
+                <MudCard Class="cursor-pointer" Style="height: 100%;" @onclick="@(() => NavigationManager.NavigateTo("mail-api"))">
                     <MudCardHeader>
                         <CardHeaderAvatar>
-                            <MudIcon Icon="@Icons.Material.Filled.Lock" Color="Color.Primary" />
+                            <MudIcon Icon="@Icons.Material.Filled.Email" Color="Color.Primary" />
                         </CardHeaderAvatar>
                         <CardHeaderContent>
-                            <MudText Typo="Typo.h6">Symmetric</MudText>
-                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Encrypt for yourself</MudText>
+                            <MudText Typo="Typo.h6">Mail</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Encrypted email</MudText>
                         </CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent>
                         <MudText Typo="Typo.body2">
-                            Encrypt and decrypt data using your passkey-derived symmetric key.
+                            Send and receive encrypted messages via your mail relay.
                         </MudText>
                     </MudCardContent>
                     <MudCardActions>
-                        <MudButton Href="symmetric" Variant="Variant.Text" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward">
+                        <MudButton Href="mail-api" Variant="Variant.Text" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward">
                             Open
                         </MudButton>
                     </MudCardActions>
@@ -147,23 +147,23 @@
             </MudItem>
 
             <MudItem xs="12" md="4">
-                <MudCard Class="cursor-pointer" Style="height: 100%;" @onclick="@(() => NavigationManager.NavigateTo("asymmetric"))">
+                <MudCard Class="cursor-pointer" Style="height: 100%;" @onclick="@(() => NavigationManager.NavigateTo("contacts"))">
                     <MudCardHeader>
                         <CardHeaderAvatar>
-                            <MudIcon Icon="@Icons.Material.Filled.Send" Color="Color.Secondary" />
+                            <MudIcon Icon="@Icons.Material.Filled.Contacts" Color="Color.Secondary" />
                         </CardHeaderAvatar>
                         <CardHeaderContent>
-                            <MudText Typo="Typo.h6">Asymmetric</MudText>
-                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Encrypt for others</MudText>
+                            <MudText Typo="Typo.h6">Contacts</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Trusted identities</MudText>
                         </CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent>
                         <MudText Typo="Typo.body2">
-                            Encrypt messages to another user's public key using ECIES.
+                            Manage verified contacts, create invitations, and encrypt messages to contacts.
                         </MudText>
                     </MudCardContent>
                     <MudCardActions>
-                        <MudButton Href="asymmetric" Variant="Variant.Text" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.ArrowForward">
+                        <MudButton Href="contacts" Variant="Variant.Text" Color="Color.Secondary" EndIcon="@Icons.Material.Filled.ArrowForward">
                             Open
                         </MudButton>
                     </MudCardActions>
@@ -171,23 +171,23 @@
             </MudItem>
 
             <MudItem xs="12" md="4">
-                <MudCard Class="cursor-pointer" Style="height: 100%;" @onclick="@(() => NavigationManager.NavigateTo("signing"))">
+                <MudCard Class="cursor-pointer" Style="height: 100%;" @onclick="@(() => NavigationManager.NavigateTo("settings"))">
                     <MudCardHeader>
                         <CardHeaderAvatar>
-                            <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Color="Color.Tertiary" />
+                            <MudIcon Icon="@Icons.Material.Filled.Settings" Color="Color.Default" />
                         </CardHeaderAvatar>
                         <CardHeaderContent>
-                            <MudText Typo="Typo.h6">Signing</MudText>
-                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Digital signatures</MudText>
+                            <MudText Typo="Typo.h6">Settings</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Profile & mail config</MudText>
                         </CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent>
                         <MudText Typo="Typo.body2">
-                            Sign messages with Ed25519 and verify signatures from others.
+                            Configure your profile, SMTP/IMAP settings, and mail relay URL.
                         </MudText>
                     </MudCardContent>
                     <MudCardActions>
-                        <MudButton Href="signing" Variant="Variant.Text" Color="Color.Tertiary" EndIcon="@Icons.Material.Filled.ArrowForward">
+                        <MudButton Href="settings" Variant="Variant.Text" Color="Color.Default" EndIcon="@Icons.Material.Filled.ArrowForward">
                             Open
                         </MudButton>
                     </MudCardActions>

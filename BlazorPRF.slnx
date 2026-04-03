@@ -17,5 +17,6 @@
   <Project Path="BlazorPRF.UI/BlazorPRF.UI.csproj" />
   <Project Path="BlazorPRF.Persistence/BlazorPRF.Persistence.csproj" />
   <Project Path="BlazorPRF.Sample/BlazorPRF.Sample.csproj" />
+  <Project Path="BlazorPRF.MailSample/BlazorPRF.MailSample.csproj" />
   <Project Path="BlazorPRF.Tests/BlazorPRF.Tests.csproj" />
 </Solution>
