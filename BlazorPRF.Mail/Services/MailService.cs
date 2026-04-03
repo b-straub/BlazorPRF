@@ -66,7 +66,7 @@ public sealed class MailService : IMailService
             Filter: "test");
 
         var body = JsonSerializer.Serialize(request, MailJsonContext.Default.ImapApiRequest);
-        var result = await _client.SendUserSignedAsync("test_imap", body, "POST", context);
+        var result = await _client.SendUserSignedAsync("imap", body, "POST", context);
 
         if (!result.Success || result.Value is null)
         {
@@ -102,6 +102,7 @@ public sealed class MailService : IMailService
     public async Task<ApiResult<ImapFetchResponse>> FetchEmailsAsync(
         UserProfileData profile,
         string filter,
+        string messageType,
         int limit,
         SigningContext context)
     {
@@ -111,10 +112,11 @@ public sealed class MailService : IMailService
             profile.ImapUsername ?? "",
             profile.ImapPassword ?? "",
             Filter: filter,
+            MessageType: messageType,
             Limit: limit);
 
         var body = JsonSerializer.Serialize(request, MailJsonContext.Default.ImapApiRequest);
-        var result = await _client.SendUserSignedAsync("test_imap", body, "POST", context);
+        var result = await _client.SendUserSignedAsync("imap", body, "POST", context);
 
         if (!result.Success || result.Value is null)
         {
@@ -176,7 +178,7 @@ public sealed class MailService : IMailService
             Uid: uid);
 
         var body = JsonSerializer.Serialize(request, MailJsonContext.Default.ImapApiRequest);
-        var result = await _client.SendUserSignedAsync("test_imap", body, "POST", context);
+        var result = await _client.SendUserSignedAsync("imap", body, "POST", context);
 
         if (!result.Success || result.Value is null)
         {

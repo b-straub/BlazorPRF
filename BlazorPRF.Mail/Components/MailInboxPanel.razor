@@ -15,14 +15,19 @@
         }
         else
         {
-            <MudSelect T="string" @bind-Value="Model.ImapFilter" Label="Filter" Variant="Variant.Outlined" Class="mb-3">
-                <MudSelectItem Value="@("unseen")">Unread</MudSelectItem>
-                <MudSelectItem Value="@("new")">New (Recent & Unread)</MudSelectItem>
-                <MudSelectItem Value="@("today")">Today</MudSelectItem>
-                <MudSelectItem Value="@("week")">Last 7 Days</MudSelectItem>
-                <MudSelectItem Value="@("all")">All</MudSelectItem>
-                <MudSelectItem Value="@("flagged")">Flagged/Starred</MudSelectItem>
-            </MudSelect>
+            <MudStack Row="true" Spacing="3" AlignItems="AlignItems.Center" Class="mb-3">
+                <MudSelect T="string" @bind-Value="Model.ImapFilter" Label="Time" Variant="Variant.Outlined" Style="max-width: 180px;">
+                    <MudSelectItem Value="@("new")">Today</MudSelectItem>
+                    <MudSelectItem Value="@("week")">Last 7 Days</MudSelectItem>
+                    <MudSelectItem Value="@("all")">All</MudSelectItem>
+                    <MudSelectItem Value="@("flagged")">Flagged</MudSelectItem>
+                </MudSelect>
+                <MudSelect T="string" @bind-Value="Model.MessageType" Label="Type" Variant="Variant.Outlined" Style="max-width: 200px;">
+                    <MudSelectItem Value="@("all")">All Messages</MudSelectItem>
+                    <MudSelectItem Value="@("encrypted")">Encrypted</MudSelectItem>
+                    <MudSelectItem Value="@("invites")">Invitations</MudSelectItem>
+                </MudSelect>
+            </MudStack>
 
             <MudButtonAsyncRx Command="Model.FetchEmails"
                               Color="Color.Primary"

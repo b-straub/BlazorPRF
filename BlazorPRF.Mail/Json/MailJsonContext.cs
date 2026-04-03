@@ -29,7 +29,8 @@ public sealed record ImapApiRequest(
     int ImapPort,
     string ImapUsername,
     string ImapPassword,
-    string Filter = "unseen",
+    string Filter = "new",
+    string MessageType = "all",
     int? Uid = null,
     int Limit = 10,
     bool FetchBody = false);

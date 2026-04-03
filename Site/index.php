@@ -12,14 +12,14 @@ require_once __DIR__ . '/lib/Auth.php';
 require_once __DIR__ . '/lib/Response.php';
 require_once __DIR__ . '/actions/SendMail.php';
 require_once __DIR__ . '/actions/TestSmtp.php';
-require_once __DIR__ . '/actions/TestImap.php';
+require_once __DIR__ . '/actions/Imap.php';
 
 use Lib\Database;
 use Lib\Auth;
 use Lib\Response;
 use Actions\SendMail;
 use Actions\TestSmtp;
-use Actions\TestImap;
+use Actions\Imap;
 
 // Load configuration from secure directory
 $config = require __DIR__ . '/secure/config.php';
@@ -245,8 +245,8 @@ function handleAction(Auth $auth, Database $db, string $action, string $method, 
             $actionResult = $handler->execute($params, $result->keyId);
             break;
 
-        case 'test_imap':
-            $handler = new TestImap();
+        case 'imap':
+            $handler = new Imap();
             $actionResult = $handler->execute($params, $result->keyId);
             break;
 

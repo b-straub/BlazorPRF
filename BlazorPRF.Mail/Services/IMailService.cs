@@ -30,6 +30,7 @@ public interface IMailService
     Task<ApiResult<ImapFetchResponse>> FetchEmailsAsync(
         UserProfileData profile,
         string filter,
+        string messageType,
         int limit,
         SigningContext context);
 

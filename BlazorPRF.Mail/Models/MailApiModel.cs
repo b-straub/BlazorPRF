@@ -82,10 +82,16 @@ public partial class MailApiModel : ObservableModel, IMailSender
     public partial ImapMailboxInfo? MailboxInfo { get; set; }
 
     /// <summary>
-    /// IMAP filter (unseen, all, flagged).
+    /// IMAP filter (new, week, all, flagged).
     /// </summary>
     [ObservableTriggerAsync(nameof(AutoFetchEmailsAsync))]
-    public partial string ImapFilter { get; set; } = "unseen";
+    public partial string ImapFilter { get; set; } = "new";
+
+    /// <summary>
+    /// Message type filter: encrypted, invites, or all.
+    /// </summary>
+    [ObservableTriggerAsync(nameof(AutoFetchEmailsAsync))]
+    public partial string MessageType { get; set; } = "all";
 
     /// <summary>
     /// Total number of emails matched by filter.
@@ -473,7 +479,7 @@ public partial class MailApiModel : ObservableModel, IMailSender
                 return;
             }
 
-            var result = await MailService.FetchEmailsAsync(Profile, ImapFilter, 10, CreateSigningContext());
+            var result = await MailService.FetchEmailsAsync(Profile, ImapFilter, MessageType, 10, CreateSigningContext());
             if (result.Success && result.Value is not null)
             {
                 Emails = result.Value.Emails;

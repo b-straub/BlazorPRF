@@ -39,7 +39,7 @@ public sealed class RelayRegistrationService(
 
             // Not admin — try a user-signed request to check if key is registered
             var userResult = await signedApiClient.SendUserSignedAsync(
-                "test_imap",
+                "imap",
                 JsonSerializer.Serialize(new { imapHost = "", filter = "test" }),
                 "POST",
                 context);

@@ -5,7 +5,7 @@ namespace Actions;
 /**
  * IMAP connection and email fetching with body extraction.
  */
-class TestImap
+class Imap
 {
     /**
      * Execute the IMAP action.
@@ -23,8 +23,8 @@ class TestImap
         $username = $params['imapUsername'] ?? '';
         $password = $params['imapPassword'] ?? '';
         $folder = $params['folder'] ?? 'INBOX';
-        $filter = $params['filter'] ?? 'test'; // test, all, unseen, new, since
-        $since = $params['since'] ?? null; // Unix timestamp or date string
+        $filter = $params['filter'] ?? 'test'; // test, new, week, all, flagged
+        $messageType = $params['messageType'] ?? 'all'; // encrypted, invites, all
         $limit = min((int)($params['limit'] ?? 10), 50); // Max 50
         $fetchBody = (bool)($params['fetchBody'] ?? false);
         $singleUid = isset($params['uid']) ? (int)$params['uid'] : null;
@@ -103,13 +103,20 @@ class TestImap
                 return $result;
             }
 
-            // Build search criteria
-            $criteria = $this->buildSearchCriteria($filter, $since);
+            // Build search criteria (multiple queries for OR-ing PFA subjects)
+            $criteriaList = $this->buildSearchCriteriaList($filter, $messageType);
 
-            // Search for messages
-            $messageIds = @imap_search($connection, $criteria, SE_UID);
+            // Search with each criteria and merge UIDs (OR across subjects)
+            $messageIds = [];
+            foreach ($criteriaList as $criteria) {
+                $ids = @imap_search($connection, $criteria, SE_UID);
+                if ($ids !== false) {
+                    $messageIds = array_merge($messageIds, $ids);
+                }
+            }
+            $messageIds = array_unique($messageIds);
 
-            if ($messageIds === false) {
+            if (empty($messageIds)) {
                 $result['emails'] = [];
                 $result['count'] = 0;
                 imap_close($connection);
@@ -135,7 +142,7 @@ class TestImap
             $result['count'] = count($emails);
             $result['totalMatched'] = count($messageIds);
             $result['filter'] = $filter;
-            $result['criteria'] = $criteria;
+            $result['messageType'] = $messageType;
 
             imap_close($connection);
             return $result;
@@ -307,49 +314,36 @@ class TestImap
     /**
      * Build IMAP search criteria string.
      */
-    private function buildSearchCriteria(string $filter, ?string $since): string
+    /**
+     * Build IMAP search criteria string.
+     *
+     * PFA subject filtering is always applied. The messageType parameter
+     * determines which subjects: "encrypted", "invites", or "all" (both).
+     *
+     * PHP imap_search does not support OR for subjects directly,
+     * so we run multiple searches and merge UIDs.
+     *
+     * @return string[] Array of IMAP search criteria strings to OR together
+     */
+    private function buildSearchCriteriaList(string $filter, string $messageType): array
     {
-        switch ($filter) {
-            case 'all':
-                return 'ALL';
+        // Base criteria from time/read filter
+        $base = match ($filter) {
+            'new' => 'SINCE "' . date('j-M-Y') . '"',
+            'week' => 'SINCE "' . date('j-M-Y', strtotime('-7 days')) . '"',
+            'flagged' => 'FLAGGED',
+            default => 'ALL', // 'all'
+        };
 
-            case 'unseen':
-            case 'unread':
-                return 'UNSEEN';
+        // PFA subject criteria based on message type
+        $subjects = match ($messageType) {
+            'encrypted' => ['Encrypted Message'],
+            'invites' => ['PRF Invitation', 'PRF Invite Response'],
+            default => ['Encrypted Message', 'PRF Invitation', 'PRF Invite Response'], // 'all'
+        };
 
-            case 'new':
-                return 'NEW'; // Recent and unseen
-
-            case 'recent':
-                return 'RECENT';
-
-            case 'flagged':
-            case 'starred':
-                return 'FLAGGED';
-
-            case 'since':
-                if ($since) {
-                    // Convert timestamp to IMAP date format
-                    $date = is_numeric($since)
-                        ? date('j-M-Y', (int)$since)
-                        : date('j-M-Y', strtotime($since));
-                    return "SINCE \"$date\"";
-                }
-                // Default to last 7 days
-                $date = date('j-M-Y', strtotime('-7 days'));
-                return "SINCE \"$date\"";
-
-            case 'today':
-                $date = date('j-M-Y');
-                return "SINCE \"$date\"";
-
-            case 'week':
-                $date = date('j-M-Y', strtotime('-7 days'));
-                return "SINCE \"$date\"";
-
-            default:
-                return 'ALL';
-        }
+        // Combine: one search per subject, each including the base criteria
+        return array_map(fn($s) => "$base SUBJECT \"$s\"", $subjects);
     }
 
     /**
