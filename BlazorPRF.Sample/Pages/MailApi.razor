@@ -50,6 +50,18 @@ else
                             OnVerifyResponseRequested="HandleVerifyResponseAsync" />
         </MudItem>
 
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <MudItem xs="12">
+                    <MudExpansionPanels>
+                        <MudExpansionPanel Text="Administration">
+                            <AdminKeyManagementPanel OnKeysChanged="HandleKeysChanged" />
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                </MudItem>
+            </Authorized>
+        </AuthorizeView>
+
         <MudItem xs="12">
             <MudExpansionPanels>
                 <MudExpansionPanel Text="Debug Tools">
@@ -76,18 +88,6 @@ else
                 </MudExpansionPanel>
             </MudExpansionPanels>
         </MudItem>
-
-        <AuthorizeView Roles="Admin">
-            <Authorized>
-                <MudItem xs="12">
-                    <MudExpansionPanels>
-                        <MudExpansionPanel Text="Administration">
-                            <AdminKeyManagementPanel OnKeysChanged="HandleKeysChanged" />
-                        </MudExpansionPanel>
-                    </MudExpansionPanels>
-                </MudItem>
-            </Authorized>
-        </AuthorizeView>
     </MudGrid>
 }
 

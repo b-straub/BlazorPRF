@@ -78,7 +78,7 @@ public partial class InviteModel : ObservableModel
         var success = await Persistence.SaveCreatedInviteAsync(LastInviteCreated, ct);
         if (success)
         {
-            StatusModel.AddSuccess("Invitation saved!", ModelID);
+            StatusModel.AddSuccess("Invitation saved!");
         }
         else
         {
@@ -97,7 +97,7 @@ public partial class InviteModel : ObservableModel
         if (success)
         {
             ContactsModifiedAt = DateTime.UtcNow;
-            StatusModel.AddSuccess("Inviter added to contacts!", ModelID);
+            StatusModel.AddSuccess("Inviter added to contacts!");
         }
         else
         {
@@ -119,7 +119,7 @@ public partial class InviteModel : ObservableModel
             if (success)
             {
                 ContactsModifiedAt = DateTime.UtcNow;
-                StatusModel.AddSuccess("Contact updated!", ModelID);
+                StatusModel.AddSuccess("Contact updated!");
             }
             else
             {
@@ -132,7 +132,7 @@ public partial class InviteModel : ObservableModel
             if (success)
             {
                 ContactsModifiedAt = DateTime.UtcNow;
-                StatusModel.AddSuccess("Contact saved to trusted contacts!", ModelID);
+                StatusModel.AddSuccess("Contact saved to trusted contacts!");
             }
             else
             {
