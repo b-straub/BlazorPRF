@@ -1,5 +1,6 @@
 @inherits PrfModelComponent
 @inject IAsymmetricEncryption AsymmetricEncryption
+@inject ISigningService SigningService
 
 <MudCard>
     <MudCardHeader>
@@ -39,9 +40,30 @@
 
         @if (_decryptedResult is not null)
         {
+            @if (_decryptedResult.SignatureValid == true)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Size="Size.Small" />
+                        <MudText Typo="Typo.body2">
+                            Signed by: @(_decryptedResult.SenderEd25519PublicKey?[..16])...
+                        </MudText>
+                    </MudStack>
+                </MudAlert>
+            }
+            else if (_decryptedResult.SignatureValid == false)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" />
+                        <MudText Typo="Typo.body2">Signature verification failed</MudText>
+                    </MudStack>
+                </MudAlert>
+            }
+
             <MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true">
                 <MudText Typo="Typo.caption" Class="mud-text-secondary">Decrypted Message</MudText>
-                <MudText Typo="Typo.body1">@_decryptedResult</MudText>
+                <MudText Typo="Typo.body1">@_decryptedResult.Plaintext</MudText>
             </MudPaper>
         }
     </MudCardContent>
@@ -69,7 +91,7 @@
     private string _encryptedInput = string.Empty;
     private bool _isProcessing;
     private string? _errorMessage;
-    private string? _decryptedResult;
+    private DecryptedMessage? _decryptedResult;
 
     // For Strategy.None or when keys are available
     private bool CanDecrypt => (Model.HasKeys || Model.RequiresOnDemandAuth) && !_isProcessing && !string.IsNullOrWhiteSpace(_encryptedInput);
@@ -102,7 +124,7 @@
                 return;
             }
 
-            var result = await AsymmetricEncryption.DecryptAsync(encrypted, Model.Salt);
+            var result = await AsymmetricEncryption.DecryptAndVerifyAsync(encrypted, Model.Salt, SigningService);
 
             if (result is { Success: true, Value: not null })
             {
