@@ -34,9 +34,9 @@
                 <MudCardActions>
                     <MudSpacer />
                     <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                               Disabled="@(string.IsNullOrWhiteSpace(Model.RelayUrl) || _verifying)"
+                               Disabled="@(string.IsNullOrWhiteSpace(Model.RelayUrl) || Model.VerifyRelay.Executing)"
                                OnClick="VerifyAndAdvanceAsync">
-                        @if (_verifying)
+                        @if (Model.VerifyRelay.Executing)
                         {
                             <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
                             <span>Checking...</span>
@@ -89,9 +89,9 @@
                     <MudButton Variant="Variant.Text" OnClick="@(() => _step = SetupStep.RelayUrl)">Back</MudButton>
                     <MudSpacer />
                     <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                               Disabled="@_verifying"
+                               Disabled="@Model.VerifyRelay.Executing"
                                OnClick="VerifyRegistrationAsync">
-                        @if (_verifying)
+                        @if (Model.VerifyRelay.Executing)
                         {
                             <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
                             <span>Checking...</span>
@@ -142,7 +142,6 @@ else
     private enum SetupStep { RelayUrl, RegisterKey, Profile }
 
     private SetupStep _step = SetupStep.RelayUrl;
-    private bool _verifying;
 
     protected override async Task OnContextReadyAsync()
     {
@@ -161,66 +160,47 @@ else
 
     private async Task VerifyAndAdvanceAsync()
     {
-        _verifying = true;
+        await Model.VerifyRelay.ExecuteAsync();
 
-        try
+        // Profile restored from server → setup done (reactive)
+        if (!Model.SetupRequired)
         {
-            await Model.VerifyRelay.ExecuteAsync();
-
-            // Profile restored from server → setup done (reactive)
-            if (!Model.SetupRequired)
-            {
-                return;
-            }
-
-            // Registered but no profile → skip to profile form
-            if (Model.PrfModel.Role is PrfUserRole.ADMIN or PrfUserRole.USER)
-            {
-                _step = SetupStep.Profile;
-                return;
-            }
-
-            // Not registered → show register key step
-            if (Model.PrfModel.Role == PrfUserRole.UNREGISTERED)
-            {
-                _step = SetupStep.RegisterKey;
-                return;
-            }
-
-            // UNKNOWN = relay unreachable or empty URL → stay (error already shown)
+            return;
         }
-        finally
+
+        // Registered but no profile → skip to profile form
+        if (Model.PrfModel.Role is PrfUserRole.ADMIN or PrfUserRole.USER)
         {
-            _verifying = false;
+            _step = SetupStep.Profile;
+            return;
         }
+
+        // Not registered → show register key step
+        if (Model.PrfModel.Role == PrfUserRole.UNREGISTERED)
+        {
+            _step = SetupStep.RegisterKey;
+        }
+
+        // UNKNOWN = relay unreachable or empty URL → stay (error already shown)
     }
 
     private async Task VerifyRegistrationAsync()
     {
-        _verifying = true;
+        Model.PrfModel.Role = PrfUserRole.UNKNOWN;
+        await Model.VerifyRelay.ExecuteAsync();
 
-        try
+        if (!Model.SetupRequired)
         {
-            Model.PrfModel.Role = PrfUserRole.UNKNOWN;
-            await Model.VerifyRelay.ExecuteAsync();
-
-            if (!Model.SetupRequired)
-            {
-                return;
-            }
-
-            if (Model.PrfModel.Role is PrfUserRole.ADMIN or PrfUserRole.USER)
-            {
-                _step = SetupStep.Profile;
-            }
-            else
-            {
-                Model.StatusModel.AddError("Key not registered yet.");
-            }
+            return;
         }
-        finally
+
+        if (Model.PrfModel.Role is PrfUserRole.ADMIN or PrfUserRole.USER)
         {
-            _verifying = false;
+            _step = SetupStep.Profile;
+        }
+        else
+        {
+            Model.StatusModel.AddError("Key not registered yet.");
         }
     }
 

@@ -14,9 +14,9 @@ else if (Model.ErrorMessage is not null)
         @Model.ErrorMessage
     </MudAlert>
 }
-else
+else if (Model.FormData is not null)
 {
-    <EditForm Model="_profileData" OnValidSubmit="OnValidSubmitAsync">
+    <EditForm Model="Model.FormData" OnValidSubmit="OnValidSubmitAsync">
         <DataAnnotationsValidator />
         <MudCard>
             <MudCardHeader>
@@ -31,19 +31,19 @@ else
             <MudCardContent>
                 <MudText Typo="Typo.subtitle2" Class="mb-2">Profile</MudText>
 
-                <MudTextField @bind-Value="_profileData.Username"
+                <MudTextField @bind-Value="Model.FormData.Username"
                               Label="Display Name"
                               Variant="Variant.Outlined"
                               Placeholder="user"
-                              For="@(() => _profileData.Username)"
+                              For="@(() => Model.FormData.Username)"
                               Class="mb-4"
                               Disabled="@Model.Saving" />
 
-                <MudTextField @bind-Value="_profileData.Email"
+                <MudTextField @bind-Value="Model.FormData.Email"
                               Label="Email Address"
                               Variant="Variant.Outlined"
                               Placeholder="user@example.com"
-                              For="@(() => _profileData.Email)"
+                              For="@(() => Model.FormData.Email)"
                               Class="mb-4"
                               Disabled="@Model.Saving" />
 
@@ -51,11 +51,11 @@ else
 
                 <MudText Typo="Typo.subtitle2" Class="mb-2">Mail Relay</MudText>
 
-                <MudTextField @bind-Value="_profileData.MailRelayUrl"
+                <MudTextField @bind-Value="Model.FormData.MailRelayUrl"
                               Label="Mail Relay URL"
                               Variant="Variant.Outlined"
                               Placeholder="https://your-relay.example.com/api/"
-                              For="@(() => _profileData.MailRelayUrl)"
+                              For="@(() => Model.FormData.MailRelayUrl)"
                               Class="mb-4"
                               Disabled="@Model.Saving" />
 
@@ -65,37 +65,37 @@ else
 
                 <MudGrid>
                     <MudItem xs="12" sm="8">
-                        <MudTextField @bind-Value="_profileData.SmtpHost"
+                        <MudTextField @bind-Value="Model.FormData.SmtpHost"
                                       Label="SMTP Host"
                                       Variant="Variant.Outlined"
                                       Placeholder="smtp.example.com"
-                                      For="@(() => _profileData.SmtpHost)"
+                                      For="@(() => Model.FormData.SmtpHost)"
                                       Disabled="@Model.Saving" />
                     </MudItem>
                     <MudItem xs="12" sm="4">
-                        <MudNumericField @bind-Value="_profileData.SmtpPort"
+                        <MudNumericField @bind-Value="Model.FormData.SmtpPort"
                                          Label="Port"
                                          Variant="Variant.Outlined"
-                                         For="@(() => _profileData.SmtpPort)"
+                                         For="@(() => Model.FormData.SmtpPort)"
                                          Disabled="@Model.Saving" />
                     </MudItem>
                 </MudGrid>
 
                 <MudGrid Class="mt-2">
                     <MudItem xs="12" sm="6">
-                        <MudTextField @bind-Value="_profileData.SmtpUsername"
+                        <MudTextField @bind-Value="Model.FormData.SmtpUsername"
                                       Label="Username"
                                       Variant="Variant.Outlined"
                                       Placeholder="user@example.com"
-                                      For="@(() => _profileData.SmtpUsername)"
+                                      For="@(() => Model.FormData.SmtpUsername)"
                                       Disabled="@Model.Saving" />
                     </MudItem>
                     <MudItem xs="12" sm="6">
-                        <MudTextField @bind-Value="_profileData.SmtpPassword"
+                        <MudTextField @bind-Value="Model.FormData.SmtpPassword"
                                       Label="Password"
                                       Variant="Variant.Outlined"
                                       InputType="InputType.Password"
-                                      For="@(() => _profileData.SmtpPassword)"
+                                      For="@(() => Model.FormData.SmtpPassword)"
                                       Disabled="@Model.Saving" />
                     </MudItem>
                 </MudGrid>
@@ -106,37 +106,37 @@ else
 
                 <MudGrid>
                     <MudItem xs="12" sm="8">
-                        <MudTextField @bind-Value="_profileData.ImapHost"
+                        <MudTextField @bind-Value="Model.FormData.ImapHost"
                                       Label="IMAP Host"
                                       Variant="Variant.Outlined"
                                       Placeholder="imap.example.com"
-                                      For="@(() => _profileData.ImapHost)"
+                                      For="@(() => Model.FormData.ImapHost)"
                                       Disabled="@Model.Saving" />
                     </MudItem>
                     <MudItem xs="12" sm="4">
-                        <MudNumericField @bind-Value="_profileData.ImapPort"
+                        <MudNumericField @bind-Value="Model.FormData.ImapPort"
                                          Label="Port"
                                          Variant="Variant.Outlined"
-                                         For="@(() => _profileData.ImapPort)"
+                                         For="@(() => Model.FormData.ImapPort)"
                                          Disabled="@Model.Saving" />
                     </MudItem>
                 </MudGrid>
 
                 <MudGrid Class="mt-2">
                     <MudItem xs="12" sm="6">
-                        <MudTextField @bind-Value="_profileData.ImapUsername"
+                        <MudTextField @bind-Value="Model.FormData.ImapUsername"
                                       Label="Username"
                                       Variant="Variant.Outlined"
                                       Placeholder="user@example.com"
-                                      For="@(() => _profileData.ImapUsername)"
+                                      For="@(() => Model.FormData.ImapUsername)"
                                       Disabled="@Model.Saving" />
                     </MudItem>
                     <MudItem xs="12" sm="6">
-                        <MudTextField @bind-Value="_profileData.ImapPassword"
+                        <MudTextField @bind-Value="Model.FormData.ImapPassword"
                                       Label="Password"
                                       Variant="Variant.Outlined"
                                       InputType="InputType.Password"
-                                      For="@(() => _profileData.ImapPassword)"
+                                      For="@(() => Model.FormData.ImapPassword)"
                                       Disabled="@Model.Saving" />
                     </MudItem>
                 </MudGrid>
@@ -170,47 +170,19 @@ else
     [Parameter]
     public string? InitialRelayUrl { get; set; }
 
-    private UserProfileData _profileData = new();
-
     protected override async Task OnContextReadyAsync()
     {
-        _profileData.MailRelayUrl = InitialRelayUrl;
+        Model.InitialRelayUrl = InitialRelayUrl;
         await Model.LoadProfile.ExecuteAsync();
-    }
-
-    protected override void OnProfileLoadedChanged()
-    {
-        if (Model.ProfileLoaded && Model.Profile is not null)
-        {
-            _profileData = new UserProfileData
-            {
-                Username = Model.Profile.Username,
-                Email = Model.Profile.Email,
-                MailRelayUrl = Model.Profile.MailRelayUrl ?? InitialRelayUrl,
-                SmtpHost = Model.Profile.SmtpHost,
-                SmtpPort = Model.Profile.SmtpPort ?? 587,
-                SmtpUsername = Model.Profile.SmtpUsername,
-                SmtpPassword = Model.Profile.SmtpPassword,
-                ImapHost = Model.Profile.ImapHost,
-                ImapPort = Model.Profile.ImapPort ?? 993,
-                ImapUsername = Model.Profile.ImapUsername,
-                ImapPassword = Model.Profile.ImapPassword
-            };
-            // No StateHasChanged() needed - RenderAndHook trigger already re-renders
-        }
-    }
-
-    protected override void OnSuccessMessageChanged()
-    {
-        if (Model.SuccessMessage is not null)
-        {
-            Model.StatusModel.AddInfo(Model.SuccessMessage);
-        }
     }
 
     private async Task OnValidSubmitAsync()
     {
-        await Model.SaveProfile.ExecuteAsync(_profileData);
-        // MailApiModel auto-syncs via internal observer — no callback needed
+        if (Model.FormData is null)
+        {
+            return;
+        }
+
+        await Model.SaveProfile.ExecuteAsync(Model.FormData);
     }
 }

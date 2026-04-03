@@ -46,20 +46,37 @@ public partial class UserProfileModel : ObservableModel
     /// <summary>
     /// Success message from last operation.
     /// </summary>
-    [ObservableComponentTrigger]
+    [ObservableTrigger(nameof(OnSuccessMessageChanged))]
     public partial string? SuccessMessage { get; set; }
 
     /// <summary>
     /// Whether the profile has been loaded (even if empty).
-    /// Components can observe this to know when profile data is ready.
     /// </summary>
-    [ObservableComponentTrigger]
     public partial bool ProfileLoaded { get; set; }
+
+    /// <summary>
+    /// Editable form data populated from Profile after load.
+    /// Bound to EditForm in the component.
+    /// </summary>
+    public partial UserProfileData? FormData { get; set; }
 
     /// <summary>
     /// Whether an error occurred during decryption (wrong passkey).
     /// </summary>
     public partial bool IsDecryptionError { get; set; }
+
+    /// <summary>
+    /// Default relay URL for new profiles (set from component parameter).
+    /// </summary>
+    public string? InitialRelayUrl { get; set; }
+
+    private void OnSuccessMessageChanged()
+    {
+        if (SuccessMessage is not null)
+        {
+            StatusModel.AddInfo(SuccessMessage);
+        }
+    }
 
     // Commands
     [ObservableCommand(nameof(LoadProfileAsync))]
@@ -76,6 +93,8 @@ public partial class UserProfileModel : ObservableModel
         Loading = true;
         ErrorMessage = null;
         IsDecryptionError = false;
+        ProfileLoaded = false;
+        FormData = null;
 
         try
         {
@@ -92,6 +111,27 @@ public partial class UserProfileModel : ObservableModel
             if (result.Success)
             {
                 Profile = result.Value;
+                if (Profile is not null)
+                {
+                    FormData = new UserProfileData
+                    {
+                        Username = Profile.Username,
+                        Email = Profile.Email,
+                        MailRelayUrl = Profile.MailRelayUrl ?? InitialRelayUrl,
+                        SmtpHost = Profile.SmtpHost,
+                        SmtpPort = Profile.SmtpPort ?? 587,
+                        SmtpUsername = Profile.SmtpUsername,
+                        SmtpPassword = Profile.SmtpPassword,
+                        ImapHost = Profile.ImapHost,
+                        ImapPort = Profile.ImapPort ?? 993,
+                        ImapUsername = Profile.ImapUsername,
+                        ImapPassword = Profile.ImapPassword
+                    };
+                }
+                else
+                {
+                    FormData = new UserProfileData { MailRelayUrl = InitialRelayUrl };
+                }
                 ProfileLoaded = true;
             }
             else if (result.ErrorCode == PrfErrorCode.DECRYPTION_FAILED ||
@@ -155,7 +195,6 @@ public partial class UserProfileModel : ObservableModel
             else if (result.ErrorCode == PrfErrorCode.KEY_DERIVATION_FAILED)
             {
                 PrfModel.OnKeyDerivationFailed();
-                ErrorMessage = "Keys expired. Please try again.";
             }
             else
             {
