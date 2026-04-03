@@ -1,5 +1,6 @@
 using BlazorPRF.Api.Extensions;
 using BlazorPRF.Mail.Services;
+using BlazorPRF.UI.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BlazorPRF.Mail.Extensions;
@@ -20,6 +21,8 @@ public static class ServiceCollectionExtensions
     {
         services.AddPrfApiClient();
         services.AddSingleton<IMailService, MailService>();
+        services.AddSingleton<IProfileSyncService, ProfileSyncService>();
+        services.AddSingleton<IRelayRegistrationService, RelayRegistrationService>();
         return services;
     }
 }

@@ -1,10 +1,11 @@
 @using System.Text.Json
 @using BlazorPRF.Api.Models
 @using BlazorPRF.Api.Services
+@using BlazorPRF.Shared.Crypto.Services
 @using TextCopy
 @inherits PrfModelComponent
 @inject ISignedApiClient SignedApiClient
-@inject ISigningService SigningService
+@inject ISigningContextProvider SigningContextProvider
 @inject IClipboard Clipboard
 
 <MudItem xs="12" md="6">
@@ -152,13 +153,7 @@
         await LoadKeysAsync();
     }
 
-    private SigningContext CreateSigningContext()
-    {
-        return new SigningContext(
-            Model.Ed25519PublicKey ?? "",
-            Model.Salt ?? "",
-            async (message, salt) => await SigningService.SignAsync(message, salt));
-    }
+    private SigningContext CreateSigningContext() => SigningContextProvider.CreateSigningContext();
 
     private async Task LoadKeysAsync()
     {

@@ -1,6 +1,7 @@
 using BlazorPRF.Persistence.Data.Models;
 using BlazorPRF.Persistence.Services;
 using BlazorPRF.Shared.Crypto.Models;
+using BlazorPRF.UI.Services;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;
 using System.Diagnostics.CodeAnalysis;
@@ -18,7 +19,7 @@ public partial class UserProfileModel : ObservableModel
 {
     [SuppressMessage("RxBlazorGenerator", "RXBG050:Partial constructor parameter type may not be registered in DI", Justification = "Services registered externally")]
     // ReSharper disable UnusedParameter.Local
-    public partial UserProfileModel(PrfModel prfModel, IUserProfileService userProfileService, StatusModel statusModel);
+    public partial UserProfileModel(PrfModel prfModel, IUserProfileService userProfileService, IProfileSyncService profileSyncService, StatusModel statusModel);
     // ReSharper restore UnusedParameter.Local
 
     /// <summary>
@@ -138,6 +139,17 @@ public partial class UserProfileModel : ObservableModel
             {
                 Profile = result.Value;
                 SuccessMessage = "Profile saved successfully!";
+
+                // Sync to server as part of the atomic save workflow
+                var syncResult = await ProfileSyncService.SyncToServerAsync();
+                if (syncResult.Success && syncResult.Message is not null)
+                {
+                    StatusModel.AddSuccess(syncResult.Message);
+                }
+                else if (!syncResult.Success)
+                {
+                    StatusModel.AddError(syncResult.Message ?? "Profile sync failed");
+                }
             }
             else if (result.ErrorCode == PrfErrorCode.KEY_DERIVATION_FAILED)
             {

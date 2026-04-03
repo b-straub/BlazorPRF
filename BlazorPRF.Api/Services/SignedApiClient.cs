@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using BlazorPRF.Api.Models;
+using BlazorPRF.Shared.Crypto.Services;
 
 namespace BlazorPRF.Api.Services;
 

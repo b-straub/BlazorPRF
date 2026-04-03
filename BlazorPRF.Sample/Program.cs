@@ -6,6 +6,7 @@ using BlazorPRF.Persistence.Services;
 using BlazorPRF.Sample;
 using BlazorPRF.Sample.Services;
 using BlazorPRF.Persistence.Models;
+using BlazorPRF.Shared.Crypto.Services;
 using BlazorPRF.UI.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
@@ -26,6 +27,9 @@ builder.Services.AddBlazoredLocalStorageAsSingleton();
 
 // Credential hint provider: checks DB first (authoritative), then LocalStorage (fallback)
 builder.Services.AddSingleton<ICredentialHintProvider, CombinedCredentialHintProvider>();
+
+// Signing context provider: bridges PrfModel auth state with signing service
+builder.Services.AddSingleton<ISigningContextProvider, PrfSigningContextProvider>();
 
 // Add BlazorPRF with configuration
 #pragma warning disable CA1416

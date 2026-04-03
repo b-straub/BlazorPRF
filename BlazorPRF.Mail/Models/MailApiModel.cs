@@ -28,11 +28,14 @@ public partial class MailApiModel : ObservableModel, IMailSender
     public partial MailApiModel(
         PrfModel prfModel,
         StatusModel statusModel,
+        UserProfileModel userProfileModel,
         IMailService mailService,
-        IUserProfileService userProfileService,
         IAsymmetricEncryption asymmetricEncryption,
         ISigningService signingService,
+        ISigningContextProvider signingContextProvider,
         ISignedApiClient signedApiClient,
+        IProfileSyncService profileSyncService,
+        IRelayRegistrationService relayRegistrationService,
         ITrustedContactService trustedContactService,
         IDbContextFactory<PrfDbContext> dbContextFactory);
     // ReSharper restore UnusedParameter.Local
@@ -43,6 +46,16 @@ public partial class MailApiModel : ObservableModel, IMailSender
     /// null = not checked yet.
     /// </summary>
     public partial bool? ServerHasAdmin { get; set; }
+
+    /// <summary>
+    /// Mail relay URL. Editable in settings, persisted in profile.
+    /// </summary>
+    public partial string RelayUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether setup is required (no profile loaded).
+    /// </summary>
+    public bool SetupRequired => Profile is null && PrfModel.HasKeys;
 
     // Profile state
     /// <summary>
@@ -196,157 +209,105 @@ public partial class MailApiModel : ObservableModel, IMailSender
     [ObservableCommand(nameof(DecryptEmailAsync))]
     public partial IObservableCommandAsync DecryptEmail { get; }
 
-    /// <summary>
-    /// Creates a signing context for API requests.
-    /// </summary>
-    private SigningContext CreateSigningContext()
-    {
-        return new SigningContext(
-            PrfModel.Ed25519PublicKey ?? "",
-            PrfModel.Salt ?? "",
-            async (message, salt) => await SigningService.SignAsync(message, salt));
-    }
+    [ObservableCommand(nameof(VerifyRelayAsync))]
+    public partial IObservableCommandAsync VerifyRelay { get; }
+
+    [ObservableCommand(nameof(ResetProfileAsync))]
+    public partial IObservableCommandAsync ResetProfile { get; }
+
+    private SigningContext CreateSigningContext() => SigningContextProvider.CreateSigningContext();
 
     private async Task LoadProfileAsync()
     {
-        if (!await PrfModel.EnsureKeysAsync())
+        // Load via UserProfileModel (single source of truth for profile state)
+        if (!UserProfileModel.ProfileLoaded)
         {
-            StatusModel.AddError("Authentication cancelled or failed");
+            await UserProfileModel.LoadProfile.ExecuteAsync();
+        }
+
+        Profile = UserProfileModel.Profile;
+
+        // Update API client base URL from profile (must end with / for correct URI resolution)
+        if (Profile is not null && !string.IsNullOrWhiteSpace(Profile.MailRelayUrl))
+        {
+            var url = Profile.MailRelayUrl.Trim();
+            if (!url.EndsWith('/'))
+            {
+                url += '/';
+            }
+
+            SignedApiClient.BaseUrl = url;
+        }
+    }
+
+
+    /// <summary>
+    /// Verify relay is reachable, check admin/user registration, try profile restore.
+    /// Sets RelayUrl on SignedApiClient and updates PrfModel.Role.
+    /// </summary>
+    private async Task VerifyRelayAsync()
+    {
+        var url = RelayUrl.Trim();
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            StatusModel.AddError("Mail relay URL is required");
+            PrfModel.Role = PrfUserRole.UNKNOWN;
             return;
         }
 
-        var result = await UserProfileService.GetAsync();
-        if (result.Success && result.Value is not null)
+        if (!url.EndsWith('/'))
         {
-            Profile = result.Value;
+            url += '/';
+        }
 
-            // Update API client base URL from profile (must end with / for correct URI resolution)
-            if (!string.IsNullOrWhiteSpace(result.Value.MailRelayUrl))
+        SignedApiClient.BaseUrl = url;
+
+        // Ping relay health check
+        var ping = await SignedApiClient.GetAsync("");
+        if (!ping.Success || ping.Value is null || !ping.Value.Contains("PRF Mail Backend"))
+        {
+            StatusModel.AddError("Cannot reach mail relay. Check the URL.");
+            PrfModel.Role = PrfUserRole.UNKNOWN;
+            return;
+        }
+
+        // Check admin/user registration
+        if (PrfModel.Role == PrfUserRole.UNKNOWN)
+        {
+            await CheckAdminStatusAsync();
+        }
+
+        // If registered, try to restore profile from server
+        if (PrfModel.Role is PrfUserRole.ADMIN or PrfUserRole.USER)
+        {
+            if (await ProfileSyncService.SyncFromServerAsync())
             {
-                var url = result.Value.MailRelayUrl.Trim();
-                if (!url.EndsWith('/'))
-                {
-                    url += '/';
-                }
-
-                SignedApiClient.BaseUrl = url;
+                await LoadProfileAsync();
+                await UserProfileModel.LoadProfile.ExecuteAsync();
+                StatusModel.AddSuccess("Profile restored from server!");
             }
-        }
-        else if (!result.Success)
-        {
-            StatusModel.AddError(result.Error ?? "Failed to load profile");
-        }
-        // result.Success && result.Value is null → no profile exists yet, not an error
-    }
-
-    /// <summary>
-    /// Push the current encrypted profile to the server for sync.
-    /// Called after saving profile locally.
-    /// </summary>
-    public async Task SyncProfileToServerAsync()
-    {
-        try
-        {
-            // Get the raw encrypted blob from local storage — don't upload empty profiles
-            var localProfile = await GetLocalEncryptedProfileAsync();
-            if (string.IsNullOrWhiteSpace(localProfile))
-            {
-                return;
-            }
-
-            var body = System.Text.Json.JsonSerializer.Serialize(
-                new { encryptedProfile = localProfile });
-            var context = CreateSigningContext();
-            await SignedApiClient.SendUserSignedAsync("profile", body, "POST", context);
-        }
-        catch
-        {
-            // Sync failure is non-critical — local profile is the source of truth
         }
     }
 
     /// <summary>
-    /// Pull encrypted profile from server and save locally if no local profile exists.
-    /// Called on login to restore settings on new devices.
+    /// Delete local profile and reset state for fresh setup.
     /// </summary>
-    public async Task SyncProfileFromServerAsync()
-    {
-        try
-        {
-            var context = CreateSigningContext();
-            var result = await SignedApiClient.SendUserSignedAsync("profile", "", "GET", context);
-
-            if (!result.Success || result.Value is null)
-            {
-                return;
-            }
-
-            var doc = System.Text.Json.JsonDocument.Parse(result.Value);
-            if (!doc.RootElement.TryGetProperty("profile", out var profileProp) || profileProp.ValueKind == System.Text.Json.JsonValueKind.Null)
-            {
-                return;
-            }
-
-            if (!profileProp.TryGetProperty("encryptedProfile", out var encryptedProp))
-            {
-                return;
-            }
-
-            var encryptedProfile = encryptedProp.GetString();
-            if (string.IsNullOrEmpty(encryptedProfile))
-            {
-                return;
-            }
-
-            // Save the encrypted blob directly to local storage
-            await SaveLocalEncryptedProfileAsync(encryptedProfile);
-            StatusModel.AddSuccess("Profile restored from server");
-
-            // Reload to decrypt
-            await LoadProfileAsync();
-        }
-        catch
-        {
-            // Sync failure is non-critical
-        }
-    }
-
-    /// <summary>
-    /// Get the raw encrypted profile blob from local SQLite.
-    /// </summary>
-    private async Task<string?> GetLocalEncryptedProfileAsync()
+    private async Task ResetProfileAsync()
     {
         await using var db = await DbContextFactory.CreateDbContextAsync();
         var profile = await db.UserProfiles.SingleOrDefaultAsync();
-        return profile?.EncryptedData;
-    }
-
-    /// <summary>
-    /// Save a raw encrypted profile blob to local SQLite.
-    /// </summary>
-    private async Task SaveLocalEncryptedProfileAsync(string encryptedData)
-    {
-        await using var db = await DbContextFactory.CreateDbContextAsync();
-        var existing = await db.UserProfiles.SingleOrDefaultAsync();
-
-        if (existing is null)
+        if (profile is not null)
         {
-            var profile = new Persistence.Data.Models.UserProfile
-            {
-                Id = Guid.NewGuid(),
-                EncryptedData = encryptedData,
-                UpdatedAt = DateTime.UtcNow
-            };
-            await db.UserProfiles.AddAsync(profile);
-        }
-        else
-        {
-            existing.EncryptedData = encryptedData;
-            existing.UpdatedAt = DateTime.UtcNow;
+            db.UserProfiles.Remove(profile);
+            await db.SaveChangesAsync();
         }
 
-        await db.SaveChangesAsync();
+        Profile = null;
+        UserProfileModel.Profile = null;
+        UserProfileModel.ProfileLoaded = false;
+        StatusModel.AddInfo("Profile deleted. Complete setup again.");
     }
+
 
     private async Task TestSmtpAsync()
     {
@@ -437,27 +398,6 @@ public partial class MailApiModel : ObservableModel, IMailSender
         }
     }
 
-    /// <summary>
-    /// Ensure the admin's Ed25519 key is also registered as a user key.
-    /// Admin auth and user auth are separate — admin needs a user key for mail operations.
-    /// </summary>
-    private async Task EnsureAdminRegisteredAsUserAsync(SigningContext context)
-    {
-        var ed25519Key = PrfModel.Ed25519PublicKey;
-        if (string.IsNullOrEmpty(ed25519Key))
-        {
-            return;
-        }
-
-        var body = System.Text.Json.JsonSerializer.Serialize(new
-        {
-            publicKey = ed25519Key,
-            userId = "admin"
-        });
-
-        // This is idempotent — if already registered, server just updates
-        await SignedApiClient.SendAdminSignedAsync("register", body, "POST", context);
-    }
 
     /// <summary>
     /// Auto-fetch emails when IMAP is configured.
@@ -484,9 +424,9 @@ public partial class MailApiModel : ObservableModel, IMailSender
         if (PrfModel.Role is PrfUserRole.ADMIN or PrfUserRole.USER)
         {
             // Try to restore profile from server if no local profile
-            if (Profile is null)
+            if (Profile is null && await ProfileSyncService.SyncFromServerAsync())
             {
-                await SyncProfileFromServerAsync();
+                await LoadProfileAsync();
             }
 
             await AutoFetchEmailsAsync();
@@ -495,7 +435,6 @@ public partial class MailApiModel : ObservableModel, IMailSender
 
     /// <summary>
     /// Determine the user's role on the mail relay server.
-    /// Tries admin access first, then user access, falls back to unregistered.
     /// Public to avoid auto-detection as internal observer (RXBG031: reads+writes PrfModel.Role).
     /// </summary>
     public async Task CheckAdminStatusAsync()
@@ -511,58 +450,9 @@ public partial class MailApiModel : ObservableModel, IMailSender
             return;
         }
 
-        try
-        {
-            // Check if server is reachable and has an admin configured (unauthenticated)
-            var setupResult = await SignedApiClient.GetAsync("admin-setup");
-            if (!setupResult.Success)
-            {
-                // Server unreachable or returned error — show setup instructions
-                ServerHasAdmin = null;
-                PrfModel.Role = PrfUserRole.UNREGISTERED;
-                return;
-            }
-
-            var doc = System.Text.Json.JsonDocument.Parse(setupResult.Value!);
-            ServerHasAdmin = doc.RootElement.TryGetProperty("hasAdmin", out var ha) && ha.GetBoolean();
-
-            var context = CreateSigningContext();
-
-            // Try admin access first (GET /register lists keys — admin only)
-            var adminResult = await SignedApiClient.SendAdminSignedAsync("register", "", "GET", context);
-            if (adminResult.Success)
-            {
-                // Auto-register admin's own key as a user so mail operations work
-                await EnsureAdminRegisteredAsUserAsync(context);
-                PrfModel.Role = PrfUserRole.ADMIN;
-                return;
-            }
-
-            // Not admin — try a user-signed request to check if key is registered
-            var userResult = await SignedApiClient.SendUserSignedAsync(
-                "test_imap",
-                System.Text.Json.JsonSerializer.Serialize(new { imapHost = "", filter = "test" }),
-                "POST",
-                context);
-
-            // If we get past auth (even with a validation error), the key is registered
-            // "IMAP host is required" = registered but bad params
-            // "Public key not registered" = not registered
-            if (userResult.Success || (userResult.Error is not null && !userResult.Error.Contains("not registered")))
-            {
-                PrfModel.Role = PrfUserRole.USER;
-            }
-            else
-            {
-                PrfModel.Role = PrfUserRole.UNREGISTERED;
-            }
-        }
-        catch
-        {
-            // Server unreachable
-            ServerHasAdmin = null;
-            PrfModel.Role = PrfUserRole.UNREGISTERED;
-        }
+        var status = await RelayRegistrationService.CheckRegistrationAsync(ed25519Key);
+        ServerHasAdmin = status.ServerHasAdmin;
+        PrfModel.Role = status.Role;
     }
 
     private async Task FetchEmailsAsync()
