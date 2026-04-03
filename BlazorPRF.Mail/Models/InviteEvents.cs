@@ -1,4 +1,4 @@
-namespace BlazorPRF.UI.Models;
+namespace BlazorPRF.Mail.Models;
 
 /// <summary>
 /// Event data for when an invite is created.

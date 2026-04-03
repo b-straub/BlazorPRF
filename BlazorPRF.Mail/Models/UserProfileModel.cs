@@ -1,13 +1,14 @@
 using BlazorPRF.Persistence.Data.Models;
 using BlazorPRF.Persistence.Services;
 using BlazorPRF.Shared.Crypto.Models;
-using BlazorPRF.UI.Services;
+using BlazorPRF.Mail.Services;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;
 using System.Diagnostics.CodeAnalysis;
 using RxBlazorV2.MudBlazor.Components;
 
-namespace BlazorPRF.UI.Models;
+using BlazorPRF.UI.Models;
+namespace BlazorPRF.Mail.Models;
 
 /// <summary>
 /// Reactive model for user profile state management.

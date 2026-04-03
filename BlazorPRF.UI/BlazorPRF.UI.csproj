@@ -33,14 +33,9 @@
         <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
         <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.5" />
         <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.5" />
-        <PackageReference Include="RxBlazorV2.MudBlazor" Version="1.1.4" />
+        <PackageReference Include="RxBlazorV2.MudBlazor" Version="1.1.5" />
         <PackageReference Include="TextCopy" Version="6.2.1" />
         <PackageReference Include="BlazorPRF.$(BlazorPRFCryptoEngine).Crypto" Version="$(BlazorPRFVersion)" Condition="'$(Configuration)' == 'Release'"/>
-    </ItemGroup>
-
-    <!-- Persistence is always a ProjectReference (not packaged) -->
-    <ItemGroup>
-        <ProjectReference Include="..\BlazorPRF.Persistence\BlazorPRF.Persistence.csproj" />
     </ItemGroup>
 
     <ItemGroup Condition="'$(Configuration)' == 'Debug'">

@@ -1,4 +1,4 @@
-namespace BlazorPRF.UI.Services;
+namespace BlazorPRF.Mail.Services;
 
 /// <summary>
 /// Synchronizes encrypted user profile between local storage and server.

@@ -130,7 +130,7 @@ public partial class PrfModel : ObservableModel
         Justification = "Services registered externally")]
     // ReSharper disable UnusedParameter.Local
     public partial PrfModel(
-        InviteModel inviteModel, IPrfService prfService,
+        IPrfService prfService,
         ICredentialHintProvider credentialHintProvider,
         PrfAuthenticationStateProvider stateProvider,
         StatusModel statusModel);

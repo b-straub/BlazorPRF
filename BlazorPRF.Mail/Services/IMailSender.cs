@@ -1,4 +1,4 @@
-namespace BlazorPRF.UI.Services;
+namespace BlazorPRF.Mail.Services;
 
 /// <summary>
 /// Simple interface for sending emails.

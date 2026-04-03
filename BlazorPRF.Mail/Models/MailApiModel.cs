@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using BlazorPRF.Shared.Crypto.Formatting;
 using BlazorPRF.Shared.Crypto.Services;
 using BlazorPRF.UI.Models;
-using BlazorPRF.UI.Services;
+using PrfUserRole = BlazorPRF.UI.Services.PrfUserRole;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;
 using RxBlazorV2.MudBlazor.Components;

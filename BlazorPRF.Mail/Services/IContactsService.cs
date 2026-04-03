@@ -1,6 +1,6 @@
 using BlazorPRF.Persistence.Data.Models;
 
-namespace BlazorPRF.UI.Services;
+namespace BlazorPRF.Mail.Services;
 
 /// <summary>
 /// Result of loading contacts with enhanced error information.

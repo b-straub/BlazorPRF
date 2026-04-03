@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace BlazorPRF.UI.Models;
+namespace BlazorPRF.Mail.Models;
 
 /// <summary>
 /// Signed invite data from the original invitation.

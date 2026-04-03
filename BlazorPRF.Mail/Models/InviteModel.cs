@@ -1,10 +1,10 @@
-using BlazorPRF.UI.Services;
+using BlazorPRF.Mail.Services;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;
 using System.Diagnostics.CodeAnalysis;
 using RxBlazorV2.MudBlazor.Components;
 
-namespace BlazorPRF.UI.Models;
+namespace BlazorPRF.Mail.Models;
 
 /// <summary>
 /// Reactive model for invitation events.

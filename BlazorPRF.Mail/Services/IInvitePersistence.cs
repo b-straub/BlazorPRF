@@ -1,6 +1,7 @@
 using BlazorPRF.UI.Models;
 
-namespace BlazorPRF.UI.Services;
+using BlazorPRF.Mail.Models;
+namespace BlazorPRF.Mail.Services;
 
 /// <summary>
 /// Interface for persisting invitation events.
