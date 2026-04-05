@@ -1,6 +1,6 @@
-using BlazorPRF.Shared.Crypto.Configuration;
-using BlazorPRF.Shared.Crypto.Formatting;
-using BlazorPRF.Shared.Crypto.Services;
+using BlazorPRF.Crypto.Configuration;
+using BlazorPRF.Crypto.Abstractions.Formatting;
+using BlazorPRF.Crypto.Services;
 using BlazorPRF.UI.Services;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;

@@ -8,10 +8,10 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest  
+    runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      
+
     permissions:
       contents: write
       pages: write
@@ -38,12 +38,8 @@ jobs:
         run: mkdir -p .nuget
 
       # Install all npm dependencies
-      - name: Install npm dependencies (Noble.Crypto)
-        working-directory: BlazorPRF.Noble.Crypto/TypeScript
-        run: npm install
-
-      - name: Install npm dependencies (BC.Crypto)
-        working-directory: BlazorPRF.BC.Crypto/TypeScript
+      - name: Install npm dependencies (Crypto)
+        working-directory: BlazorPRF.Crypto/TypeScript
         run: npm install
 
       - name: Install npm dependencies (Wasm.Crypto)
@@ -51,12 +47,8 @@ jobs:
         run: npm install
 
       # Build TypeScript BEFORE any dotnet commands (MSBuild discovers static web assets at evaluation time)
-      - name: Build TypeScript (Noble.Crypto)
-        working-directory: BlazorPRF.Noble.Crypto/TypeScript
-        run: npm run build:release
-
-      - name: Build TypeScript (BC.Crypto)
-        working-directory: BlazorPRF.BC.Crypto/TypeScript
+      - name: Build TypeScript (Crypto)
+        working-directory: BlazorPRF.Crypto/TypeScript
         run: npm run build:release
 
       - name: Build TypeScript (Wasm.Crypto)
@@ -65,19 +57,18 @@ jobs:
 
       - name: Verify wwwroot folders exist
         run: |
-          ls -la BlazorPRF.Noble.Crypto/wwwroot/
-          ls -la BlazorPRF.BC.Crypto/wwwroot/
+          ls -la BlazorPRF.Crypto/wwwroot/
           ls -la BaseCrypto/BlazorPRF.Wasm.Crypto/wwwroot/
 
-      # Build and pack base crypto packages
-      - name: Build Shared.Crypto
-        run: dotnet build BlazorPRF.Shared.Crypto/BlazorPRF.Shared.Crypto.csproj -c Release
+      # Build crypto packages
+      - name: Build Crypto.Abstractions
+        run: dotnet build BlazorPRF.Crypto.Abstractions/BlazorPRF.Crypto.Abstractions.csproj -c Release
 
-      - name: Build Noble.Crypto
-        run: dotnet build BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj -c Release
+      - name: Build Crypto
+        run: dotnet build BlazorPRF.Crypto/BlazorPRF.Crypto.csproj -c Release
 
-      - name: Build BC.Crypto
-        run: dotnet build BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj -c Release
+      - name: Build Crypto.Testing
+        run: dotnet build BlazorPRF.Crypto.Testing/BlazorPRF.Crypto.Testing.csproj -c Release
 
       - name: Build Wasm.Crypto
         run: dotnet build BaseCrypto/BlazorPRF.Wasm.Crypto/BlazorPRF.Wasm.Crypto.csproj -c Release
@@ -91,12 +82,9 @@ jobs:
       - name: Clear all NuGet caches
         run: dotnet nuget locals all --clear
 
-      # Build UI with both crypto engine flavors (GeneratePackageOnBuild creates packages)
-      - name: Build UI (Noble)
-        run: dotnet build BlazorPRF.UI/BlazorPRF.UI.csproj -c Release -p:BlazorPRFCryptoEngine=Noble
-
-      - name: Build UI (BC)
-        run: dotnet build BlazorPRF.UI/BlazorPRF.UI.csproj -c Release -p:BlazorPRFCryptoEngine=BC
+      # Build UI
+      - name: Build UI
+        run: dotnet build BlazorPRF.UI/BlazorPRF.UI.csproj -c Release
 
       - name: List all NuGet packages
         run: ls -la .nuget/

@@ -1,7 +1,7 @@
 using System.Text.Json;
-using BlazorPRF.BC.Crypto;
-using BlazorPRF.Shared.Crypto.Json;
-using BlazorPRF.Shared.Crypto.Models;
+using BlazorPRF.Crypto.Testing;
+using BlazorPRF.Crypto.Abstractions.Json;
+using BlazorPRF.Crypto.Abstractions.Models;
 
 namespace BlazorPRF.Tests.Unit;
 

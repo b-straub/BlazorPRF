@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>BlazorPRF.Crypto.Abstractions</PackageId>
+    <Version>$(BlazorPRFVersion)</Version>
+    <Authors>bernisoft</Authors>
+    <Description>Core abstractions, models, and interfaces for BlazorPRF cryptographic operations. Zero dependencies.</Description>
+    <PackageTags>blazor;webauthn;prf;encryption;crypto;abstractions</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/b-straub/BlazorPRF</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/b-straub/BlazorPRF</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <EmbedAllSources>true</EmbedAllSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)../.nuget</PackageOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

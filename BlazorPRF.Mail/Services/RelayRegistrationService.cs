@@ -1,6 +1,7 @@
+using BlazorPRF.Crypto.Abstractions.Services;
 using System.Text.Json;
 using BlazorPRF.Api.Services;
-using BlazorPRF.Shared.Crypto.Services;
+using BlazorPRF.Crypto.Services;
 using BlazorPRF.UI.Services;
 
 namespace BlazorPRF.Mail.Services;

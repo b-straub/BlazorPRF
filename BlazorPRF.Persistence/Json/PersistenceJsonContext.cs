@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using BlazorPRF.Persistence.Data.Models;
 using BlazorPRF.Persistence.Services;
-using BlazorPRF.Shared.Crypto.Models;
+using BlazorPRF.Crypto.Abstractions.Models;
 
 namespace BlazorPRF.Persistence.Json;
 

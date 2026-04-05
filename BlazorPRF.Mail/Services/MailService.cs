@@ -1,10 +1,10 @@
+using BlazorPRF.Crypto.Abstractions.Services;
 using System.Text.Json;
 using BlazorPRF.Api.Models;
 using BlazorPRF.Api.Services;
 using BlazorPRF.Mail.Json;
 using BlazorPRF.Mail.Models;
 using BlazorPRF.Persistence.Data.Models;
-using BlazorPRF.Shared.Crypto.Services;
 
 namespace BlazorPRF.Mail.Services;
 

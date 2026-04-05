@@ -1,7 +1,7 @@
 using BlazorPRF.Persistence.Data;
 using BlazorPRF.Persistence.Data.Models;
 using BlazorPRF.Persistence.Services;
-using BlazorPRF.Shared.Crypto.Models;
+using BlazorPRF.Crypto.Abstractions.Models;
 using BlazorPRF.Mail.Services;
 using BlazorPRF.UI.Services;
 using Microsoft.EntityFrameworkCore;

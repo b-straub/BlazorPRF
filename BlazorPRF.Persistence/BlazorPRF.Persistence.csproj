@@ -14,14 +14,11 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
     <PackageReference Include="RxBlazorV2.MudBlazor" Version="1.1.5" />
     <PackageReference Include="SqliteWasmBlazor" Version="0.8.5-pre" />
-    <PackageReference Include="BlazorPRF.$(BlazorPRFCryptoEngine).Crypto" Version="$(BlazorPRFVersion)" Condition="'$(Configuration)' == 'Release'"/>
+    <PackageReference Include="BlazorPRF.Crypto" Version="$(BlazorPRFVersion)" Condition="'$(Configuration)' == 'Release'"/>
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <ProjectReference Include="..\BlazorPRF.Shared.Crypto\BlazorPRF.Shared.Crypto.csproj" ReferenceOutputAssembly="false" />
-    <Reference Include="BlazorPRF.Shared.Crypto">
-      <HintPath>$(MSBuildThisFileDirectory)..\BlazorPRF.Shared.Crypto\bin\$(Configuration)\net10.0\BlazorPRF.Shared.Crypto.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\BlazorPRF.Crypto\BlazorPRF.Crypto.csproj" />
   </ItemGroup>
 
 </Project>

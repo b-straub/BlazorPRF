@@ -1,6 +1,6 @@
 using BlazorPRF.Persistence.Data.Models;
 using BlazorPRF.Persistence.Services;
-using BlazorPRF.Shared.Crypto.Models;
+using BlazorPRF.Crypto.Abstractions.Models;
 using BlazorPRF.Mail.Services;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;

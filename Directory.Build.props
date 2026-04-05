@@ -8,6 +8,5 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <!-- Central version for all RxBlazorV2 packages -->
     <BlazorPRFVersion>0.5.2-pre</BlazorPRFVersion>
-    <BlazorPRFCryptoEngine>Noble</BlazorPRFCryptoEngine>
   </PropertyGroup>
 </Project>

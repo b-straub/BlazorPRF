@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>BlazorPRF.Crypto.Testing</PackageId>
+    <Version>$(BlazorPRFVersion)</Version>
+    <Authors>bernisoft</Authors>
+    <Description>BouncyCastle-based cryptographic operations for testing BlazorPRF applications. Provides key generation, encryption, and signing without browser dependencies.</Description>
+    <PackageTags>blazor;prf;encryption;testing;bouncycastle</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/b-straub/BlazorPRF</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/b-straub/BlazorPRF</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild Condition="'$(Configuration)' == 'Release'">true</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <EmbedAllSources>true</EmbedAllSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)../.nuget</PackageOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BlazorPRF.Crypto.Abstractions\BlazorPRF.Crypto.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
+  </ItemGroup>
+
+</Project>

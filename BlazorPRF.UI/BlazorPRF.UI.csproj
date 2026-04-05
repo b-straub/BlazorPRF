@@ -5,7 +5,7 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <PackageId>BlazorPRF.$(BlazorPRFCryptoEngine).UI</PackageId>
+        <PackageId>BlazorPRF.UI</PackageId>
         <Version>$(BlazorPRFVersion)</Version>
         <Authors>bernisoft</Authors>
         <Description>MudBlazor UI components for PRF-based deterministic encryption</Description>
@@ -35,19 +35,10 @@
         <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.5" />
         <PackageReference Include="RxBlazorV2.MudBlazor" Version="1.1.5" />
         <PackageReference Include="TextCopy" Version="6.2.1" />
-        <PackageReference Include="BlazorPRF.$(BlazorPRFCryptoEngine).Crypto" Version="$(BlazorPRFVersion)" Condition="'$(Configuration)' == 'Release'"/>
+        <PackageReference Include="BlazorPRF.Crypto" Version="$(BlazorPRFVersion)" Condition="'$(Configuration)' == 'Release'"/>
     </ItemGroup>
 
     <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-        <!--
-        <ProjectReference Include="..\BlazorPRF.BC.Crypto\BlazorPRF.BC.Crypto.csproj" />
-        -->
-        <!-- Reference Shared for build order only, use DLL reference for types -->
-        <ProjectReference Include="..\BlazorPRF.Shared.Crypto\BlazorPRF.Shared.Crypto.csproj" ReferenceOutputAssembly="false" />
-        <ProjectReference Include="..\BlazorPRF.$(BlazorPRFCryptoEngine).Crypto\BlazorPRF.$(BlazorPRFCryptoEngine).Crypto.csproj" />
-        <!-- Direct reference to Shared.Crypto DLL for Debug compilation -->
-        <Reference Include="BlazorPRF.Shared.Crypto">
-            <HintPath>$(MSBuildThisFileDirectory)..\BlazorPRF.Shared.Crypto\bin\$(Configuration)\net10.0\BlazorPRF.Shared.Crypto.dll</HintPath>
-        </Reference>
+        <ProjectReference Include="..\BlazorPRF.Crypto\BlazorPRF.Crypto.csproj" />
     </ItemGroup>
 </Project>

@@ -1,9 +1,8 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using BlazorPRF.BC.Crypto;
+using BlazorPRF.Crypto.Testing;
 
 namespace BlazorPRF.Tests.Integration;
 

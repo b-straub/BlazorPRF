@@ -1,8 +1,8 @@
 using BlazorPRF.Persistence.Services;
-using BlazorPRF.Shared.Crypto.Extensions;
-using BlazorPRF.Shared.Crypto.Formatting;
-using BlazorPRF.Shared.Crypto.Models;
-using BlazorPRF.Shared.Crypto.Services;
+using BlazorPRF.Crypto.Abstractions.Extensions;
+using BlazorPRF.Crypto.Abstractions.Formatting;
+using BlazorPRF.Crypto.Abstractions.Models;
+using BlazorPRF.Crypto.Services;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;
 using System.Diagnostics.CodeAnalysis;

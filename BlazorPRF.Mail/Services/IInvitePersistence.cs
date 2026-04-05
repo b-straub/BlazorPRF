@@ -1,5 +1,3 @@
-using BlazorPRF.UI.Models;
-
 using BlazorPRF.Mail.Models;
 namespace BlazorPRF.Mail.Services;
 

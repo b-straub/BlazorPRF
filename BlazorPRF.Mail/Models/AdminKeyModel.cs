@@ -1,9 +1,10 @@
+using BlazorPRF.Crypto.Abstractions.Services;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using BlazorPRF.Api.Json;
 using BlazorPRF.Api.Models;
 using BlazorPRF.Api.Services;
-using BlazorPRF.Shared.Crypto.Services;
+using BlazorPRF.Crypto.Services;
 using BlazorPRF.UI.Models;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;

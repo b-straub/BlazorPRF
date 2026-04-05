@@ -1,9 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <!-- Internal shared library - not published as separate package -->
-
-  <ItemGroup>
-    <PackageReference Include="R3" Version="1.3.0" />
-  </ItemGroup>
-
-</Project>

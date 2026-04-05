@@ -1,3 +1,4 @@
+using BlazorPRF.Crypto.Abstractions.Services;
 using System.Diagnostics.CodeAnalysis;
 using BlazorPRF.Api.Services;
 using BlazorPRF.Mail.Services;
@@ -5,8 +6,8 @@ using BlazorPRF.Persistence.Data;
 using BlazorPRF.Persistence.Data.Models;
 using BlazorPRF.Persistence.Services;
 using Microsoft.EntityFrameworkCore;
-using BlazorPRF.Shared.Crypto.Formatting;
-using BlazorPRF.Shared.Crypto.Services;
+using BlazorPRF.Crypto.Abstractions.Formatting;
+using BlazorPRF.Crypto.Services;
 using BlazorPRF.UI.Models;
 using PrfUserRole = BlazorPRF.UI.Services.PrfUserRole;
 using RxBlazorV2.Interface;

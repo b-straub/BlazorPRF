@@ -9,11 +9,11 @@
     <File Path="Directory.Build.props" />
     <File Path=".gitignore" />
   </Folder>
-  <Project Path="BlazorPRF.Shared.Crypto/BlazorPRF.Shared.Crypto.csproj" />
+  <Project Path="BlazorPRF.Crypto.Abstractions/BlazorPRF.Crypto.Abstractions.csproj" />
+  <Project Path="BlazorPRF.Crypto/BlazorPRF.Crypto.csproj" />
+  <Project Path="BlazorPRF.Crypto.Testing/BlazorPRF.Crypto.Testing.csproj" />
   <Project Path="BlazorPRF.Api/BlazorPRF.Api.csproj" />
-  <Project Path="BlazorPRF.BC.Crypto/BlazorPRF.BC.Crypto.csproj" />
   <Project Path="BlazorPRF.Mail/BlazorPRF.Mail.csproj" />
-  <Project Path="BlazorPRF.Noble.Crypto/BlazorPRF.Noble.Crypto.csproj" />
   <Project Path="BlazorPRF.UI/BlazorPRF.UI.csproj" />
   <Project Path="BlazorPRF.Persistence/BlazorPRF.Persistence.csproj" />
   <Project Path="BlazorPRF.Sample/BlazorPRF.Sample.csproj" />

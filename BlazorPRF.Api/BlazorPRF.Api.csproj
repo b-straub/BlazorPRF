@@ -3,7 +3,7 @@
   <!-- PRF-authenticated API client library -->
 
   <ItemGroup>
-    <ProjectReference Include="..\BlazorPRF.Shared.Crypto\BlazorPRF.Shared.Crypto.csproj" />
+    <ProjectReference Include="..\BlazorPRF.Crypto.Abstractions\BlazorPRF.Crypto.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

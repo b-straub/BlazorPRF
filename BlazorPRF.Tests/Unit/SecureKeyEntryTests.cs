@@ -1,4 +1,4 @@
-using BlazorPRF.BC.Crypto.Models;
+using BlazorPRF.Crypto.Models;
 
 namespace BlazorPRF.Tests.Unit;
 

@@ -2,8 +2,7 @@ using System.Text.Json;
 using BlazorPRF.Api.Services;
 using BlazorPRF.Persistence.Data;
 using BlazorPRF.Persistence.Data.Models;
-using BlazorPRF.Shared.Crypto.Services;
-using BlazorPRF.UI.Services;
+using BlazorPRF.Crypto.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace BlazorPRF.Mail.Services;

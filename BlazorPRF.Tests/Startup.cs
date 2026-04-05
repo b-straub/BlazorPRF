@@ -1,6 +1,5 @@
-using BlazorPRF.BC.Crypto.Services;
-using BlazorPRF.Shared.Crypto.Configuration;
-using BlazorPRF.Shared.Crypto.Services;
+using BlazorPRF.Crypto.Services;
+using BlazorPRF.Crypto.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BlazorPRF.Tests;

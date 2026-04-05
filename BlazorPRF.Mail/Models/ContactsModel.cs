@@ -1,5 +1,5 @@
 using BlazorPRF.Persistence.Data.Models;
-using BlazorPRF.Shared.Crypto.Formatting;
+using BlazorPRF.Crypto.Abstractions.Formatting;
 using BlazorPRF.Mail.Services;
 using RxBlazorV2.Interface;
 using RxBlazorV2.Model;

@@ -1,6 +1,6 @@
 using Blazored.LocalStorage;
 using BlazorPRF.Persistence.Services;
-using BlazorPRF.Shared.Crypto.Formatting;
+using BlazorPRF.Crypto.Abstractions.Formatting;
 using BlazorPRF.UI.Services;
 
 namespace BlazorPRF.MailSample.Services;

@@ -116,8 +116,8 @@ C# (.NET WASM)                    JavaScript (WebCrypto)
 
 ## Related Packages
 
-- `BlazorPRF.Noble.Crypto` - Full crypto provider using Noble.js (X25519, Ed25519, AES-256-GCM)
-- `BlazorPRF.BC.Crypto` - BouncyCastle-based crypto for server-side scenarios
+- `BlazorPRF.Crypto` - Full crypto provider using Noble.js + SubtleCrypto (X25519, Ed25519, AES-256-GCM)
+- `BlazorPRF.Crypto.Testing` - BouncyCastle-based crypto for unit testing
 
 ## License
 

@@ -1,5 +1,5 @@
 using BlazorPRF.Persistence.Data.Models;
-using BlazorPRF.Shared.Crypto.Models;
+using BlazorPRF.Crypto.Abstractions.Models;
 
 namespace BlazorPRF.Persistence.Services;
 

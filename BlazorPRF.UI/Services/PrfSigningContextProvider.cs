@@ -1,4 +1,5 @@
-using BlazorPRF.Shared.Crypto.Services;
+using BlazorPRF.Crypto.Abstractions.Services;
+using BlazorPRF.Crypto.Services;
 using BlazorPRF.UI.Models;
 
 namespace BlazorPRF.UI.Services;

@@ -1,5 +1,5 @@
-using BlazorPRF.BC.Crypto.Services;
-using BlazorPRF.Shared.Crypto.Configuration;
+using BlazorPRF.Crypto.Services;
+using BlazorPRF.Crypto.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace BlazorPRF.Tests.Unit;

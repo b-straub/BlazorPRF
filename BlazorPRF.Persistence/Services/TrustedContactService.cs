@@ -2,9 +2,9 @@ using System.Text.Json;
 using BlazorPRF.Persistence.Data;
 using BlazorPRF.Persistence.Data.Models;
 using BlazorPRF.Persistence.Json;
-using BlazorPRF.Shared.Crypto.Configuration;
-using BlazorPRF.Shared.Crypto.Models;
-using BlazorPRF.Shared.Crypto.Services;
+using BlazorPRF.Crypto.Configuration;
+using BlazorPRF.Crypto.Abstractions.Models;
+using BlazorPRF.Crypto.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace BlazorPRF.Persistence.Services;

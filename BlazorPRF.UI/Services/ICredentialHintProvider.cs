@@ -1,4 +1,4 @@
-using BlazorPRF.Shared.Crypto.Formatting;
+using BlazorPRF.Crypto.Abstractions.Formatting;
 
 namespace BlazorPRF.UI.Services;
 

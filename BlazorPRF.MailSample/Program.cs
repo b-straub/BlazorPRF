@@ -6,7 +6,7 @@ using BlazorPRF.Persistence.Services;
 using BlazorPRF.MailSample;
 using BlazorPRF.MailSample.Services;
 using BlazorPRF.Persistence.Models;
-using BlazorPRF.Shared.Crypto.Services;
+using BlazorPRF.Crypto.Services;
 using BlazorPRF.UI.Services;
 using BlazorPRF.Mail.Services;
 using Microsoft.AspNetCore.Components.Authorization;

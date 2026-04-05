@@ -1,6 +1,5 @@
 using BlazorPRF.Api.Extensions;
 using BlazorPRF.Mail.Services;
-using BlazorPRF.UI.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BlazorPRF.Mail.Extensions;
