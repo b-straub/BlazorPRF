@@ -3,7 +3,7 @@ using BlazorPRF.Shared.Crypto.Models;
 namespace BlazorPRF.Shared.Crypto.Services;
 
 /// <summary>
-/// Service for asymmetric (ECIES) encryption using X25519 + ChaCha20-Poly1305.
+/// Service for asymmetric (ECIES) encryption using X25519 + AES-256-GCM.
 /// </summary>
 public interface IAsymmetricEncryption
 {

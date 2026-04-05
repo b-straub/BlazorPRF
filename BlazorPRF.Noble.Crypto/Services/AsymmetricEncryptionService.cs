@@ -1,9 +1,7 @@
 using System.Runtime.Versioning;
 using BlazorPRF.Shared.Crypto.Abstractions;
-using BlazorPRF.Shared.Crypto.Configuration;
 using BlazorPRF.Shared.Crypto.Models;
 using BlazorPRF.Shared.Crypto.Services;
-using Microsoft.Extensions.Options;
 
 namespace BlazorPRF.Noble.Crypto.Services;
 
@@ -15,16 +13,13 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
 {
     private readonly ISecureKeyCache _keyCache;
     private readonly ICryptoProvider _cryptoProvider;
-    private readonly EncryptionAlgorithm _defaultAlgorithm;
 
     public AsymmetricEncryptionService(
         ISecureKeyCache keyCache,
-        ICryptoProvider cryptoProvider,
-        IOptions<PrfOptions> options)
+        ICryptoProvider cryptoProvider)
     {
         _keyCache = keyCache;
         _cryptoProvider = cryptoProvider;
-        _defaultAlgorithm = options.Value.DefaultAlgorithm;
     }
 
        public async ValueTask<PrfResult<EncryptedMessage>> EncryptAsync(string message, string recipientPublicKey)
@@ -32,7 +27,7 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
         ArgumentException.ThrowIfNullOrEmpty(message);
         ArgumentException.ThrowIfNullOrEmpty(recipientPublicKey);
 
-        return await _cryptoProvider.EncryptAsymmetricAsync(message, recipientPublicKey, _defaultAlgorithm);
+        return await _cryptoProvider.EncryptAsymmetricAsync(message, recipientPublicKey);
     }
 
        public async ValueTask<PrfResult<EncryptedMessage>> SignAndEncryptAsync(
@@ -59,7 +54,7 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
             Shared.Crypto.Json.SharedJsonContext.Default.SignedEnvelope);
 
         // Encrypt the envelope (not the raw plaintext)
-        return await _cryptoProvider.EncryptAsymmetricAsync(envelopeJson, recipientPublicKey, _defaultAlgorithm);
+        return await _cryptoProvider.EncryptAsymmetricAsync(envelopeJson, recipientPublicKey);
     }
 
        public async ValueTask<PrfResult<string>> DecryptAsync(EncryptedMessage encrypted, string salt)
@@ -74,7 +69,7 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
             return PrfResult<string>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED);
         }
 
-        var result = await _cryptoProvider.DecryptAsymmetricAsync(encrypted, privateKey, encrypted.EffectiveAlgorithm);
+        var result = await _cryptoProvider.DecryptAsymmetricAsync(encrypted, privateKey);
         Array.Clear(privateKey, 0, privateKey.Length);
         return result;
     }

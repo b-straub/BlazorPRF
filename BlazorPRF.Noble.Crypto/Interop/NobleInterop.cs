@@ -89,16 +89,6 @@ internal static partial class NobleInterop
     public static partial string DeriveDualKeyPair(string prfSeedBase64);
 
     // ============================================================
-    // CHACHA20-POLY1305 SYMMETRIC ENCRYPTION
-    // ============================================================
-
-    [JSImport("encryptChaCha", ModuleName)]
-    public static partial string EncryptChaCha(string plaintextBase64, string keyBase64);
-
-    [JSImport("decryptChaCha", ModuleName)]
-    public static partial string DecryptChaCha(string ciphertextBase64, string nonceBase64, string keyBase64);
-
-    // ============================================================
     // AES-GCM SYMMETRIC ENCRYPTION (SubtleCrypto)
     // ============================================================
 
@@ -107,20 +97,6 @@ internal static partial class NobleInterop
 
     [JSImport("decryptAesGcm", ModuleName)]
     public static partial Task<string> DecryptAesGcmAsync(string ciphertextBase64, string nonceBase64, string keyBase64);
-
-    // ============================================================
-    // ECIES ASYMMETRIC ENCRYPTION (X25519 + ChaCha20-Poly1305)
-    // ============================================================
-
-    [JSImport("encryptAsymmetricChaCha", ModuleName)]
-    public static partial string EncryptAsymmetricChaCha(string plaintextBase64, string recipientPublicKeyBase64);
-
-    [JSImport("decryptAsymmetricChaCha", ModuleName)]
-    public static partial string DecryptAsymmetricChaCha(
-        string ephemeralPublicKeyBase64,
-        string ciphertextBase64,
-        string nonceBase64,
-        string privateKeyBase64);
 
     // ============================================================
     // ECIES ASYMMETRIC ENCRYPTION (X25519 + AES-GCM)
@@ -193,22 +169,10 @@ internal static partial class NobleInterop
     // ============================================================
 
     /// <summary>
-    /// Sign with Ed25519 using cached key (key never leaves JS).
+    /// Sign with Ed25519 using cached non-extractable CryptoKey (key never leaves JS).
     /// </summary>
     [JSImport("signWithCachedKey", ModuleName)]
-    public static partial string SignWithCachedKey(string keyId, string messageBase64);
-
-    /// <summary>
-    /// Encrypt symmetric with ChaCha20-Poly1305 using cached key.
-    /// </summary>
-    [JSImport("encryptSymmetricCachedChaCha", ModuleName)]
-    public static partial string EncryptSymmetricCachedChaCha(string keyId, string plaintextBase64);
-
-    /// <summary>
-    /// Decrypt symmetric with ChaCha20-Poly1305 using cached key.
-    /// </summary>
-    [JSImport("decryptSymmetricCachedChaCha", ModuleName)]
-    public static partial string DecryptSymmetricCachedChaCha(string keyId, string ciphertextBase64, string nonceBase64);
+    public static partial Task<string> SignWithCachedKeyAsync(string keyId, string messageBase64);
 
     /// <summary>
     /// Encrypt symmetric with AES-GCM using cached CryptoKey (hardware accelerated).
@@ -221,16 +185,6 @@ internal static partial class NobleInterop
     /// </summary>
     [JSImport("decryptSymmetricCachedAesGcm", ModuleName)]
     public static partial Task<string> DecryptSymmetricCachedAesGcmAsync(string keyId, string ciphertextBase64, string nonceBase64);
-
-    /// <summary>
-    /// Decrypt asymmetric (ECIES) with ChaCha20-Poly1305 using cached X25519 private key.
-    /// </summary>
-    [JSImport("decryptAsymmetricCachedChaCha", ModuleName)]
-    public static partial string DecryptAsymmetricCachedChaCha(
-        string keyId,
-        string ephemeralPublicKeyBase64,
-        string ciphertextBase64,
-        string nonceBase64);
 
     /// <summary>
     /// Decrypt asymmetric (ECIES) with AES-GCM using cached X25519 private key.

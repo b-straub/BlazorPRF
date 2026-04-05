@@ -8,9 +8,10 @@
 
 PRF-based deterministic encryption for Blazor WebAssembly using the WebAuthn PRF extension.
 
-## Breaking Change: Mandatory Sign+Encrypt
+## Breaking Changes
 
-Asymmetric encryption now always uses **sign+encrypt** — the sender's Ed25519 signature is embedded inside the encrypted payload (`SignedEnvelope`). This prevents signature stripping, sender substitution, and cross-message replay attacks. Messages encrypted with previous versions cannot be decrypted by this version. Re-encrypt any existing data.
+- **Mandatory Sign+Encrypt**: Asymmetric encryption now always uses **sign+encrypt** — the sender's Ed25519 signature is embedded inside the encrypted payload (`SignedEnvelope`). This prevents signature stripping, sender substitution, and cross-message replay attacks. Messages encrypted with previous versions cannot be decrypted by this version. Re-encrypt any existing data.
+- **ChaCha20-Poly1305 removed**: All encryption now uses AES-256-GCM exclusively. The `EncryptionAlgorithm` enum and algorithm selection parameters have been removed. Messages encrypted with ChaCha20-Poly1305 in earlier pre-release versions cannot be decrypted.
 
 ## Security Disclaimer
 
@@ -20,7 +21,7 @@ Asymmetric encryption now always uses **sign+encrypt** — the sender's Ed25519 
 >
 > **Do NOT use this in production systems handling sensitive data without a thorough security audit.**
 >
-> The cryptographic primitives used (X25519, ChaCha20-Poly1305, AES-GCM, Ed25519, HKDF) are industry-standard, but correct implementation is critical for security.
+> The cryptographic primitives used (X25519, AES-256-GCM, Ed25519, HKDF) are industry-standard, but correct implementation is critical for security.
 
 ## Overview
 
@@ -33,7 +34,7 @@ BlazorPRF enables client-side encryption in Blazor WebAssembly applications usin
 - **Biometric Key Derivation**: Use your fingerprint, Face ID, or security key to derive encryption keys
 - **Deterministic Keys**: Same passkey + salt = same keys across all synced devices
 - **Client-Side Encryption**: All cryptography happens in the browser - keys never leave the client
-- **Symmetric Encryption**: Encrypt data for yourself using ChaCha20-Poly1305 or AES-GCM
+- **Symmetric Encryption**: Encrypt data for yourself using AES-256-GCM
 - **Asymmetric Encryption**: Share your public key; others can encrypt messages only you can decrypt (ECIES with X25519)
 - **Digital Signatures**: Sign and verify messages with Ed25519 for authentication and integrity
 - **Sign + Encrypt**: Sign plaintext with Ed25519 before encrypting — recipient can verify sender identity after decryption (like PGP sign+encrypt)
@@ -46,7 +47,7 @@ BlazorPRF enables client-side encryption in Blazor WebAssembly applications usin
 
 | Package | Crypto Library | Description |
 |---------|----------------|-------------|
-| [BlazorPRF.Noble.Crypto](https://www.nuget.org/packages/BlazorPRF.Noble.Crypto) | Noble.js + SubtleCrypto | X25519, Ed25519, ChaCha20-Poly1305, AES-GCM. Keys cached in JS. |
+| [BlazorPRF.Noble.Crypto](https://www.nuget.org/packages/BlazorPRF.Noble.Crypto) | Noble.js + SubtleCrypto | X25519, Ed25519, AES-256-GCM. Non-extractable CryptoKey caching. |
 | [BlazorPRF.BC.Crypto](https://www.nuget.org/packages/BlazorPRF.BC.Crypto) | BouncyCastle | Full BouncyCastle crypto stack for WASM. |
 
 ### UI Components (matches your crypto provider)
@@ -131,8 +132,8 @@ builder.Services.AddNobleCrypto();     // For Noble flavor
 ## Cryptographic Primitives
 
 - **Key Derivation**: HKDF-SHA256 from WebAuthn PRF output
-- **Symmetric Encryption**: ChaCha20-Poly1305 or AES-256-GCM (AEAD)
-- **Asymmetric Encryption**: X25519 ECDH + symmetric cipher (ECIES)
+- **Symmetric Encryption**: AES-256-GCM (AEAD, hardware accelerated via SubtleCrypto)
+- **Asymmetric Encryption**: X25519 ECDH + AES-256-GCM (ECIES)
 - **Digital Signatures**: Ed25519 (sign/verify)
 - **Key Storage**: Keys cached in JS as non-extractable CryptoKey objects with cryptographic zeroing
 

@@ -8,136 +8,75 @@ using BlazorPRF.Shared.Crypto.Models;
 namespace BlazorPRF.Noble.Crypto;
 
 /// <summary>
-/// Crypto provider using Noble.js (X25519, Ed25519, ChaCha20-Poly1305) + SubtleCrypto (AES-GCM).
+/// Crypto provider using Noble.js (X25519, Ed25519) + SubtleCrypto (AES-GCM, non-extractable key caching).
 /// This provider runs cryptographic operations in JavaScript via JSImport.
 /// </summary>
 [SupportedOSPlatform("browser")]
 public sealed class NobleCryptoProvider : ICryptoProvider
 {
-    private static readonly IReadOnlyList<EncryptionAlgorithm> Algorithms =
-    [
-        EncryptionAlgorithm.CHA_CHA20_POLY1305,
-        EncryptionAlgorithm.AES_GCM
-    ];
-
        public string ProviderName => "Noble.js + SubtleCrypto";
 
-       public IReadOnlyList<EncryptionAlgorithm> SupportedAlgorithms => Algorithms;
-
-       public bool IsAlgorithmSupported(EncryptionAlgorithm algorithm) =>
-        algorithm is EncryptionAlgorithm.CHA_CHA20_POLY1305 or EncryptionAlgorithm.AES_GCM;
-
     // ============================================================
-    // SYMMETRIC ENCRYPTION
+    // SYMMETRIC ENCRYPTION (AES-256-GCM)
     // ============================================================
 
        public async ValueTask<PrfResult<SymmetricEncryptedMessage>> EncryptSymmetricAsync(
         string plaintext,
-        ReadOnlyMemory<byte> key,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
+        ReadOnlyMemory<byte> key)
     {
         await NobleInterop.EnsureInitializedAsync();
 
         var plaintextBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(plaintext));
         var keyBase64 = Convert.ToBase64String(key.Span);
 
-        string resultJson;
+        var resultJson = await NobleInterop.EncryptAesGcmAsync(plaintextBase64, keyBase64);
 
-        if (algorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305)
-        {
-            resultJson = NobleInterop.EncryptChaCha(plaintextBase64, keyBase64);
-        }
-        else
-        {
-            resultJson = await NobleInterop.EncryptAesGcmAsync(plaintextBase64, keyBase64);
-        }
-
-        return ParseSymmetricEncryptResult(resultJson, algorithm);
+        return ParseSymmetricEncryptResult(resultJson);
     }
 
        public async ValueTask<PrfResult<string>> DecryptSymmetricAsync(
         SymmetricEncryptedMessage encrypted,
-        ReadOnlyMemory<byte> key,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
+        ReadOnlyMemory<byte> key)
     {
         await NobleInterop.EnsureInitializedAsync();
 
         var keyBase64 = Convert.ToBase64String(key.Span);
 
-        // Use algorithm from message if available, otherwise use parameter
-        var effectiveAlgorithm = encrypted.Algorithm ?? algorithm;
-
-        string resultJson;
-
-        if (effectiveAlgorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305)
-        {
-            resultJson = NobleInterop.DecryptChaCha(encrypted.Ciphertext, encrypted.Nonce, keyBase64);
-        }
-        else
-        {
-            resultJson = await NobleInterop.DecryptAesGcmAsync(encrypted.Ciphertext, encrypted.Nonce, keyBase64);
-        }
+        var resultJson = await NobleInterop.DecryptAesGcmAsync(encrypted.Ciphertext, encrypted.Nonce, keyBase64);
 
         return ParseDecryptResult(resultJson);
     }
 
     // ============================================================
-    // ASYMMETRIC ENCRYPTION (ECIES)
+    // ASYMMETRIC ENCRYPTION (ECIES: X25519 + AES-256-GCM)
     // ============================================================
 
        public async ValueTask<PrfResult<EncryptedMessage>> EncryptAsymmetricAsync(
         string plaintext,
-        string recipientPublicKeyBase64,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
+        string recipientPublicKeyBase64)
     {
         await NobleInterop.EnsureInitializedAsync();
 
         var plaintextBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(plaintext));
 
-        string resultJson;
+        var resultJson = await NobleInterop.EncryptAsymmetricAesGcmAsync(plaintextBase64, recipientPublicKeyBase64);
 
-        if (algorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305)
-        {
-            resultJson = NobleInterop.EncryptAsymmetricChaCha(plaintextBase64, recipientPublicKeyBase64);
-        }
-        else
-        {
-            resultJson = await NobleInterop.EncryptAsymmetricAesGcmAsync(plaintextBase64, recipientPublicKeyBase64);
-        }
-
-        return ParseAsymmetricEncryptResult(resultJson, algorithm);
+        return ParseAsymmetricEncryptResult(resultJson);
     }
 
        public async ValueTask<PrfResult<string>> DecryptAsymmetricAsync(
         EncryptedMessage encrypted,
-        ReadOnlyMemory<byte> privateKey,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
+        ReadOnlyMemory<byte> privateKey)
     {
         await NobleInterop.EnsureInitializedAsync();
 
-        // Use algorithm from message if available, otherwise use parameter
-        var effectiveAlgorithm = encrypted.Algorithm ?? algorithm;
-
         var privateKeyBase64 = Convert.ToBase64String(privateKey.Span);
 
-        string resultJson;
-
-        if (effectiveAlgorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305)
-        {
-            resultJson = NobleInterop.DecryptAsymmetricChaCha(
-                encrypted.EphemeralPublicKey,
-                encrypted.Ciphertext,
-                encrypted.Nonce,
-                privateKeyBase64);
-        }
-        else
-        {
-            resultJson = await NobleInterop.DecryptAsymmetricAesGcmAsync(
-                encrypted.EphemeralPublicKey,
-                encrypted.Ciphertext,
-                encrypted.Nonce,
-                privateKeyBase64);
-        }
+        var resultJson = await NobleInterop.DecryptAsymmetricAesGcmAsync(
+            encrypted.EphemeralPublicKey,
+            encrypted.Ciphertext,
+            encrypted.Nonce,
+            privateKeyBase64);
 
         return ParseDecryptResult(resultJson);
     }
@@ -256,8 +195,6 @@ public sealed class NobleCryptoProvider : ICryptoProvider
 
        public bool HasCachedKey(string keyId)
     {
-        // Note: This is synchronous because it's a simple lookup
-        // EnsureInitializedAsync should have been called before this
         return NobleInterop.HasKey(keyId);
     }
 
@@ -271,7 +208,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
         await NobleInterop.EnsureInitializedAsync();
 
         var messageBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(message));
-        var resultJson = NobleInterop.SignWithCachedKey(keyId, messageBase64);
+        var resultJson = await NobleInterop.SignWithCachedKeyAsync(keyId, messageBase64);
 
         using var doc = JsonDocument.Parse(resultJson);
         var root = doc.RootElement;
@@ -286,79 +223,39 @@ public sealed class NobleCryptoProvider : ICryptoProvider
 
        public async ValueTask<PrfResult<SymmetricEncryptedMessage>> EncryptSymmetricWithKeyIdAsync(
         string plaintext,
-        string keyId,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
+        string keyId)
     {
         await NobleInterop.EnsureInitializedAsync();
 
         var plaintextBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(plaintext));
 
-        string resultJson;
+        var resultJson = await NobleInterop.EncryptSymmetricCachedAesGcmAsync(keyId, plaintextBase64);
 
-        if (algorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305)
-        {
-            resultJson = NobleInterop.EncryptSymmetricCachedChaCha(keyId, plaintextBase64);
-        }
-        else
-        {
-            resultJson = await NobleInterop.EncryptSymmetricCachedAesGcmAsync(keyId, plaintextBase64);
-        }
-
-        return ParseSymmetricEncryptResult(resultJson, algorithm);
+        return ParseSymmetricEncryptResult(resultJson);
     }
 
        public async ValueTask<PrfResult<string>> DecryptSymmetricWithKeyIdAsync(
         SymmetricEncryptedMessage encrypted,
-        string keyId,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
+        string keyId)
     {
         await NobleInterop.EnsureInitializedAsync();
 
-        // Use algorithm from message if available, otherwise use parameter
-        var effectiveAlgorithm = encrypted.Algorithm ?? algorithm;
-
-        string resultJson;
-
-        if (effectiveAlgorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305)
-        {
-            resultJson = NobleInterop.DecryptSymmetricCachedChaCha(keyId, encrypted.Ciphertext, encrypted.Nonce);
-        }
-        else
-        {
-            resultJson = await NobleInterop.DecryptSymmetricCachedAesGcmAsync(keyId, encrypted.Ciphertext, encrypted.Nonce);
-        }
+        var resultJson = await NobleInterop.DecryptSymmetricCachedAesGcmAsync(keyId, encrypted.Ciphertext, encrypted.Nonce);
 
         return ParseDecryptResult(resultJson);
     }
 
        public async ValueTask<PrfResult<string>> DecryptAsymmetricWithKeyIdAsync(
         EncryptedMessage encrypted,
-        string keyId,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
+        string keyId)
     {
         await NobleInterop.EnsureInitializedAsync();
 
-        // Use algorithm from message if available, otherwise use parameter
-        var effectiveAlgorithm = encrypted.Algorithm ?? algorithm;
-
-        string resultJson;
-
-        if (effectiveAlgorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305)
-        {
-            resultJson = NobleInterop.DecryptAsymmetricCachedChaCha(
-                keyId,
-                encrypted.EphemeralPublicKey,
-                encrypted.Ciphertext,
-                encrypted.Nonce);
-        }
-        else
-        {
-            resultJson = await NobleInterop.DecryptAsymmetricCachedAesGcmAsync(
-                keyId,
-                encrypted.EphemeralPublicKey,
-                encrypted.Ciphertext,
-                encrypted.Nonce);
-        }
+        var resultJson = await NobleInterop.DecryptAsymmetricCachedAesGcmAsync(
+            keyId,
+            encrypted.EphemeralPublicKey,
+            encrypted.Ciphertext,
+            encrypted.Nonce);
 
         return ParseDecryptResult(resultJson);
     }
@@ -418,9 +315,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
     // PARSING HELPERS
     // ============================================================
 
-    private static PrfResult<SymmetricEncryptedMessage> ParseSymmetricEncryptResult(
-        string resultJson,
-        EncryptionAlgorithm algorithm)
+    private static PrfResult<SymmetricEncryptedMessage> ParseSymmetricEncryptResult(string resultJson)
     {
         using var doc = JsonDocument.Parse(resultJson);
         var root = doc.RootElement;
@@ -429,8 +324,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
         {
             var message = new SymmetricEncryptedMessage(
                 root.GetProperty("ciphertextBase64").GetString()!,
-                root.GetProperty("nonceBase64").GetString()!,
-                algorithm
+                root.GetProperty("nonceBase64").GetString()!
             );
             return PrfResult<SymmetricEncryptedMessage>.Ok(message);
         }
@@ -438,9 +332,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
         return PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.ENCRYPTION_FAILED);
     }
 
-    private static PrfResult<EncryptedMessage> ParseAsymmetricEncryptResult(
-        string resultJson,
-        EncryptionAlgorithm algorithm)
+    private static PrfResult<EncryptedMessage> ParseAsymmetricEncryptResult(string resultJson)
     {
         using var doc = JsonDocument.Parse(resultJson);
         var root = doc.RootElement;
@@ -450,8 +342,7 @@ public sealed class NobleCryptoProvider : ICryptoProvider
             var message = new EncryptedMessage(
                 root.GetProperty("ephemeralPublicKeyBase64").GetString()!,
                 root.GetProperty("ciphertextBase64").GetString()!,
-                root.GetProperty("nonceBase64").GetString()!,
-                algorithm
+                root.GetProperty("nonceBase64").GetString()!
             );
             return PrfResult<EncryptedMessage>.Ok(message);
         }

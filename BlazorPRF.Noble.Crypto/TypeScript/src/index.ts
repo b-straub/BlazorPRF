@@ -110,17 +110,11 @@ export const ed25519Verify = crypto.ed25519Verify;
 // Dual key derivation
 export const deriveDualKeyPair = crypto.deriveDualKeyPair;
 
-// ChaCha20-Poly1305 symmetric encryption
-export const encryptChaCha = crypto.encryptChaCha;
-export const decryptChaCha = crypto.decryptChaCha;
-
 // AES-GCM symmetric encryption
 export const encryptAesGcm = crypto.encryptAesGcm;
 export const decryptAesGcm = crypto.decryptAesGcm;
 
-// ECIES asymmetric encryption
-export const encryptAsymmetricChaCha = crypto.encryptAsymmetricChaCha;
-export const decryptAsymmetricChaCha = crypto.decryptAsymmetricChaCha;
+// ECIES asymmetric encryption (X25519 + AES-GCM)
 export const encryptAsymmetricAesGcm = crypto.encryptAsymmetricAesGcm;
 export const decryptAsymmetricAesGcm = crypto.decryptAsymmetricAesGcm;
 
@@ -140,9 +134,6 @@ export const clearAllKeys = crypto.clearAllKeys;
 
 // Cached key operations
 export const signWithCachedKey = crypto.signWithCachedKey;
-export const encryptSymmetricCachedChaCha = crypto.encryptSymmetricCachedChaCha;
-export const decryptSymmetricCachedChaCha = crypto.decryptSymmetricCachedChaCha;
 export const encryptSymmetricCachedAesGcm = crypto.encryptSymmetricCachedAesGcm;
 export const decryptSymmetricCachedAesGcm = crypto.decryptSymmetricCachedAesGcm;
-export const decryptAsymmetricCachedChaCha = crypto.decryptAsymmetricCachedChaCha;
 export const decryptAsymmetricCachedAesGcm = crypto.decryptAsymmetricCachedAesGcm;

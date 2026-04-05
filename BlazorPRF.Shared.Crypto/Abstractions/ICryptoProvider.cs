@@ -3,8 +3,8 @@ using BlazorPRF.Shared.Crypto.Models;
 namespace BlazorPRF.Shared.Crypto.Abstractions;
 
 /// <summary>
-/// Abstraction for cryptographic operations.
-/// Implementations: BouncyCastleCryptoProvider (full support), WebCryptoProvider (AES-GCM only).
+/// Abstraction for cryptographic operations using AES-256-GCM.
+/// Implementations: BouncyCastleCryptoProvider, NobleCryptoProvider.
 /// </summary>
 public interface ICryptoProvider
 {
@@ -13,71 +13,53 @@ public interface ICryptoProvider
     /// </summary>
     string ProviderName { get; }
 
-    /// <summary>
-    /// Gets the supported encryption algorithms.
-    /// </summary>
-    IReadOnlyList<EncryptionAlgorithm> SupportedAlgorithms { get; }
-
-    /// <summary>
-    /// Checks if an algorithm is supported by this provider.
-    /// </summary>
-    bool IsAlgorithmSupported(EncryptionAlgorithm algorithm);
-
     // ============================================================
-    // SYMMETRIC ENCRYPTION
+    // SYMMETRIC ENCRYPTION (AES-256-GCM)
     // ============================================================
 
     /// <summary>
-    /// Encrypts a message using symmetric encryption.
+    /// Encrypts a message using AES-256-GCM.
     /// </summary>
     /// <param name="plaintext">The plaintext to encrypt</param>
     /// <param name="key">32-byte encryption key</param>
-    /// <param name="algorithm">Encryption algorithm to use</param>
     /// <returns>Encrypted message with nonce</returns>
     ValueTask<PrfResult<SymmetricEncryptedMessage>> EncryptSymmetricAsync(
         string plaintext,
-        ReadOnlyMemory<byte> key,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM);
+        ReadOnlyMemory<byte> key);
 
     /// <summary>
-    /// Decrypts a message using symmetric encryption.
+    /// Decrypts a message using AES-256-GCM.
     /// </summary>
     /// <param name="encrypted">The encrypted message</param>
     /// <param name="key">32-byte encryption key</param>
-    /// <param name="algorithm">Encryption algorithm used</param>
     /// <returns>Decrypted plaintext</returns>
     ValueTask<PrfResult<string>> DecryptSymmetricAsync(
         SymmetricEncryptedMessage encrypted,
-        ReadOnlyMemory<byte> key,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM);
+        ReadOnlyMemory<byte> key);
 
     // ============================================================
-    // ASYMMETRIC ENCRYPTION (ECIES: X25519 + symmetric cipher)
+    // ASYMMETRIC ENCRYPTION (ECIES: X25519 + AES-256-GCM)
     // ============================================================
 
     /// <summary>
-    /// Encrypts a message using ECIES (X25519 key agreement + symmetric cipher).
+    /// Encrypts a message using ECIES (X25519 key agreement + AES-256-GCM).
     /// </summary>
     /// <param name="plaintext">The plaintext to encrypt</param>
     /// <param name="recipientPublicKeyBase64">Recipient's X25519 public key</param>
-    /// <param name="algorithm">Symmetric encryption algorithm to use</param>
     /// <returns>Encrypted message with ephemeral public key and nonce</returns>
     ValueTask<PrfResult<EncryptedMessage>> EncryptAsymmetricAsync(
         string plaintext,
-        string recipientPublicKeyBase64,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM);
+        string recipientPublicKeyBase64);
 
     /// <summary>
-    /// Decrypts a message using ECIES (X25519 key agreement + symmetric cipher).
+    /// Decrypts a message using ECIES (X25519 key agreement + AES-256-GCM).
     /// </summary>
     /// <param name="encrypted">The encrypted message</param>
     /// <param name="privateKey">Recipient's X25519 private key (32 bytes)</param>
-    /// <param name="algorithm">Symmetric encryption algorithm used</param>
     /// <returns>Decrypted plaintext</returns>
     ValueTask<PrfResult<string>> DecryptAsymmetricAsync(
         EncryptedMessage encrypted,
-        ReadOnlyMemory<byte> privateKey,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM);
+        ReadOnlyMemory<byte> privateKey);
 
     // ============================================================
     // ED25519 DIGITAL SIGNATURES
@@ -191,8 +173,7 @@ public interface ICryptoProvider
     /// </summary>
     ValueTask<PrfResult<SymmetricEncryptedMessage>> EncryptSymmetricWithKeyIdAsync(
         string plaintext,
-        string keyId,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM) =>
+        string keyId) =>
         ValueTask.FromResult(PrfResult<SymmetricEncryptedMessage>.Fail(PrfErrorCode.NOT_SUPPORTED));
 
     /// <summary>
@@ -201,8 +182,7 @@ public interface ICryptoProvider
     /// </summary>
     ValueTask<PrfResult<string>> DecryptSymmetricWithKeyIdAsync(
         SymmetricEncryptedMessage encrypted,
-        string keyId,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM) =>
+        string keyId) =>
         ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.NOT_SUPPORTED));
 
     /// <summary>
@@ -211,7 +191,6 @@ public interface ICryptoProvider
     /// </summary>
     ValueTask<PrfResult<string>> DecryptAsymmetricWithKeyIdAsync(
         EncryptedMessage encrypted,
-        string keyId,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM) =>
+        string keyId) =>
         ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.NOT_SUPPORTED));
 }

@@ -1,9 +1,7 @@
 using System.Runtime.Versioning;
 using BlazorPRF.Shared.Crypto.Abstractions;
-using BlazorPRF.Shared.Crypto.Configuration;
 using BlazorPRF.Shared.Crypto.Models;
 using BlazorPRF.Shared.Crypto.Services;
-using Microsoft.Extensions.Options;
 
 namespace BlazorPRF.BC.Crypto.Services;
 
@@ -17,16 +15,13 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
 {
     private readonly ISecureKeyCache _keyCache;
     private readonly ICryptoProvider _cryptoProvider;
-    private readonly EncryptionAlgorithm _defaultAlgorithm;
 
     public AsymmetricEncryptionService(
         ISecureKeyCache keyCache,
-        ICryptoProvider cryptoProvider,
-        IOptions<PrfOptions> options)
+        ICryptoProvider cryptoProvider)
     {
         _keyCache = keyCache;
         _cryptoProvider = cryptoProvider;
-        _defaultAlgorithm = options.Value.DefaultAlgorithm;
     }
 
        public async ValueTask<PrfResult<EncryptedMessage>> EncryptAsync(string message, string recipientPublicKey)
@@ -34,8 +29,7 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
         ArgumentException.ThrowIfNullOrEmpty(message);
         ArgumentException.ThrowIfNullOrEmpty(recipientPublicKey);
 
-        // Encryption only needs the public key (not sensitive, no cache lookup needed)
-        return await _cryptoProvider.EncryptAsymmetricAsync(message, recipientPublicKey, _defaultAlgorithm);
+        return await _cryptoProvider.EncryptAsymmetricAsync(message, recipientPublicKey);
     }
 
        public ValueTask<PrfResult<string>> DecryptAsync(EncryptedMessage encrypted, string salt)
@@ -45,14 +39,10 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
 
         var cacheKey = GetCacheKey(salt);
 
-        // Use the key directly from unmanaged memory without creating a managed copy
-        // Use algorithm from message if available, otherwise use default
         if (!_keyCache.UseKey(cacheKey, key =>
         {
-            // DecryptAsymmetricAsync is async but we need sync for UseKey callback
-            // Use the sync version from CryptoOperations with effective algorithm
-            var effectiveAlgorithm = encrypted.Algorithm ?? _defaultAlgorithm;
-            return DecryptWithAlgorithm(encrypted, key, effectiveAlgorithm);
+            var task = _cryptoProvider.DecryptAsymmetricAsync(encrypted, key.ToArray());
+            return task.IsCompleted ? task.Result : task.AsTask().GetAwaiter().GetResult();
         }, out var result))
         {
             return ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.KEY_DERIVATION_FAILED));
@@ -83,7 +73,7 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
         var envelopeJson = System.Text.Json.JsonSerializer.Serialize(envelope,
             Shared.Crypto.Json.SharedJsonContext.Default.SignedEnvelope);
 
-        return await _cryptoProvider.EncryptAsymmetricAsync(envelopeJson, recipientPublicKey, _defaultAlgorithm);
+        return await _cryptoProvider.EncryptAsymmetricAsync(envelopeJson, recipientPublicKey);
     }
 
        public async ValueTask<PrfResult<DecryptedMessage>> DecryptAndVerifyAsync(
@@ -122,15 +112,6 @@ public sealed class AsymmetricEncryptionService : IAsymmetricEncryption
             envelope.Message,
             envelope.SenderEd25519PublicKey,
             signatureValid));
-    }
-
-    private PrfResult<string> DecryptWithAlgorithm(
-        EncryptedMessage encrypted,
-        ReadOnlySpan<byte> privateKey,
-        EncryptionAlgorithm algorithm)
-    {
-        var task = _cryptoProvider.DecryptAsymmetricAsync(encrypted, privateKey.ToArray(), algorithm);
-        return task.IsCompleted ? task.Result : task.AsTask().GetAwaiter().GetResult();
     }
 
     private static string GetCacheKey(string salt) => $"prf-key:{salt}";

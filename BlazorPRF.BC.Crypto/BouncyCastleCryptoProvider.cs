@@ -9,36 +9,25 @@ using Org.BouncyCastle.Security;
 namespace BlazorPRF.BC.Crypto;
 
 /// <summary>
-/// BouncyCastle-based crypto provider.
-/// Supports all algorithms including ChaCha20-Poly1305.
+/// BouncyCastle-based crypto provider using AES-256-GCM.
 /// </summary>
 public sealed class BouncyCastleCryptoProvider : ICryptoProvider
 {
     private const int NonceLength = 12;
     private const int KeyLength = 32;
 
-    // HKDF info strings must match Noble.js for interoperability
+    // HKDF info string must match Noble.js for interoperability
     private static readonly byte[] HkdfInfoAesGcm = "ecies-aes-gcm"u8.ToArray();
-    private static readonly byte[] HkdfInfoChaCha = "ecies-xchacha20poly1305"u8.ToArray();
-
-    private static readonly IReadOnlyList<EncryptionAlgorithm> Algorithms =
-        [EncryptionAlgorithm.CHA_CHA20_POLY1305, EncryptionAlgorithm.AES_GCM];
 
     public string ProviderName => "BouncyCastle";
 
-    public IReadOnlyList<EncryptionAlgorithm> SupportedAlgorithms => Algorithms;
-
-    public bool IsAlgorithmSupported(EncryptionAlgorithm algorithm) =>
-        algorithm is EncryptionAlgorithm.CHA_CHA20_POLY1305 or EncryptionAlgorithm.AES_GCM;
-
     // ============================================================
-    // SYMMETRIC ENCRYPTION
+    // SYMMETRIC ENCRYPTION (AES-256-GCM)
     // ============================================================
 
     public ValueTask<PrfResult<SymmetricEncryptedMessage>> EncryptSymmetricAsync(
         string plaintext,
-        ReadOnlyMemory<byte> key,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
+        ReadOnlyMemory<byte> key)
     {
         try
         {
@@ -51,21 +40,12 @@ public sealed class BouncyCastleCryptoProvider : ICryptoProvider
             var nonce = new byte[NonceLength];
             new SecureRandom().NextBytes(nonce);
 
-            var ciphertext = algorithm switch
-            {
-                EncryptionAlgorithm.CHA_CHA20_POLY1305 => CryptoOperations.EncryptChaCha20Poly1305(plaintextBytes, key.Span, nonce),
-                EncryptionAlgorithm.AES_GCM => CryptoOperations.EncryptAesGcm(plaintextBytes, key.Span, nonce),
-                _ => throw new NotSupportedException($"Algorithm {algorithm} not supported")
-            };
+            var ciphertext = CryptoOperations.EncryptAesGcm(plaintextBytes, key.Span, nonce);
 
             return ValueTask.FromResult(PrfResult<SymmetricEncryptedMessage>.Ok(new SymmetricEncryptedMessage(
                 Ciphertext: Convert.ToBase64String(ciphertext),
                 Nonce: Convert.ToBase64String(nonce)
             )));
-        }
-        catch (NotSupportedException)
-        {
-            throw;
         }
         catch
         {
@@ -75,8 +55,7 @@ public sealed class BouncyCastleCryptoProvider : ICryptoProvider
 
     public ValueTask<PrfResult<string>> DecryptSymmetricAsync(
         SymmetricEncryptedMessage encrypted,
-        ReadOnlyMemory<byte> key,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
+        ReadOnlyMemory<byte> key)
     {
         try
         {
@@ -93,12 +72,7 @@ public sealed class BouncyCastleCryptoProvider : ICryptoProvider
                 return ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.INVALID_DATA));
             }
 
-            var plaintext = algorithm switch
-            {
-                EncryptionAlgorithm.CHA_CHA20_POLY1305 => CryptoOperations.DecryptChaCha20Poly1305(ciphertext, key.Span, nonce),
-                EncryptionAlgorithm.AES_GCM => CryptoOperations.DecryptAesGcm(ciphertext, key.Span, nonce),
-                _ => throw new NotSupportedException($"Algorithm {algorithm} not supported")
-            };
+            var plaintext = CryptoOperations.DecryptAesGcm(ciphertext, key.Span, nonce);
 
             if (plaintext is null)
             {
@@ -107,10 +81,6 @@ public sealed class BouncyCastleCryptoProvider : ICryptoProvider
 
             return ValueTask.FromResult(PrfResult<string>.Ok(Encoding.UTF8.GetString(plaintext)));
         }
-        catch (NotSupportedException)
-        {
-            throw;
-        }
         catch
         {
             return ValueTask.FromResult(PrfResult<string>.Fail(PrfErrorCode.DECRYPTION_FAILED));
@@ -118,13 +88,12 @@ public sealed class BouncyCastleCryptoProvider : ICryptoProvider
     }
 
     // ============================================================
-    // ASYMMETRIC ENCRYPTION (ECIES)
+    // ASYMMETRIC ENCRYPTION (ECIES: X25519 + AES-256-GCM)
     // ============================================================
 
     public ValueTask<PrfResult<EncryptedMessage>> EncryptAsymmetricAsync(
         string plaintext,
-        string recipientPublicKeyBase64,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
+        string recipientPublicKeyBase64)
     {
         try
         {
@@ -156,20 +125,14 @@ public sealed class BouncyCastleCryptoProvider : ICryptoProvider
             ephemeralPublicKey.Encode(ephemeralPublicKeyBytes, 0);
 
             // Derive encryption key using HKDF (null salt = 32 zeros to match Noble.js)
-            var hkdfInfo = algorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305 ? HkdfInfoChaCha : HkdfInfoAesGcm;
-            var encryptionKey = KeyGenerator.HkdfDeriveKey(sharedSecret, null, hkdfInfo, KeyLength);
+            var encryptionKey = KeyGenerator.HkdfDeriveKey(sharedSecret, null, HkdfInfoAesGcm, KeyLength);
 
-            // Encrypt
+            // Encrypt with AES-256-GCM
             var plaintextBytes = Encoding.UTF8.GetBytes(plaintext);
             var nonce = new byte[NonceLength];
             random.NextBytes(nonce);
 
-            var ciphertext = algorithm switch
-            {
-                EncryptionAlgorithm.CHA_CHA20_POLY1305 => CryptoOperations.EncryptChaCha20Poly1305(plaintextBytes, encryptionKey, nonce),
-                EncryptionAlgorithm.AES_GCM => CryptoOperations.EncryptAesGcm(plaintextBytes, encryptionKey, nonce),
-                _ => throw new NotSupportedException($"Algorithm {algorithm} not supported")
-            };
+            var ciphertext = CryptoOperations.EncryptAesGcm(plaintextBytes, encryptionKey, nonce);
 
             // Clear sensitive data
             Array.Clear(sharedSecret, 0, sharedSecret.Length);
@@ -178,13 +141,8 @@ public sealed class BouncyCastleCryptoProvider : ICryptoProvider
             return ValueTask.FromResult(PrfResult<EncryptedMessage>.Ok(new EncryptedMessage(
                 EphemeralPublicKey: Convert.ToBase64String(ephemeralPublicKeyBytes),
                 Ciphertext: Convert.ToBase64String(ciphertext),
-                Nonce: Convert.ToBase64String(nonce),
-                Algorithm: algorithm
+                Nonce: Convert.ToBase64String(nonce)
             )));
-        }
-        catch (NotSupportedException)
-        {
-            throw;
         }
         catch
         {
@@ -194,8 +152,7 @@ public sealed class BouncyCastleCryptoProvider : ICryptoProvider
 
     public ValueTask<PrfResult<string>> DecryptAsymmetricAsync(
         EncryptedMessage encrypted,
-        ReadOnlyMemory<byte> privateKey,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.AES_GCM)
+        ReadOnlyMemory<byte> privateKey)
     {
         try
         {
@@ -227,20 +184,11 @@ public sealed class BouncyCastleCryptoProvider : ICryptoProvider
             var sharedSecret = new byte[agreement.AgreementSize];
             agreement.CalculateAgreement(ephemeralPublicKey, sharedSecret, 0);
 
-            // Use algorithm from message if available, otherwise use parameter
-            var effectiveAlgorithm = encrypted.Algorithm ?? algorithm;
-
             // Derive encryption key using HKDF (null salt = 32 zeros to match Noble.js)
-            var hkdfInfo = effectiveAlgorithm == EncryptionAlgorithm.CHA_CHA20_POLY1305 ? HkdfInfoChaCha : HkdfInfoAesGcm;
-            var encryptionKey = KeyGenerator.HkdfDeriveKey(sharedSecret, null, hkdfInfo, KeyLength);
+            var encryptionKey = KeyGenerator.HkdfDeriveKey(sharedSecret, null, HkdfInfoAesGcm, KeyLength);
 
-            // Decrypt
-            var plaintext = effectiveAlgorithm switch
-            {
-                EncryptionAlgorithm.CHA_CHA20_POLY1305 => CryptoOperations.DecryptChaCha20Poly1305(ciphertext, encryptionKey, nonce),
-                EncryptionAlgorithm.AES_GCM => CryptoOperations.DecryptAesGcm(ciphertext, encryptionKey, nonce),
-                _ => throw new NotSupportedException($"Algorithm {effectiveAlgorithm} not supported")
-            };
+            // Decrypt with AES-256-GCM
+            var plaintext = CryptoOperations.DecryptAesGcm(ciphertext, encryptionKey, nonce);
 
             // Clear sensitive data
             Array.Clear(sharedSecret, 0, sharedSecret.Length);
@@ -252,10 +200,6 @@ public sealed class BouncyCastleCryptoProvider : ICryptoProvider
             }
 
             return ValueTask.FromResult(PrfResult<string>.Ok(Encoding.UTF8.GetString(plaintext)));
-        }
-        catch (NotSupportedException)
-        {
-            throw;
         }
         catch
         {

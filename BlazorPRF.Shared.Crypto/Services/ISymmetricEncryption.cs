@@ -3,7 +3,7 @@ using BlazorPRF.Shared.Crypto.Models;
 namespace BlazorPRF.Shared.Crypto.Services;
 
 /// <summary>
-/// Service for symmetric encryption using ChaCha20-Poly1305.
+/// Service for symmetric encryption using AES-256-GCM.
 /// </summary>
 public interface ISymmetricEncryption
 {

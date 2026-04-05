@@ -149,7 +149,7 @@ public class CryptoOperationsTests
         // Ephemeral public key should be 32 bytes (X25519)
         Assert.Equal(32, Convert.FromBase64String(msg.EphemeralPublicKey).Length);
 
-        // Nonce should be 12 bytes (ChaCha20-Poly1305)
+        // Nonce should be 12 bytes (AES-GCM)
         Assert.Equal(12, Convert.FromBase64String(msg.Nonce).Length);
     }
 

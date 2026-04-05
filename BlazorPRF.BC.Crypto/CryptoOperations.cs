@@ -1,11 +1,9 @@
 using System.Text;
-using BlazorPRF.Shared.Crypto.Abstractions;
 using BlazorPRF.Shared.Crypto.Extensions;
 using BlazorPRF.Shared.Crypto.Models;
 using Org.BouncyCastle.Crypto.Agreement;
 using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.Generators;
-using BcChaCha20Poly1305 = Org.BouncyCastle.Crypto.Modes.ChaCha20Poly1305;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Security;
@@ -14,18 +12,18 @@ namespace BlazorPRF.BC.Crypto;
 
 /// <summary>
 /// Cryptographic operations using BouncyCastle.
-/// Provides X25519 + ChaCha20-Poly1305 encryption and Ed25519 signing.
+/// Provides X25519 + AES-256-GCM encryption and Ed25519 signing.
 /// Compatible with WASM and server-side execution.
 /// </summary>
 public static class CryptoOperations
 {
     private const int NonceLength = 12;
     private const int KeyLength = 32;
-    // HKDF info must match Noble.js for interoperability (ChaCha20-Poly1305 variant)
-    private static readonly byte[] HkdfInfo = "ecies-xchacha20poly1305"u8.ToArray();
+    // HKDF info must match Noble.js for interoperability
+    private static readonly byte[] HkdfInfo = "ecies-aes-gcm"u8.ToArray();
 
     /// <summary>
-    /// Encrypts a message using ChaCha20-Poly1305 symmetric encryption.
+    /// Encrypts a message using AES-256-GCM symmetric encryption.
     /// </summary>
     public static PrfResult<SymmetricEncryptedMessage> EncryptSymmetric(string plaintext, string keyBase64)
     {
@@ -41,13 +39,12 @@ public static class CryptoOperations
     }
 
     /// <summary>
-    /// Encrypts a message using symmetric encryption with specified algorithm.
+    /// Encrypts a message using AES-256-GCM symmetric encryption.
     /// Preferred overload - avoids Base64 conversion and works directly with key bytes.
     /// </summary>
     public static PrfResult<SymmetricEncryptedMessage> EncryptSymmetric(
         string plaintext,
-        ReadOnlySpan<byte> key,
-        EncryptionAlgorithm algorithm = EncryptionAlgorithm.CHA_CHA20_POLY1305)
+        ReadOnlySpan<byte> key)
     {
         try
         {
@@ -60,14 +57,11 @@ public static class CryptoOperations
             var nonce = new byte[NonceLength];
             new SecureRandom().NextBytes(nonce);
 
-            var ciphertext = algorithm == EncryptionAlgorithm.AES_GCM
-                ? EncryptAesGcm(plaintextBytes, key, nonce)
-                : EncryptChaCha20Poly1305(plaintextBytes, key, nonce);
+            var ciphertext = EncryptAesGcm(plaintextBytes, key, nonce);
 
             return PrfResult<SymmetricEncryptedMessage>.Ok(new SymmetricEncryptedMessage(
                 Ciphertext: Convert.ToBase64String(ciphertext),
-                Nonce: Convert.ToBase64String(nonce),
-                Algorithm: algorithm
+                Nonce: Convert.ToBase64String(nonce)
             ));
         }
         catch
@@ -77,7 +71,7 @@ public static class CryptoOperations
     }
 
     /// <summary>
-    /// Decrypts a message using ChaCha20-Poly1305 symmetric encryption.
+    /// Decrypts a message using AES-256-GCM symmetric encryption.
     /// </summary>
     public static PrfResult<string> DecryptSymmetric(SymmetricEncryptedMessage encrypted, string keyBase64)
     {
@@ -93,7 +87,7 @@ public static class CryptoOperations
     }
 
     /// <summary>
-    /// Decrypts a message using the algorithm specified in the message.
+    /// Decrypts a message using AES-256-GCM symmetric encryption.
     /// Preferred overload - avoids Base64 conversion and works directly with key bytes.
     /// </summary>
     public static PrfResult<string> DecryptSymmetric(SymmetricEncryptedMessage encrypted, ReadOnlySpan<byte> key)
@@ -113,9 +107,7 @@ public static class CryptoOperations
                 return PrfResult<string>.Fail(PrfErrorCode.INVALID_DATA);
             }
 
-            var plaintext = encrypted.EffectiveAlgorithm == EncryptionAlgorithm.AES_GCM
-                ? DecryptAesGcm(ciphertext, key, nonce)
-                : DecryptChaCha20Poly1305(ciphertext, key, nonce);
+            var plaintext = DecryptAesGcm(ciphertext, key, nonce);
 
             if (plaintext is null)
             {
@@ -131,7 +123,7 @@ public static class CryptoOperations
     }
 
     /// <summary>
-    /// Encrypts a message using ECIES (X25519 + ChaCha20-Poly1305).
+    /// Encrypts a message using ECIES (X25519 + AES-256-GCM).
     /// </summary>
     public static PrfResult<EncryptedMessage> EncryptAsymmetric(string plaintext, string recipientPublicKeyBase64)
     {
@@ -164,15 +156,15 @@ public static class CryptoOperations
             var ephemeralPublicKeyBytes = new byte[32];
             ephemeralPublicKey.Encode(ephemeralPublicKeyBytes, 0);
 
-            // Derive encryption key using HKDF (ephemeral public key as salt)
+            // Derive encryption key using HKDF
             var encryptionKey = DeriveEncryptionKey(sharedSecret);
 
-            // Encrypt with ChaCha20-Poly1305
+            // Encrypt with AES-256-GCM
             var plaintextBytes = Encoding.UTF8.GetBytes(plaintext);
             var nonce = new byte[NonceLength];
             new SecureRandom().NextBytes(nonce);
 
-            var ciphertext = EncryptChaCha20Poly1305(plaintextBytes, encryptionKey, nonce);
+            var ciphertext = EncryptAesGcm(plaintextBytes, encryptionKey, nonce);
 
             // Clear sensitive data
             Array.Clear(sharedSecret, 0, sharedSecret.Length);
@@ -191,7 +183,7 @@ public static class CryptoOperations
     }
 
     /// <summary>
-    /// Decrypts a message using ECIES (X25519 + ChaCha20-Poly1305).
+    /// Decrypts a message using ECIES (X25519 + AES-256-GCM).
     /// </summary>
     public static PrfResult<string> DecryptAsymmetric(EncryptedMessage encrypted, string privateKeyBase64)
     {
@@ -207,7 +199,7 @@ public static class CryptoOperations
     }
 
     /// <summary>
-    /// Decrypts a message using ECIES (X25519 + ChaCha20-Poly1305).
+    /// Decrypts a message using ECIES (X25519 + AES-256-GCM).
     /// Preferred overload - avoids Base64 conversion and works directly with key bytes.
     /// </summary>
     public static PrfResult<string> DecryptAsymmetric(EncryptedMessage encrypted, ReadOnlySpan<byte> privateKey)
@@ -242,11 +234,11 @@ public static class CryptoOperations
             var sharedSecret = new byte[agreement.AgreementSize];
             agreement.CalculateAgreement(ephemeralPublicKey, sharedSecret, 0);
 
-            // Derive encryption key using HKDF (ephemeral public key as salt)
+            // Derive encryption key using HKDF
             var encryptionKey = DeriveEncryptionKey(sharedSecret);
 
-            // Decrypt with ChaCha20-Poly1305
-            var plaintext = DecryptChaCha20Poly1305(ciphertext, encryptionKey, nonce);
+            // Decrypt with AES-256-GCM
+            var plaintext = DecryptAesGcm(ciphertext, encryptionKey, nonce);
 
             // Clear sensitive data
             Array.Clear(sharedSecret, 0, sharedSecret.Length);
@@ -272,7 +264,6 @@ public static class CryptoOperations
     /// </summary>
     private static byte[] DeriveEncryptionKey(byte[] sharedSecret)
     {
-        // Note: ephemeralPublicKey is no longer used as salt - Noble.js uses undefined (32 zeros)
         return HkdfDeriveKey(sharedSecret, null, HkdfInfo, KeyLength);
     }
 
@@ -290,46 +281,6 @@ public static class CryptoOperations
         var output = new byte[outputLength];
         hkdf.GenerateBytes(output, 0, outputLength);
         return output;
-    }
-
-    /// <summary>
-    /// Encrypts data using ChaCha20-Poly1305.
-    /// </summary>
-    internal static byte[] EncryptChaCha20Poly1305(byte[] plaintext, ReadOnlySpan<byte> key, byte[] nonce)
-    {
-        var cipher = new BcChaCha20Poly1305();
-        var parameters = new ParametersWithIV(new KeyParameter(key.ToArray()), nonce);
-        cipher.Init(true, parameters);
-
-        var output = new byte[cipher.GetOutputSize(plaintext.Length)];
-        var len = cipher.ProcessBytes(plaintext, 0, plaintext.Length, output, 0);
-        cipher.DoFinal(output, len);
-
-        return output;
-    }
-
-    /// <summary>
-    /// Decrypts data using ChaCha20-Poly1305.
-    /// Returns null if authentication fails.
-    /// </summary>
-    internal static byte[]? DecryptChaCha20Poly1305(byte[] ciphertext, ReadOnlySpan<byte> key, byte[] nonce)
-    {
-        try
-        {
-            var cipher = new BcChaCha20Poly1305();
-            var parameters = new ParametersWithIV(new KeyParameter(key.ToArray()), nonce);
-            cipher.Init(false, parameters);
-
-            var output = new byte[cipher.GetOutputSize(ciphertext.Length)];
-            var len = cipher.ProcessBytes(ciphertext, 0, ciphertext.Length, output, 0);
-            cipher.DoFinal(output, len);
-
-            return output;
-        }
-        catch (Org.BouncyCastle.Crypto.InvalidCipherTextException)
-        {
-            return null;
-        }
     }
 
     // ============================================================

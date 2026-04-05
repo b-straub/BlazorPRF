@@ -2,13 +2,15 @@
  * BlazorPRF Noble.js + SubtleCrypto Hybrid Crypto Provider
  *
  * Uses:
- * - Noble.js: X25519 (ECIES), Ed25519 (signing), ChaCha20-Poly1305
- * - SubtleCrypto: AES-GCM (hardware accelerated), HKDF, random bytes
+ * - Noble.js: X25519 (ECIES), Ed25519 (standalone signing/verification)
+ * - SubtleCrypto: AES-GCM (hardware accelerated), HKDF, Ed25519 (non-extractable cached signing)
+ *
+ * Security: Cached keys use non-extractable CryptoKey objects where possible.
+ * Only X25519 private keys remain as raw Uint8Array (no SubtleCrypto API for X25519).
  */
 
 import { x25519 } from '@noble/curves/ed25519';
 import { ed25519 } from '@noble/curves/ed25519';
-import { xchacha20poly1305 } from '@noble/ciphers/chacha';
 import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha256';
 import { randomBytes } from '@noble/ciphers/webcrypto';
@@ -17,7 +19,6 @@ import { randomBytes } from '@noble/ciphers/webcrypto';
 // CONSTANTS
 // ============================================================
 
-const NONCE_LENGTH_CHACHA = 24;  // XChaCha20-Poly1305 uses 24-byte nonce
 const NONCE_LENGTH_AES = 12;     // AES-GCM uses 12-byte nonce
 const KEY_LENGTH = 32;           // 256-bit keys
 
@@ -28,15 +29,17 @@ const KEY_LENGTH = 32;           // 256-bit keys
 /**
  * Cached key set containing all derived keys for a keyId.
  * Keys stay in JS memory - they never travel back to C#.
+ *
+ * Security: Ed25519 signing key and AES keys are non-extractable CryptoKey objects.
+ * Only X25519 private key remains as raw bytes (no SubtleCrypto API for X25519).
  */
 interface CachedKeySet {
     x25519Private: Uint8Array;
     x25519Public: Uint8Array;
-    ed25519Private: Uint8Array;
+    ed25519SigningKey: CryptoKey;    // non-extractable
     ed25519Public: Uint8Array;
-    symmetricKey: Uint8Array;
-    aesEncryptKey: CryptoKey | null;  // For AES-GCM hardware acceleration
-    aesDecryptKey: CryptoKey | null;
+    aesEncryptKey: CryptoKey;       // non-extractable
+    aesDecryptKey: CryptoKey;       // non-extractable
     expiresAt: number | null;
     expirationTimer: number | null;
 }
@@ -52,20 +55,45 @@ export async function storeKeys(keyId: string, prfSeedBase64: string, ttlMs: num
     try {
         const seed = base64ToBytes(prfSeedBase64);
 
-        // Derive all keypairs using HKDF
+        // Derive X25519 keypair (must stay as raw bytes - no SubtleCrypto X25519)
         const x25519Private = hkdf(sha256, seed, undefined, 'x25519-key', 32);
         const x25519Public = x25519.getPublicKey(x25519Private);
-        const ed25519Private = hkdf(sha256, seed, undefined, 'ed25519-key', 32);
-        const ed25519Public = ed25519.getPublicKey(ed25519Private);
-        const symmetricKey = hkdf(sha256, seed, undefined, 'symmetric-key', 32);
 
-        // Import AES key for SubtleCrypto (hardware accelerated)
+        // Derive Ed25519 seed and import as non-extractable CryptoKey
+        const ed25519Seed = hkdf(sha256, seed, undefined, 'ed25519-key', 32);
+        const pkcs8Key = wrapSeedInPkcs8(ed25519Seed);
+        const ed25519SigningKey = await crypto.subtle.importKey(
+            "pkcs8",
+            pkcs8Key,
+            { name: "Ed25519" },
+            false,  // NOT extractable
+            ["sign"]
+        );
+
+        // Get public key via temporary extractable import
+        const tempSigningKey = await crypto.subtle.importKey(
+            "pkcs8",
+            pkcs8Key,
+            { name: "Ed25519" },
+            true,  // extractable to get public key
+            ["sign"]
+        );
+        const jwk = await crypto.subtle.exportKey("jwk", tempSigningKey);
+        const ed25519Public = base64ToBytes(base64UrlToBase64(jwk.x!));
+
+        // Clear sensitive seed bytes
+        clearBytes(ed25519Seed);
+        clearBytes(pkcs8Key);
+
+        // Derive symmetric key, import as non-extractable AES CryptoKey, then clear raw bytes
+        const symmetricKey = hkdf(sha256, seed, undefined, 'symmetric-key', 32);
         const aesEncryptKey = await crypto.subtle.importKey(
             'raw', symmetricKey, { name: 'AES-GCM' }, false, ['encrypt']
         );
         const aesDecryptKey = await crypto.subtle.importKey(
             'raw', symmetricKey, { name: 'AES-GCM' }, false, ['decrypt']
         );
+        clearBytes(symmetricKey);
 
         // Clear the seed immediately
         clearBytes(seed);
@@ -85,9 +113,8 @@ export async function storeKeys(keyId: string, prfSeedBase64: string, ttlMs: num
         keyCache.set(keyId, {
             x25519Private,
             x25519Public,
-            ed25519Private,
+            ed25519SigningKey,
             ed25519Public,
-            symmetricKey,
             aesEncryptKey,
             aesDecryptKey,
             expiresAt,
@@ -145,12 +172,10 @@ export function removeKeys(keyId: string): void {
             clearTimeout(keys.expirationTimer);
         }
 
-        // Securely clear all key material
+        // Securely clear raw key material (CryptoKey objects are GC'd)
         clearBytes(keys.x25519Private);
         clearBytes(keys.x25519Public);
-        clearBytes(keys.ed25519Private);
         clearBytes(keys.ed25519Public);
-        clearBytes(keys.symmetricKey);
 
         keyCache.delete(keyId);
     }
@@ -191,9 +216,9 @@ function getCachedKeys(keyId: string): CachedKeySet | null {
 // ============================================================
 
 /**
- * Sign with Ed25519 using cached key.
+ * Sign with Ed25519 using cached non-extractable CryptoKey.
  */
-export function signWithCachedKey(keyId: string, messageBase64: string): string {
+export async function signWithCachedKey(keyId: string, messageBase64: string): Promise<string> {
     try {
         const keys = getCachedKeys(keyId);
         if (!keys) {
@@ -201,11 +226,15 @@ export function signWithCachedKey(keyId: string, messageBase64: string): string 
         }
 
         const message = base64ToBytes(messageBase64);
-        const signature = ed25519.sign(message, keys.ed25519Private);
+        const signature = await crypto.subtle.sign(
+            { name: "Ed25519" },
+            keys.ed25519SigningKey,
+            message
+        );
 
         return JSON.stringify({
             success: true,
-            signatureBase64: bytesToBase64(signature)
+            signatureBase64: bytesToBase64(new Uint8Array(signature))
         });
     } catch (e) {
         return JSON.stringify({
@@ -216,72 +245,12 @@ export function signWithCachedKey(keyId: string, messageBase64: string): string 
 }
 
 /**
- * Encrypt symmetric with ChaCha20-Poly1305 using cached key.
- */
-export function encryptSymmetricCachedChaCha(keyId: string, plaintextBase64: string): string {
-    try {
-        const keys = getCachedKeys(keyId);
-        if (!keys) {
-            return JSON.stringify({ success: false, error: 'Key not found or expired' });
-        }
-
-        const plaintext = base64ToBytes(plaintextBase64);
-        const nonce = randomBytes(NONCE_LENGTH_CHACHA);
-        const cipher = xchacha20poly1305(keys.symmetricKey, nonce);
-        const ciphertext = cipher.encrypt(plaintext);
-
-        return JSON.stringify({
-            success: true,
-            ciphertextBase64: bytesToBase64(ciphertext),
-            nonceBase64: bytesToBase64(nonce)
-        });
-    } catch (e) {
-        return JSON.stringify({
-            success: false,
-            error: 'Encryption failed'
-        });
-    }
-}
-
-/**
- * Decrypt symmetric with ChaCha20-Poly1305 using cached key.
- */
-export function decryptSymmetricCachedChaCha(keyId: string, ciphertextBase64: string, nonceBase64: string): string {
-    try {
-        const keys = getCachedKeys(keyId);
-        if (!keys) {
-            return JSON.stringify({ success: false, error: 'Key not found or expired' });
-        }
-
-        const ciphertext = base64ToBytes(ciphertextBase64);
-        const nonce = base64ToBytes(nonceBase64);
-
-        if (nonce.length !== NONCE_LENGTH_CHACHA) {
-            return JSON.stringify({ success: false, error: 'Invalid nonce length' });
-        }
-
-        const cipher = xchacha20poly1305(keys.symmetricKey, nonce);
-        const plaintext = cipher.decrypt(ciphertext);
-
-        return JSON.stringify({
-            success: true,
-            plaintextBase64: bytesToBase64(plaintext)
-        });
-    } catch (e) {
-        return JSON.stringify({
-            success: false,
-            error: 'Decryption failed'
-        });
-    }
-}
-
-/**
  * Encrypt symmetric with AES-GCM using cached CryptoKey (hardware accelerated).
  */
 export async function encryptSymmetricCachedAesGcm(keyId: string, plaintextBase64: string): Promise<string> {
     try {
         const keys = getCachedKeys(keyId);
-        if (!keys || !keys.aesEncryptKey) {
+        if (!keys) {
             return JSON.stringify({ success: false, error: 'Key not found or expired' });
         }
 
@@ -313,7 +282,7 @@ export async function encryptSymmetricCachedAesGcm(keyId: string, plaintextBase6
 export async function decryptSymmetricCachedAesGcm(keyId: string, ciphertextBase64: string, nonceBase64: string): Promise<string> {
     try {
         const keys = getCachedKeys(keyId);
-        if (!keys || !keys.aesDecryptKey) {
+        if (!keys) {
             return JSON.stringify({ success: false, error: 'Key not found or expired' });
         }
 
@@ -338,51 +307,6 @@ export async function decryptSymmetricCachedAesGcm(keyId: string, ciphertextBase
         return JSON.stringify({
             success: false,
             error: 'AES-GCM decryption failed'
-        });
-    }
-}
-
-/**
- * Decrypt asymmetric (ECIES) with ChaCha20-Poly1305 using cached X25519 private key.
- */
-export function decryptAsymmetricCachedChaCha(
-    keyId: string,
-    ephemeralPublicKeyBase64: string,
-    ciphertextBase64: string,
-    nonceBase64: string
-): string {
-    try {
-        const keys = getCachedKeys(keyId);
-        if (!keys) {
-            return JSON.stringify({ success: false, error: 'Key not found or expired' });
-        }
-
-        const ephemeralPublicKey = base64ToBytes(ephemeralPublicKeyBase64);
-        const ciphertext = base64ToBytes(ciphertextBase64);
-        const nonce = base64ToBytes(nonceBase64);
-
-        if (nonce.length !== NONCE_LENGTH_CHACHA) {
-            return JSON.stringify({ success: false, error: 'Invalid nonce length' });
-        }
-
-        // X25519 key agreement using cached private key
-        const sharedSecret = x25519.getSharedSecret(keys.x25519Private, ephemeralPublicKey);
-        const encryptionKey = hkdf(sha256, sharedSecret, undefined, 'ecies-xchacha20poly1305', 32);
-
-        const cipher = xchacha20poly1305(encryptionKey, nonce);
-        const plaintext = cipher.decrypt(ciphertext);
-
-        clearBytes(sharedSecret);
-        clearBytes(encryptionKey);
-
-        return JSON.stringify({
-            success: true,
-            plaintextBase64: bytesToBase64(plaintext)
-        });
-    } catch (e) {
-        return JSON.stringify({
-            success: false,
-            error: 'Asymmetric decryption failed'
         });
     }
 }
@@ -464,6 +388,27 @@ function clearBytes(bytes: Uint8Array): void {
     bytes.fill(0);
 }
 
+/**
+ * Wrap Ed25519 seed in PKCS8 format for SubtleCrypto import.
+ */
+function wrapSeedInPkcs8(seed: Uint8Array): Uint8Array {
+    const pkcs8Header = new Uint8Array([
+        0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06,
+        0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20
+    ]);
+    const pkcs8Key = new Uint8Array(pkcs8Header.length + seed.length);
+    pkcs8Key.set(pkcs8Header);
+    pkcs8Key.set(seed, pkcs8Header.length);
+    return pkcs8Key;
+}
+
+function base64UrlToBase64(base64url: string): string {
+    return base64url
+        .replace(/-/g, "+")
+        .replace(/_/g, "/")
+        .padEnd(base64url.length + (4 - base64url.length % 4) % 4, "=");
+}
+
 // ============================================================
 // X25519 KEY EXCHANGE (Noble.js)
 // ============================================================
@@ -507,7 +452,7 @@ function x25519SharedSecret(privateKey: Uint8Array, publicKey: Uint8Array): Uint
 }
 
 // ============================================================
-// ED25519 SIGNING (Noble.js)
+// ED25519 SIGNING (Noble.js - for standalone operations)
 // ============================================================
 
 /**
@@ -577,84 +522,6 @@ export function ed25519Verify(messageBase64: string, signatureBase64: string, pu
         return ed25519.verify(signature, message, publicKey);
     } catch (e) {
         return false;
-    }
-}
-
-// ============================================================
-// CHACHA20-POLY1305 SYMMETRIC ENCRYPTION (Noble.js)
-// ============================================================
-
-/**
- * Encrypt with XChaCha20-Poly1305
- */
-export function encryptChaCha(plaintextBase64: string, keyBase64: string): string {
-    try {
-        const plaintext = base64ToBytes(plaintextBase64);
-        const key = base64ToBytes(keyBase64);
-
-        if (key.length !== KEY_LENGTH) {
-            return JSON.stringify({
-                success: false,
-                error: `Invalid key length: expected ${KEY_LENGTH}, got ${key.length}`
-            });
-        }
-
-        const nonce = randomBytes(NONCE_LENGTH_CHACHA);
-        const cipher = xchacha20poly1305(key, nonce);
-        const ciphertext = cipher.encrypt(plaintext);
-
-        clearBytes(key);
-
-        return JSON.stringify({
-            success: true,
-            ciphertextBase64: bytesToBase64(ciphertext),
-            nonceBase64: bytesToBase64(nonce)
-        });
-    } catch (e) {
-        return JSON.stringify({
-            success: false,
-            error: `Encryption failed: ${e instanceof Error ? e.message : 'Unknown error'}`
-        });
-    }
-}
-
-/**
- * Decrypt with XChaCha20-Poly1305
- */
-export function decryptChaCha(ciphertextBase64: string, nonceBase64: string, keyBase64: string): string {
-    try {
-        const ciphertext = base64ToBytes(ciphertextBase64);
-        const nonce = base64ToBytes(nonceBase64);
-        const key = base64ToBytes(keyBase64);
-
-        if (key.length !== KEY_LENGTH) {
-            return JSON.stringify({
-                success: false,
-                error: `Invalid key length: expected ${KEY_LENGTH}, got ${key.length}`
-            });
-        }
-
-        if (nonce.length !== NONCE_LENGTH_CHACHA) {
-            return JSON.stringify({
-                success: false,
-                error: `Invalid nonce length: expected ${NONCE_LENGTH_CHACHA}, got ${nonce.length}`
-            });
-        }
-
-        const cipher = xchacha20poly1305(key, nonce);
-        const plaintext = cipher.decrypt(ciphertext);
-
-        clearBytes(key);
-
-        return JSON.stringify({
-            success: true,
-            plaintextBase64: bytesToBase64(plaintext)
-        });
-    } catch (e) {
-        return JSON.stringify({
-            success: false,
-            error: `Decryption failed: ${e instanceof Error ? e.message : 'Unknown error'}`
-        });
     }
 }
 
@@ -760,113 +627,8 @@ export async function decryptAesGcm(ciphertextBase64: string, nonceBase64: strin
 }
 
 // ============================================================
-// ECIES ASYMMETRIC ENCRYPTION (X25519 + ChaCha20-Poly1305)
+// ECIES ASYMMETRIC ENCRYPTION (X25519 + AES-256-GCM)
 // ============================================================
-
-/**
- * Encrypt with ECIES: X25519 key agreement + XChaCha20-Poly1305
- */
-export function encryptAsymmetricChaCha(plaintextBase64: string, recipientPublicKeyBase64: string): string {
-    try {
-        const plaintext = base64ToBytes(plaintextBase64);
-        const recipientPublicKey = base64ToBytes(recipientPublicKeyBase64);
-
-        if (recipientPublicKey.length !== KEY_LENGTH) {
-            return JSON.stringify({
-                success: false,
-                error: `Invalid public key length: expected ${KEY_LENGTH}, got ${recipientPublicKey.length}`
-            });
-        }
-
-        // Generate ephemeral keypair
-        const ephemeralPrivate = randomBytes(32);
-        const ephemeralPublic = x25519.getPublicKey(ephemeralPrivate);
-
-        // X25519 key agreement
-        const sharedSecret = x25519SharedSecret(ephemeralPrivate, recipientPublicKey);
-
-        // Derive encryption key using HKDF
-        const encryptionKey = hkdf(sha256, sharedSecret, undefined, 'ecies-xchacha20poly1305', 32);
-
-        // Encrypt with XChaCha20-Poly1305
-        const nonce = randomBytes(NONCE_LENGTH_CHACHA);
-        const cipher = xchacha20poly1305(encryptionKey, nonce);
-        const ciphertext = cipher.encrypt(plaintext);
-
-        // Clear sensitive data
-        clearBytes(ephemeralPrivate);
-        clearBytes(sharedSecret);
-        clearBytes(encryptionKey);
-
-        return JSON.stringify({
-            success: true,
-            ephemeralPublicKeyBase64: bytesToBase64(ephemeralPublic),
-            ciphertextBase64: bytesToBase64(ciphertext),
-            nonceBase64: bytesToBase64(nonce)
-        });
-    } catch (e) {
-        return JSON.stringify({
-            success: false,
-            error: `Asymmetric encryption failed: ${e instanceof Error ? e.message : 'Unknown error'}`
-        });
-    }
-}
-
-/**
- * Decrypt with ECIES: X25519 key agreement + XChaCha20-Poly1305
- */
-export function decryptAsymmetricChaCha(
-    ephemeralPublicKeyBase64: string,
-    ciphertextBase64: string,
-    nonceBase64: string,
-    privateKeyBase64: string
-): string {
-    try {
-        const ephemeralPublicKey = base64ToBytes(ephemeralPublicKeyBase64);
-        const ciphertext = base64ToBytes(ciphertextBase64);
-        const nonce = base64ToBytes(nonceBase64);
-        const privateKey = base64ToBytes(privateKeyBase64);
-
-        if (privateKey.length !== KEY_LENGTH) {
-            return JSON.stringify({
-                success: false,
-                error: `Invalid private key length: expected ${KEY_LENGTH}, got ${privateKey.length}`
-            });
-        }
-
-        if (nonce.length !== NONCE_LENGTH_CHACHA) {
-            return JSON.stringify({
-                success: false,
-                error: `Invalid nonce length: expected ${NONCE_LENGTH_CHACHA}, got ${nonce.length}`
-            });
-        }
-
-        // X25519 key agreement
-        const sharedSecret = x25519SharedSecret(privateKey, ephemeralPublicKey);
-
-        // Derive encryption key using HKDF
-        const encryptionKey = hkdf(sha256, sharedSecret, undefined, 'ecies-xchacha20poly1305', 32);
-
-        // Decrypt with XChaCha20-Poly1305
-        const cipher = xchacha20poly1305(encryptionKey, nonce);
-        const plaintext = cipher.decrypt(ciphertext);
-
-        // Clear sensitive data
-        clearBytes(privateKey);
-        clearBytes(sharedSecret);
-        clearBytes(encryptionKey);
-
-        return JSON.stringify({
-            success: true,
-            plaintextBase64: bytesToBase64(plaintext)
-        });
-    } catch (e) {
-        return JSON.stringify({
-            success: false,
-            error: `Asymmetric decryption failed: ${e instanceof Error ? e.message : 'Unknown error'}`
-        });
-    }
-}
 
 /**
  * Encrypt with ECIES: X25519 key agreement + AES-256-GCM
