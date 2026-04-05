@@ -58,10 +58,10 @@
 
     private string CurrentHelperText => ShowError ? ErrorText : HelperText;
 
-    private static bool CheckIsValid(string value) =>
+    private static bool CheckIsValid(string? value) =>
         !string.IsNullOrWhiteSpace(value) && EmailRegex.IsMatch(value);
 
-    private async Task OnValueChanged(string newValue)
+    private async Task OnValueChanged(string? newValue)
     {
         await ValueChanged.InvokeAsync(newValue);
         var valid = CheckIsValid(newValue);

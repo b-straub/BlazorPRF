@@ -593,7 +593,7 @@ public class CryptoOperationsTests
         // Message 1
         var signResult1 = CryptoOperations.Sign("Approve request A", senderKeys.PrivateKeyBase64);
         Assert.True(signResult1.Success);
-        var envelope1 = new SignedEnvelope("Approve request A", signResult1.Value!, senderKeys.PublicKeyBase64);
+        _ = new SignedEnvelope("Approve request A", signResult1.Value!, senderKeys.PublicKeyBase64);
 
         // Message 2 — attacker tries to use envelope1's signature for a different message
         var envelope2 = new SignedEnvelope("Approve request B", signResult1.Value!, senderKeys.PublicKeyBase64);

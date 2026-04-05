@@ -24,7 +24,7 @@
 
 @code {
     [CascadingParameter]
-    private IMudDialogInstance MudDialog { get; set; } = default!;
+    public required IMudDialogInstance MudDialog { get; init; }
 
     [Parameter]
     public string? InitialResponse { get; set; }

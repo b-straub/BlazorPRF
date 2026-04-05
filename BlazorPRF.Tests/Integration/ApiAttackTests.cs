@@ -14,13 +14,12 @@ namespace BlazorPRF.Tests.Integration;
 public class ApiAttackTests : IDisposable
 {
     private readonly HttpClient? _client;
-    private readonly string? _apiUrl;
     private readonly bool _enabled;
 
     public ApiAttackTests()
     {
-        _apiUrl = Environment.GetEnvironmentVariable("PRF_API_URL");
-        _enabled = !string.IsNullOrEmpty(_apiUrl);
+        var apiUrl = Environment.GetEnvironmentVariable("PRF_API_URL");
+        _enabled = !string.IsNullOrEmpty(apiUrl);
 
         if (_enabled)
         {
@@ -29,7 +28,7 @@ public class ApiAttackTests : IDisposable
                 // Allow self-signed certs for local dev
                 ServerCertificateCustomValidationCallback = (_, _, _, _) => true
             };
-            _client = new HttpClient(handler) { BaseAddress = new Uri(_apiUrl!) };
+            _client = new HttpClient(handler) { BaseAddress = new Uri(apiUrl!) };
         }
     }
 

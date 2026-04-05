@@ -9,7 +9,6 @@ namespace BlazorPRF.Tests.Integration;
 public class ApiAccessControlTests : IDisposable
 {
     private readonly HttpClient? _client;
-    private readonly string? _baseUrl;
     private readonly bool _enabled;
 
     public ApiAccessControlTests()
@@ -20,13 +19,12 @@ public class ApiAccessControlTests : IDisposable
         if (_enabled)
         {
             // Base URL is the api/ directory on the server
-            _baseUrl = apiUrl;
             var handler = new HttpClientHandler
             {
                 ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
                 AllowAutoRedirect = false
             };
-            _client = new HttpClient(handler) { BaseAddress = new Uri(_baseUrl!) };
+            _client = new HttpClient(handler) { BaseAddress = new Uri(apiUrl!) };
         }
     }
 

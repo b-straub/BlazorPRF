@@ -14,7 +14,7 @@ public sealed class PrfSigningContextProvider(PrfModel prfModel, ISigningService
     {
         return new SigningContext(
             prfModel.Ed25519PublicKey ?? "",
-            prfModel.Salt ?? "",
+            prfModel.Salt,
             async (message, salt) => await signingService.SignAsync(message, salt));
     }
 }
